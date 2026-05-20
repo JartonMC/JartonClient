@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop">
   <id>@Launcher_AppID@</id>
-  <name>Prism Launcher</name>
+  <name>Jarton Client</name>
   <summary>Custom Minecraft Launcher to easily manage multiple Minecraft installations at once</summary>
-  <developer id="org.prismlauncher">
-    <name>Prism Launcher Contributors</name>
+  <developer id="me.jarton">
+    <name>Jarton Client Contributors</name>
   </developer>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>
@@ -26,7 +26,7 @@
   </description>
   <screenshots>
     <screenshot type="default">
-      <caption>The main Prism Launcher window</caption>
+      <caption>The main Jarton Client window</caption>
       <image type="source" width="1030" height="764">https://prismlauncher.org/img/screenshots/LauncherDark.png</image>
     </screenshot>
     <screenshot>
