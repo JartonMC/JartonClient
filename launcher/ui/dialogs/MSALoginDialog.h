@@ -40,7 +40,6 @@ class MSALoginDialog : public QDialog {
    protected slots:
     void onTaskFailed(QString reason);
     void onDeviceFlowStatus(QString status);
-    void onAuthFlowStatus(QString status);
     void authorizeWithBrowser(const QUrl& url);
     void authorizeWithBrowserWithExtra(QString url, QString code, int expiresIn);
 
@@ -48,7 +47,6 @@ class MSALoginDialog : public QDialog {
     Ui::MSALoginDialog* ui;
     MinecraftAccountPtr m_account;
     shared_qobject_ptr<AuthFlow> m_devicecode_task;
-    shared_qobject_ptr<AuthFlow> m_authflow_task;
 
     QUrl m_url;
 };
