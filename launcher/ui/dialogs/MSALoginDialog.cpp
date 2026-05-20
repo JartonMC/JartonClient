@@ -39,7 +39,6 @@
 
 #include "ui_MSALoginDialog.h"
 
-#include "DesktopServices.h"
 #include "minecraft/auth/AuthFlow.h"
 
 #include <QApplication>
@@ -48,7 +47,6 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QSize>
-#include <QUrl>
 #include <QtWidgets/QPushButton>
 
 #include "qrencode.h"
@@ -66,13 +64,6 @@ MSALoginDialog::MSALoginDialog(QWidget* parent) : QDialog(parent), ui(new Ui::MS
     ui->code->setFont(font);
 
     connect(ui->copyCode, &QPushButton::clicked, this, [this] { QApplication::clipboard()->setText(ui->code->text()); });
-    connect(ui->loginButton, &QPushButton::clicked, this, [this] {
-        if (m_url.isValid()) {
-            if (!DesktopServices::openUrl(m_url)) {
-                QApplication::clipboard()->setText(m_url.toString());
-            }
-        }
-    });
 
     ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Cancel"));
 }
@@ -86,7 +77,6 @@ int MSALoginDialog::exec()
     connect(m_devicecode_task.get(), &Task::succeeded, this, &QDialog::accept);
     connect(m_devicecode_task.get(), &Task::aborted, this, &MSALoginDialog::reject);
     connect(m_devicecode_task.get(), &Task::status, this, &MSALoginDialog::onDeviceFlowStatus);
-    connect(m_devicecode_task.get(), &AuthFlow::authorizeWithBrowser, this, &MSALoginDialog::authorizeWithBrowser);
     connect(m_devicecode_task.get(), &AuthFlow::authorizeWithBrowserWithExtra, this, &MSALoginDialog::authorizeWithBrowserWithExtra);
     connect(ui->buttonBox->button(QDialogButtonBox::Cancel), &QPushButton::clicked, m_devicecode_task.get(), &Task::abort);
 
@@ -119,16 +109,6 @@ void MSALoginDialog::onTaskFailed(QString reason)
     }
     disconnect(ui->buttonBox->button(QDialogButtonBox::Cancel), &QPushButton::clicked, m_devicecode_task.get(), &Task::abort);
     connect(ui->buttonBox->button(QDialogButtonBox::Cancel), &QPushButton::clicked, this, &MSALoginDialog::reject);
-}
-
-void MSALoginDialog::authorizeWithBrowser(const QUrl& url)
-{
-    ui->stackedWidget2->setCurrentIndex(1);
-    ui->stackedWidget2->adjustSize();
-    ui->stackedWidget2->updateGeometry();
-    this->adjustSize();
-    ui->loginButton->setToolTip(QString("<div style='width: 200px;'>%1</div>").arg(url.toString()));
-    m_url = url;
 }
 
 void paintQR(QPainter& painter, const QSize canvasSize, const QString& data, QColor fg)
