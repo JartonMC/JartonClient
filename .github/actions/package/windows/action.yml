@@ -1,5 +1,5 @@
 name: Package for Windows
-description: Create a Windows package for Prism Launcher
+description: Create a Windows package for Jarton Client
 
 inputs:
   version:
@@ -17,13 +17,13 @@ inputs:
     required: false
   azure-client-id:
     description: Client ID for the Azure Signer Application
-    required: true
+    required: false
   azure-tenant-id:
     description: Tenant ID for the Azure Signer Application
-    required: true
+    required: false
   azure-subscription-id:
     description: Subscription ID for the Azure Signer Application
-    required: true
+    required: false
 
 runs:
   using: composite
@@ -149,7 +149,7 @@ runs:
         certificate-profile-name: PrismLauncher
 
         files: |
-          ${{ github.workspace }}\PrismLauncher-Setup.exe
+          ${{ github.workspace }}\JartonClient-Setup.exe
 
         # recommended in https://github.com/Azure/artifact-signing-action#timestamping-1
         timestamp-rfc3161: 'http://timestamp.acs.microsoft.com'
@@ -170,17 +170,17 @@ runs:
     - name: Upload binary zip
       uses: actions/upload-artifact@v7
       with:
-        name: PrismLauncher-${{ inputs.artifact-name }}-${{ inputs.version }}-${{ inputs.build-type }}
+        name: JartonClient-${{ inputs.artifact-name }}-${{ inputs.version }}-${{ inputs.build-type }}
         path: install/**
 
     - name: Upload portable zip
       uses: actions/upload-artifact@v7
       with:
-        name: PrismLauncher-${{ inputs.artifact-name }}-Portable-${{ inputs.version }}-${{ inputs.build-type }}
+        name: JartonClient-${{ inputs.artifact-name }}-Portable-${{ inputs.version }}-${{ inputs.build-type }}
         path: install-portable/**
 
     - name: Upload installer
       uses: actions/upload-artifact@v7
       with:
-        name: PrismLauncher-${{ inputs.artifact-name }}-Setup-${{ inputs.version }}-${{ inputs.build-type }}
-        path: PrismLauncher-Setup.exe
+        name: JartonClient-${{ inputs.artifact-name }}-Setup-${{ inputs.version }}-${{ inputs.build-type }}
+        path: JartonClient-Setup.exe
