@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/jarton">
         <file>theme/jarton-theme.qss</file>
+        <file>icons/jartonclient.svg</file>
     </qresource>
 </RCC>
