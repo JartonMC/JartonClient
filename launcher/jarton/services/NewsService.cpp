@@ -1,73 +1,73 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "NewsService.h"
 
-#include "JartonManifestService.h"
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QTimer>
 
 namespace Jarton {
 
-NewsService::NewsService(JartonManifestService* manifest, QObject* parent) : QAbstractListModel(parent)
+namespace {
+constexpr int g_refreshIntervalMs = 15 * 60 * 1000;
+constexpr int g_requestTimeoutMs = 10 * 1000;
+const char* const g_defaultEndpoint = "https://jarton.me/launcher/changelog.md";
+}  // namespace
+
+NewsService::NewsService(QObject* parent)
+    : QObject(parent),
+      m_nam(new QNetworkAccessManager(this)),
+      m_timer(new QTimer(this)),
+      m_endpoint(QString::fromLatin1(g_defaultEndpoint))
 {
-    if (manifest != nullptr) {
-        connect(manifest, &JartonManifestService::manifestChanged, this, &NewsService::onManifestChanged);
-        if (manifest->ready()) {
-            m_items = manifest->manifest().news;
-        }
-    }
+    m_timer->setInterval(g_refreshIntervalMs);
+    connect(m_timer, &QTimer::timeout, this, &NewsService::refreshNow);
+    QTimer::singleShot(0, this, &NewsService::refreshNow);
+    m_timer->start();
 }
 
 NewsService::~NewsService() = default;
 
-int NewsService::rowCount(const QModelIndex& parent) const
+void NewsService::setEndpointUrl(const QString& url)
 {
-    if (parent.isValid()) {
-        return 0;
-    }
-    return static_cast<int>(m_items.size());
-}
-
-QVariant NewsService::data(const QModelIndex& index, int role) const
-{
-    if (!index.isValid() || index.row() < 0 || index.row() >= m_items.size()) {
-        return {};
-    }
-    const auto& item = m_items.at(index.row());
-    switch (role) {
-        case IdRole:
-            return item.id;
-        case TitleRole:
-        case Qt::DisplayRole:
-            return item.title;
-        case BodyMdRole:
-            return item.bodyMd;
-        case PublishedRole:
-            return item.published;
-        case UrlRole:
-            return item.url;
-        default:
-            return {};
-    }
-}
-
-QHash<int, QByteArray> NewsService::roleNames() const
-{
-    return {
-        { IdRole, "newsId" },
-        { TitleRole, "title" },
-        { BodyMdRole, "bodyMd" },
-        { PublishedRole, "published" },
-        { UrlRole, "url" },
-    };
-}
-
-void NewsService::onManifestChanged(bool /*stale*/)
-{
-    auto* manifest = qobject_cast<JartonManifestService*>(sender());
-    if (manifest == nullptr) {
+    if (m_endpoint == url) {
         return;
     }
-    beginResetModel();
-    m_items = manifest->manifest().news;
-    endResetModel();
+    m_endpoint = url;
+    refreshNow();
+}
+
+void NewsService::refreshNow()
+{
+    if (m_inFlight != nullptr) {
+        return;
+    }
+    QNetworkRequest req{ QUrl(m_endpoint) };
+    req.setRawHeader("User-Agent", "JartonClient/1.0");
+    req.setTransferTimeout(g_requestTimeoutMs);
+    m_inFlight = m_nam->get(req);
+    connect(m_inFlight, &QNetworkReply::finished, this, &NewsService::onReplyFinished);
+}
+
+void NewsService::onReplyFinished()
+{
+    QNetworkReply* reply = m_inFlight;
+    m_inFlight = nullptr;
+    if (reply == nullptr) {
+        return;
+    }
+    reply->deleteLater();
+
+    if (reply->error() != QNetworkReply::NoError) {
+        return;  // keep last-known content
+    }
+
+    const QString fetched = QString::fromUtf8(reply->readAll());
+    if (fetched.isEmpty() || fetched == m_markdown) {
+        return;
+    }
+    m_markdown = fetched;
+    emit changed();
 }
 
 }  // namespace Jarton

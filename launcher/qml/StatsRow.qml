@@ -5,9 +5,15 @@ Row {
     spacing: 14
 
     StatsTile {
-        label: qsTr("Top Player")
-        value: "—"
-        subtitle: qsTr("Coming with JartonAPI")
+        label: qsTr("Players Online")
+        value: ServerStatusService.state === 1
+            ? ServerStatusService.playersOnline + " / " + ServerStatusService.playersMax
+            : "—"
+        subtitle: ServerStatusService.state === 1
+            ? qsTr("on mc.jarton.me")
+            : ServerStatusService.state === 0
+                ? qsTr("Status unknown")
+                : qsTr("Server offline")
     }
 
     StatsTile {
@@ -15,11 +21,5 @@ Row {
         value: DiscordWidgetService.available ? DiscordWidgetService.presenceCount.toString() : "—"
         subtitle: DiscordWidgetService.available ? qsTr("online now") : qsTr("Status unknown")
         visible: DiscordWidgetService.available
-    }
-
-    StatsTile {
-        label: qsTr("Your Rank")
-        value: "—"
-        subtitle: qsTr("Connect on the server")
     }
 }

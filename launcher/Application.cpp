@@ -1549,7 +1549,7 @@ void Application::initJartonServices()
     m_jartonStatus = new Jarton::ServerStatusService(m_jartonManifest, this);
     m_jartonWallpaper = new Jarton::WallpaperService(m_jartonManifest, m_jartonConfig, this);
     m_jartonDefaultInstance = new Jarton::DefaultInstanceService(m_jartonManifest, this);
-    m_jartonNews = new Jarton::NewsService(m_jartonManifest, this);
+    m_jartonNews = new Jarton::NewsService(this);
     m_jartonDiscord = new Jarton::DiscordWidgetService(QStringLiteral("1391645092137406494"), this);
 
     qmlRegisterSingletonInstance("Jarton", 1, 0, "JartonManifestService", m_jartonManifest);

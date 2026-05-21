@@ -11,15 +11,15 @@
 #include <atomic>
 #include <csignal>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <ctime>
 
 #if defined(Q_OS_UNIX)
 #include <execinfo.h>
 #include <fcntl.h>
 #include <unistd.h>
 #endif
-
-#include <ctime>
 
 namespace Jarton {
 
@@ -37,8 +37,10 @@ const char* signalName(int sig)
             return "SIGFPE";
         case SIGILL:
             return "SIGILL";
+#if defined(SIGBUS)
         case SIGBUS:
             return "SIGBUS";
+#endif
         default:
             return "UNKNOWN";
     }
@@ -46,6 +48,7 @@ const char* signalName(int sig)
 
 void writeCrashDump(int sig) noexcept
 {
+#if defined(Q_OS_UNIX)
     // Signal-safe: NOT calling Qt allocation paths here. We use raw POSIX writes.
     const char* base = std::getenv("HOME");
     if (base == nullptr) {
@@ -53,12 +56,10 @@ void writeCrashDump(int sig) noexcept
     }
     char path[2048];
     std::snprintf(path, sizeof(path), "%s/Library/Application Support/JartonClient/crashes", base);
-    // mkdir is signal-safe on POSIX.
-#if defined(Q_OS_UNIX)
     char cmd[2200];
     std::snprintf(cmd, sizeof(cmd), "mkdir -p \"%s\"", path);
     [[maybe_unused]] int ignored = std::system(cmd);  // best-effort
-#endif
+
     char filepath[2300];
     std::snprintf(filepath, sizeof(filepath), "%s/crash-%lld.log", path, static_cast<long long>(std::time(nullptr)));
 
@@ -70,19 +71,23 @@ void writeCrashDump(int sig) noexcept
     int hlen = std::snprintf(header, sizeof(header), "Jarton Client crash: signal %s (%d)\n\n", signalName(sig), sig);
     write(fd, header, hlen);
 
-#if defined(Q_OS_UNIX)
     void* frames[64];
     int n = backtrace(frames, 64);
     backtrace_symbols_fd(frames, n, fd);
-#endif
 
     close(fd);
+#else
+    // Windows path: minimal best-effort dump via stderr. The Windows Error Reporting
+    // facility already captures full minidumps for unhandled exceptions, so a custom
+    // file dump here is duplicative. Keeping the function for parity with the UNIX
+    // path; full Windows minidump support can be wired via MiniDumpWriteDump later.
+    (void)sig;
+#endif
 }
 
 void crashHandler(int sig)
 {
     writeCrashDump(sig);
-    // Restore default handler and re-raise so the OS produces its normal crash report.
     std::signal(sig, SIG_DFL);
     std::raise(sig);
 }
@@ -98,7 +103,9 @@ void installCrashHandler()
     std::signal(SIGABRT, crashHandler);
     std::signal(SIGFPE, crashHandler);
     std::signal(SIGILL, crashHandler);
+#if defined(SIGBUS)
     std::signal(SIGBUS, crashHandler);
+#endif
 }
 
 }  // namespace Jarton

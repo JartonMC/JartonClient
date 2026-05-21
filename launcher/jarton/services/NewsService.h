@@ -1,34 +1,46 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
 
-#include <QAbstractListModel>
+#include <QObject>
 #include <QString>
-#include <QVector>
 
-#include "JartonManifest.h"
+class QNetworkAccessManager;
+class QNetworkReply;
+class QTimer;
 
 namespace Jarton {
 
-class JartonManifestService;
-
-class NewsService : public QAbstractListModel {
+// Fetches a markdown changelog from the CDN every 15 minutes and exposes it as
+// one big Q_PROPERTY for the home tab's news panel to render with Text.MarkdownText.
+// One file, edit-and-push admin workflow, same as the manifest.
+class NewsService : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString markdown READ markdown NOTIFY changed)
+    Q_PROPERTY(bool ready READ ready NOTIFY changed)
 
    public:
-    enum Roles : uint16_t { IdRole = Qt::UserRole + 1, TitleRole, BodyMdRole, PublishedRole, UrlRole };
-
-    explicit NewsService(JartonManifestService* manifest, QObject* parent = nullptr);
+    explicit NewsService(QObject* parent = nullptr);
     ~NewsService() override;
 
-    int rowCount(const QModelIndex& parent = QModelIndex{}) const override;
-    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
-    QHash<int, QByteArray> roleNames() const override;
+    QString markdown() const { return m_markdown; }
+    bool ready() const { return !m_markdown.isEmpty(); }
+
+    void setEndpointUrl(const QString& url);
+
+    Q_INVOKABLE void refreshNow();
+
+   signals:
+    void changed();
 
    private slots:
-    void onManifestChanged(bool stale);
+    void onReplyFinished();
 
    private:
-    QVector<ManifestNewsItem> m_items;
+    QNetworkAccessManager* m_nam = nullptr;
+    QNetworkReply* m_inFlight = nullptr;
+    QTimer* m_timer = nullptr;
+    QString m_endpoint;
+    QString m_markdown;
 };
 
 }  // namespace Jarton

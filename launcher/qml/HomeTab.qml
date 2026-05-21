@@ -8,7 +8,8 @@ Item {
         anchors.fill: parent
     }
 
-    // Left column: hero + stats below.
+    // Left column: hero + stats. Featured card slides in just above the
+    // stats when the manifest has one.
     Column {
         id: leftColumn
         anchors.left: parent.left
@@ -20,32 +21,31 @@ Item {
         spacing: 22
 
         HeroBar { width: leftColumn.width }
-        StatsRow {}
-    }
-
-    // Right column: featured card + news feed.
-    Column {
-        id: rightColumn
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.rightMargin: 32
-        anchors.topMargin: 32
-        anchors.bottomMargin: 32
-        width: 360
-        spacing: 14
 
         FeaturedCard {
             id: featured
-            width: rightColumn.width
+            width: 380
             title: JartonManifestService.featuredTitle
             imageUrl: JartonManifestService.featuredImageUrl
             ctaUrl: JartonManifestService.featuredCtaUrl
         }
 
+        StatsRow {}
+    }
+
+    // Right column: full-height news panel.
+    Item {
+        id: rightColumn
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 28
+        anchors.topMargin: 32
+        anchors.bottomMargin: 32
+        width: 380
+
         NewsFeed {
-            width: rightColumn.width
-            height: rightColumn.height - featured.height - rightColumn.spacing
+            anchors.fill: parent
         }
     }
 }

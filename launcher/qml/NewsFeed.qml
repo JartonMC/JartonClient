@@ -1,108 +1,88 @@
 import QtQuick
 import Jarton
 
-Rectangle {
+Item {
     id: feed
 
-    implicitWidth: 360
-    radius: 14
-
-    color: "#cc1a140e"
-    border.color: "#3a2a14"
-    border.width: 1
+    Rectangle {
+        anchors.fill: parent
+        radius: 14
+        color: "#881a140e"
+        border.color: "#332a14"
+        border.width: 1
+    }
 
     Column {
         anchors.fill: parent
-        anchors.margins: 18
+        anchors.leftMargin: 20
+        anchors.rightMargin: 14
+        anchors.topMargin: 18
+        anchors.bottomMargin: 18
         spacing: 12
 
-        Text {
-            text: qsTr("News")
-            color: "#FFE082"
-            font.pixelSize: 13
-            font.weight: Font.Bold
-            font.letterSpacing: 1.4
-            font.capitalization: Font.AllUppercase
+        Row {
+            spacing: 10
+
+            Text {
+                text: qsTr("CHANGELOG")
+                color: "#FFB81C"
+                font.pixelSize: 11
+                font.weight: Font.Bold
+                font.letterSpacing: 1.6
+            }
+
+            Rectangle {
+                width: 1
+                height: 11
+                color: "#3a2a14"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                text: qsTr("JartonMC")
+                color: "#888"
+                font.pixelSize: 11
+                font.weight: Font.Medium
+                font.letterSpacing: 1.0
+                anchors.verticalCenter: parent.verticalCenter
+            }
         }
 
         Flickable {
-            id: flick
+            id: scroller
             width: parent.width
             height: parent.height - parent.spacing - 22
-            contentHeight: listColumn.implicitHeight
+            contentHeight: changelog.implicitHeight + 24
             clip: true
             boundsBehavior: Flickable.StopAtBounds
 
-            Column {
-                id: listColumn
-                width: parent.width
-                spacing: 10
+            Text {
+                id: changelog
+                width: scroller.width - 6
+                text: NewsService.ready ? NewsService.markdown : feed.placeholderMarkdown
+                color: "#C9C9C9"
+                font.pixelSize: 13
+                lineHeight: 1.5
+                wrapMode: Text.WordWrap
+                textFormat: Text.MarkdownText
+                onLinkActivated: function(link) { Qt.openUrlExternally(link) }
+            }
 
-                Repeater {
-                    model: NewsService
-
-                    delegate: Rectangle {
-                        required property string title
-                        required property string published
-                        required property string bodyMd
-                        required property string url
-
-                        width: listColumn.width
-                        implicitHeight: cardCol.implicitHeight + 24
-                        radius: 10
-                        color: "#221911"
-                        border.color: "#3a2a14"
-                        border.width: 1
-
-                        Column {
-                            id: cardCol
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 4
-
-                            Text {
-                                text: title
-                                color: "#FFE082"
-                                font.pixelSize: 14
-                                font.weight: Font.Bold
-                                wrapMode: Text.WordWrap
-                                width: parent.width
-                            }
-
-                            Text {
-                                text: published
-                                color: "#888"
-                                font.pixelSize: 10
-                            }
-
-                            Text {
-                                text: bodyMd
-                                color: "#C9C9C9"
-                                font.pixelSize: 12
-                                wrapMode: Text.WordWrap
-                                width: parent.width
-                                visible: bodyMd.length > 0
-                                maximumLineCount: 3
-                                elide: Text.ElideRight
-                            }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: if (url.length > 0) Qt.openUrlExternally(url)
-                        }
-                    }
-                }
-
-                Text {
-                    visible: NewsService.rowCount() === 0
-                    text: qsTr("No news yet. Check back soon.")
-                    color: "#5C5C5C"
-                    font.pixelSize: 12
-                    font.italic: true
+            // Subtle fade at top/bottom so the scrolling text feels softer.
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 24
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#cc1a140e" }
+                    GradientStop { position: 1.0; color: "transparent" }
                 }
             }
         }
     }
+
+    readonly property string placeholderMarkdown:
+        "_Pulling the latest from jarton.me…_\n\n" +
+        "Once changelog.md is live in jarton-launcher-cdn, every push updates this panel within 15 minutes."
 }
