@@ -49,18 +49,20 @@ Rectangle {
             width: 36
             height: 36
             radius: 8
-            color: discordHover.containsMouse ? "#5865F2" : "#2a1f10"
-            border.color: "#5865F2"
+            color: "transparent"
+            border.color: discordHover.containsMouse ? "#FFE082" : "transparent"
             border.width: 1
-            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on border.color { ColorAnimation { duration: 140 } }
 
-            // Discord wordmark "D" glyph
-            Text {
+            Image {
                 anchors.centerIn: parent
-                text: "D"
-                color: discordHover.containsMouse ? "#FFFFFF" : "#5865F2"
-                font.pixelSize: 18
-                font.weight: Font.Black
+                source: "qrc:/jarton/icons/discord_48.png"
+                width: 22
+                height: 22
+                sourceSize.width: 96
+                sourceSize.height: 96
+                opacity: discordHover.containsMouse ? 1.0 : 0.7
+                Behavior on opacity { NumberAnimation { duration: 140 } }
             }
 
             MouseArea {
@@ -68,7 +70,7 @@ Rectangle {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: Qt.openUrlExternally("https://discord.gg/drxVduxqYz")
+                onClicked: Qt.openUrlExternally("https://discord.gg/JartonMC")
             }
         }
 

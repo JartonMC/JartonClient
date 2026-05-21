@@ -33,7 +33,8 @@ Item {
         StatsRow {}
     }
 
-    // Right column: full-height news panel.
+    // Right column: full-height news panel, doubled from the v1.0.1 width
+    // so the markdown changelog has room to breathe.
     Item {
         id: rightColumn
         anchors.right: parent.right
@@ -42,7 +43,7 @@ Item {
         anchors.rightMargin: 28
         anchors.topMargin: 32
         anchors.bottomMargin: 32
-        width: 380
+        width: 720
 
         NewsFeed {
             anchors.fill: parent

@@ -4,6 +4,8 @@
         <file>icons/jartonclient.svg</file>
         <file>icons/jartonclient_64.png</file>
         <file>icons/jartonclient_128.png</file>
+        <file>icons/discord_48.png</file>
+        <file>icons/discord_96.png</file>
         <file>splash/splash.png</file>
         <file>splash/splash@2x.png</file>
         <file>splash/splash@3x.png</file>

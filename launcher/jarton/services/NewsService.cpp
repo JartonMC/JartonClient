@@ -11,7 +11,10 @@ namespace Jarton {
 namespace {
 constexpr int g_refreshIntervalMs = 15 * 60 * 1000;
 constexpr int g_requestTimeoutMs = 10 * 1000;
-const char* const g_defaultEndpoint = "https://jarton.me/launcher/changelog.md";
+// Default to raw GitHub until Cloudflare Pages is wired at jarton.me/launcher/*.
+// Either URL serves the same content; the manifest can override this at runtime.
+const char* const g_defaultEndpoint =
+    "https://raw.githubusercontent.com/JartonMC/jarton-launcher-cdn/main/launcher/changelog.md";
 }  // namespace
 
 NewsService::NewsService(QObject* parent)
