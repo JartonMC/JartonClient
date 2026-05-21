@@ -90,6 +90,7 @@
 #include <QCommandLineParser>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QFileOpenEvent>
 #include <QIcon>
@@ -1199,6 +1200,14 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     }
 
     m_themeManager->applyCurrentlySelectedTheme(true);
+
+    QFile jartonStyle(":/jarton/theme/jarton-theme.qss");
+    if (jartonStyle.open(QFile::ReadOnly | QFile::Text)) {
+        setStyleSheet(QString::fromUtf8(jartonStyle.readAll()));
+    } else {
+        qWarning() << "Failed to load Jarton stylesheet:" << jartonStyle.errorString();
+    }
+
     performMainStartupAction();
 }
 

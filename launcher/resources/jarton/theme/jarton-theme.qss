@@ -1,0 +1,7 @@
+/* Jarton Client theme — Phase 1 brand shell. */
+/* Filled in by Tasks 7–13. */
+
+QMainWindow, QDialog {
+    background: #0f0a06;
+    color: #C9C9C9;
+}
