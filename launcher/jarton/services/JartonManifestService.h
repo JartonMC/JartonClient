@@ -50,6 +50,7 @@ class JartonManifestService : public QObject {
     void manifestChanged(bool stale);
     void readyChanged();
     void fetchFailed(const QString& reason);
+    void firstLaunchOffline();  // first-ever fetch failed AND no on-disk cache exists
 
    private slots:
     void onReplyFinished();

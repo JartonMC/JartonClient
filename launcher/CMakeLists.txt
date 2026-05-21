@@ -809,6 +809,8 @@ SET(LAUNCHER_SOURCES
     jarton/services/NewsService.cpp
     jarton/services/DiscordWidgetService.h
     jarton/services/DiscordWidgetService.cpp
+    jarton/CrashHandler.h
+    jarton/CrashHandler.cpp
 
     # Application base
     Application.h
@@ -976,6 +978,8 @@ SET(LAUNCHER_SOURCES
     ui/pages/global/ProxyPage.h
     ui/pages/global/APIPage.cpp
     ui/pages/global/APIPage.h
+    ui/pages/global/JartonPage.cpp
+    ui/pages/global/JartonPage.h
 
     # GUI - platform pages
     ui/pages/modplatform/CustomPage.cpp

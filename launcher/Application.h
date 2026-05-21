@@ -221,6 +221,9 @@ class Application : public QApplication {
     // Idempotent; called once after the theme manager is up.
     void initJartonServices();
 
+    Jarton::ConfigService* jartonConfig() const { return m_jartonConfig; }
+    Jarton::JartonManifestService* jartonManifest() const { return m_jartonManifest; }
+
    signals:
     void updateAllowedChanged(bool status);
     void globalSettingsAboutToOpen();

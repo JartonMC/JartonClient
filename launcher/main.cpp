@@ -36,6 +36,7 @@
 #include <iostream>
 
 #include "Application.h"
+#include "jarton/CrashHandler.h"
 
 #if defined Q_OS_WIN32
 #include "console/WindowsConsole.h"
@@ -47,6 +48,9 @@ int main(int argc, char* argv[])
     // used on Windows to attach the standard IO streams
     console::WindowsConsoleGuard _consoleGuard;
 #endif
+
+    // Install crash handler before Qt comes up so even early-init crashes are recorded.
+    Jarton::installCrashHandler();
 
     // initialize Qt
     // Jarton resources are loaded during Application construction (splash, stylesheet),

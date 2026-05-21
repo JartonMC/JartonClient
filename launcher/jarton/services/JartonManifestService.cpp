@@ -104,6 +104,10 @@ void JartonManifestService::onReplyFinished()
         m_consecutiveFailures++;
         emit fetchFailed(reply->errorString());
         emit readyChanged();
+        if (!m_ready && m_consecutiveFailures == 1) {
+            // No prior cache, first fetch just failed — UI should surface the offline block.
+            emit firstLaunchOffline();
+        }
         return;
     }
 

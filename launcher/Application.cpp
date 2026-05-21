@@ -58,6 +58,7 @@
 
 #include "ui/pages/BasePageProvider.h"
 #include "ui/pages/global/APIPage.h"
+#include "ui/pages/global/JartonPage.h"
 #include "ui/pages/global/AccountListPage.h"
 #include "ui/pages/global/AppearancePage.h"
 #include "ui/pages/global/ExternalToolsPage.h"
@@ -96,6 +97,7 @@
 #include <QIcon>
 #include <QLibraryInfo>
 #include <QList>
+#include <QMessageBox>
 #include <QNetworkAccessManager>
 #include <QSplashScreen>
 #include <QtQml/qqml.h>
@@ -931,6 +933,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         // Init page provider
         {
             m_globalSettingsProvider = std::make_unique<GenericPageProvider>(tr("Settings"));
+            m_globalSettingsProvider->addPage<JartonPage>();
             m_globalSettingsProvider->addPage<LauncherPage>();
             m_globalSettingsProvider->addPage<LanguagePage>();
             m_globalSettingsProvider->addPage<AppearancePage>();
@@ -1567,6 +1570,20 @@ void Application::initJartonServices()
     connect(m_jartonDefaultInstance, &Jarton::DefaultInstanceService::launchRequested, this, [this](const QString& id) {
         if (auto* inst = instances()->getInstanceById(id)) {
             launch(inst);
+        }
+    });
+
+    // First-launch offline: ask the user whether to retry or proceed with bundled defaults.
+    connect(m_jartonManifest, &Jarton::JartonManifestService::firstLaunchOffline, this, [this]() {
+        QMessageBox box;
+        box.setWindowTitle(tr("Can't reach jarton.me"));
+        box.setText(tr("Jarton Client couldn't reach the server to load live data. Retry, or continue with bundled defaults?"));
+        box.setIcon(QMessageBox::Warning);
+        auto* retryBtn = box.addButton(tr("Retry"), QMessageBox::AcceptRole);
+        box.addButton(tr("Continue offline"), QMessageBox::RejectRole);
+        box.exec();
+        if (box.clickedButton() == retryBtn) {
+            m_jartonManifest->refreshNow();
         }
     });
 }
