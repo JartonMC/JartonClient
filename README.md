@@ -1,27 +1,39 @@
 # Jarton Client
 
-Custom Minecraft launcher for [JartonMC](https://mc.jarton.me). Fork of [Prism Launcher](https://github.com/PrismLauncher/PrismLauncher). Cross-platform: Windows, macOS, Linux.
+Custom Minecraft launcher for [JartonMC](https://mc.jarton.me). Fork of [Prism Launcher](https://github.com/PrismLauncher/PrismLauncher), cross-platform (Windows, macOS, Linux), licensed GPLv3.
 
-## Status
+## What it is
 
-In active development. v1.0 target: Q4 2026.
+A polished launcher with JartonMC pinned to the home tab: one-click Play to `mc.jarton.me`, live server status, news, Discord activity, and an admin-rotated wallpaper layer. Prism's full power-user features (instance manager, Modrinth + CurseForge browsers, Microsoft account auth) are preserved underneath.
 
-## Downloading
+## Download
 
-Latest builds: https://github.com/JartonMC/JartonClient/releases
+Latest builds: https://jarton.me/download · also at https://github.com/JartonMC/JartonClient/releases
 
-- **macOS**: download the `.dmg`, drag to /Applications. First launch: right-click the app and choose Open, then click Open in the dialog (Gatekeeper warning is expected — the build is ad-hoc signed, not notarized).
-- **Windows**: download the `Setup.exe` and run it. SmartScreen will warn on first launch; click "More info" → "Run anyway".
-- **Linux**: download the `.AppImage`, `chmod +x`, and run.
+- **macOS** — `.dmg`. Drag to `/Applications`. First launch: right-click → Open if Gatekeeper warns.
+- **Windows** — `Setup.exe`. SmartScreen warns on first launch ("More info" → "Run anyway") until we have an EV cert.
+- **Linux** — `.AppImage`. `chmod +x` and run.
 
-## Building from source
+## Build from source
 
-See `BUILD.md`.
+See [`BUILD.md`](BUILD.md).
 
-## License
+Quick version on macOS with vcpkg + Homebrew Qt6:
 
-GPLv3, inherited from Prism Launcher. See `LICENSE`.
+```
+cmake --preset macos
+cmake --build build --config Release
+cmake --install build --config Release
+```
+
+## Contributing
+
+Run the cross-platform smoke checklist in [`SMOKE_TEST.md`](SMOKE_TEST.md) before opening a PR that touches the launcher's main flows.
 
 ## Attribution
 
-Built on the work of the Prism Launcher contributors. Upstream: https://github.com/PrismLauncher/PrismLauncher
+Built on the work of the Prism Launcher contributors. Upstream: https://github.com/PrismLauncher/PrismLauncher.
+
+## License
+
+GPLv3, inherited from Prism Launcher. See [`LICENSE`](LICENSE).
