@@ -303,3 +303,81 @@ ResourcePage QComboBox,
 ModPage QComboBox {
     min-width: 140px;
 }
+
+/* ============ Settings ============ */
+
+QListWidget#pageSwitcher {
+    background-color: #1a140e;
+    border: none;
+    border-right: 1px solid #3a2a14;
+    color: #C9C9C9;
+    padding: 8px 0;
+    outline: 0;
+}
+
+QListWidget#pageSwitcher::item {
+    padding: 10px 16px;
+    border: none;
+    border-left: 3px solid transparent;
+    color: #8B6F2A;
+}
+
+QListWidget#pageSwitcher::item:hover {
+    background-color: rgba(255, 184, 28, 0.06);
+    color: #C9C9C9;
+}
+
+QListWidget#pageSwitcher::item:selected {
+    background-color: rgba(255, 184, 28, 0.13);
+    border-left: 3px solid #FFB81C;
+    color: #FFE082;
+    font-weight: 600;
+}
+
+QWidget#settingsPage QLabel#header {
+    color: #FFE082;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 12px 0;
+    border-bottom: 1px solid #3a2a14;
+    margin-bottom: 12px;
+}
+
+QScrollBar:vertical {
+    background-color: #1a140e;
+    width: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #3a2a14;
+    border-radius: 4px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #FFB81C;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    background: transparent;
+    height: 0;
+}
+
+QScrollBar:horizontal {
+    background-color: #1a140e;
+    height: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #3a2a14;
+    border-radius: 4px;
+    min-width: 30px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #FFB81C;
+}
