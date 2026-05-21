@@ -65,6 +65,7 @@ class InstanceList;
 class AccountList;
 class IconList;
 class QNetworkAccessManager;
+class QSplashScreen;
 class JavaInstallList;
 class ExternalUpdater;
 class BaseProfilerFactory;
@@ -293,6 +294,8 @@ class Application : public QApplication {
 
     // main window, if any
     MainWindow* m_mainWindow = nullptr;
+
+    QSplashScreen* m_jartonSplash = nullptr;
 
     // log window, if any
     ViewLogWindow* m_viewLogWindow = nullptr;

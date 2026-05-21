@@ -97,6 +97,7 @@
 #include <QLibraryInfo>
 #include <QList>
 #include <QNetworkAccessManager>
+#include <QSplashScreen>
 #include <QStringList>
 #include <QStringLiteral>
 #include <QStyleFactory>
@@ -302,6 +303,17 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     setApplicationVersion(BuildConfig.printableVersionString() + "\n" + BuildConfig.GIT_COMMIT);
     setDesktopFileName(BuildConfig.LAUNCHER_APPID);
     m_startTime = QDateTime::currentDateTime();
+
+    // Jarton splash, shown during startup, dismissed once MainWindow is up
+    {
+        QPixmap splashPixmap(":/jarton/splash/splash.png");
+        if (!splashPixmap.isNull()) {
+            splashPixmap.setDevicePixelRatio(this->devicePixelRatio());
+            m_jartonSplash = new QSplashScreen(splashPixmap);
+            m_jartonSplash->show();
+            processEvents();
+        }
+    }
 
     // Don't quit on hiding the last window
     this->setQuitOnLastWindowClosed(false);
@@ -1682,6 +1694,12 @@ MainWindow* Application::showMainWindow(bool minimized)
             m_mainWindow->showMinimized();
         } else {
             m_mainWindow->show();
+        }
+
+        if (m_jartonSplash) {
+            m_jartonSplash->finish(m_mainWindow);
+            m_jartonSplash->deleteLater();
+            m_jartonSplash = nullptr;
         }
 
         m_mainWindow->checkInstancePathForProblems();
