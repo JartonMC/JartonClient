@@ -1,4 +1,46 @@
-QMainWindow, QDialog {
-    background: #0f0a06;
+/* Jarton Client — palette + global backgrounds
+   Honey palette (tokens documented for the reader, since QSS lacks vars):
+       honey-light  #FFE082
+       honey-mid    #FFD700
+       honey-dark   #FFB81C
+       honey-deep   #8B6F2A
+       bg-deepest   #0f0a06
+       bg-panel     #1a140e
+       bg-card      #221911
+       border-warm  #3a2a14
+       text-body    #C9C9C9
+       text-dim     #5C5C5C
+       success      #A9E673
+       error        #E94B4B
+       player       #F0F0F0
+*/
+
+QMainWindow,
+QDialog,
+QWidget {
+    background-color: #0f0a06;
     color: #C9C9C9;
+    font-family: "Inter", "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+QFrame {
+    background-color: transparent;
+}
+
+QLabel {
+    color: #C9C9C9;
+    background-color: transparent;
+}
+
+QLabel[heading="true"] {
+    color: #FFE082;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+QToolTip {
+    background-color: #1a140e;
+    color: #FFE082;
+    border: 1px solid #3a2a14;
+    padding: 4px 8px;
 }

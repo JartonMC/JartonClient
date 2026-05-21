@@ -1212,13 +1212,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     }
 
     m_themeManager->applyCurrentlySelectedTheme(true);
-
-    QFile jartonStyle(":/jarton/theme/jarton-theme.qss");
-    if (jartonStyle.open(QFile::ReadOnly | QFile::Text)) {
-        setStyleSheet(QString::fromUtf8(jartonStyle.readAll()));
-    } else {
-        qWarning() << "Failed to load Jarton stylesheet:" << jartonStyle.errorString();
-    }
+    applyJartonStyleOverlay();
 
     performMainStartupAction();
 }
@@ -1523,6 +1517,18 @@ JavaInstallList* Application::javalist()
 QIcon Application::logo()
 {
     return QIcon(":/" + BuildConfig.LAUNCHER_SVGFILENAME);
+}
+
+void Application::applyJartonStyleOverlay()
+{
+    QFile jartonStyle(QStringLiteral(":/jarton/theme/jarton-theme.qss"));
+    if (!jartonStyle.open(QFile::ReadOnly | QFile::Text)) {
+        qWarning() << "Failed to load Jarton stylesheet:" << jartonStyle.errorString();
+        return;
+    }
+    const QString jartonSheet = QString::fromUtf8(jartonStyle.readAll());
+    // Append (don't replace) so the user-selectable Prism theme stays the base layer.
+    setStyleSheet(styleSheet() + QStringLiteral("\n") + jartonSheet);
 }
 
 bool Application::openJsonEditor(const QString& filename)

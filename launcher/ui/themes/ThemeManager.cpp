@@ -278,6 +278,12 @@ void ThemeManager::applyCurrentlySelectedTheme(bool initial)
     }
     setApplicationTheme(applicationTheme, initial);
     themeDebugLog() << "<> Application theme set.";
+
+    // Re-stack the Jarton brand sheet on top — ITheme::apply() above just clobbered it.
+    // Guarded for initial startup, where the overlay is applied once after this returns.
+    if (!initial) {
+        APPLICATION->applyJartonStyleOverlay();
+    }
 }
 
 QString ThemeManager::getCatPack(QString catName)

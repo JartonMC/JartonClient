@@ -202,6 +202,11 @@ class Application : public QApplication {
 
     QUrl normalizeImportUrl(const QString& url);
 
+    // Append Jarton's brand QSS on top of whatever Prism theme is currently active.
+    // Safe to call repeatedly — each Prism theme switch wipes the sheet, so this
+    // gets re-invoked from ThemeManager::applyCurrentlySelectedTheme.
+    void applyJartonStyleOverlay();
+
    signals:
     void updateAllowedChanged(bool status);
     void globalSettingsAboutToOpen();
