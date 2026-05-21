@@ -239,3 +239,67 @@ QStatusBar {
 QSplitter::handle {
     background-color: #3a2a14;
 }
+
+/* ============ Mod Browser (Modrinth + CurseForge) ============ */
+
+QTabWidget::pane {
+    border: 1px solid #3a2a14;
+    background-color: #1a140e;
+    border-radius: 8px;
+}
+
+QTabBar::tab {
+    background-color: transparent;
+    color: #8B6F2A;
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    margin-right: 2px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+QTabBar::tab:hover {
+    color: #FFE082;
+    background-color: rgba(255, 184, 28, 0.06);
+}
+
+QTabBar::tab:selected {
+    color: #FFE082;
+    background-color: #1a140e;
+    border-color: #3a2a14;
+    border-bottom-color: #1a140e;
+}
+
+ResourcePage QLineEdit,
+ModPage QLineEdit {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+ResourcePage QListView::item,
+ModPage QListView::item {
+    background-color: #221911;
+    border: 1px solid #3a2a14;
+    border-radius: 6px;
+    padding: 10px;
+    margin: 4px 0;
+}
+
+ResourcePage QListView::item:hover,
+ModPage QListView::item:hover {
+    border-color: rgba(255, 184, 28, 0.4);
+}
+
+ResourcePage QListView::item:selected,
+ModPage QListView::item:selected {
+    background-color: #2a1f10;
+    border: 1px solid #FFB81C;
+}
+
+ResourcePage QComboBox,
+ModPage QComboBox {
+    min-width: 140px;
+}
