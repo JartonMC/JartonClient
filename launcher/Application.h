@@ -66,6 +66,14 @@ class AccountList;
 class IconList;
 class QNetworkAccessManager;
 class QSplashScreen;
+
+namespace Jarton {
+class JartonManifestService;
+class ServerStatusService;
+class ConfigService;
+class WallpaperService;
+class DefaultInstanceService;
+}  // namespace Jarton
 class JavaInstallList;
 class ExternalUpdater;
 class BaseProfilerFactory;
@@ -207,6 +215,10 @@ class Application : public QApplication {
     // gets re-invoked from ThemeManager::applyCurrentlySelectedTheme.
     void applyJartonStyleOverlay();
 
+    // Construct the Jarton service singletons + register them with the QML engine.
+    // Idempotent; called once after the theme manager is up.
+    void initJartonServices();
+
    signals:
     void updateAllowedChanged(bool status);
     void globalSettingsAboutToOpen();
@@ -301,6 +313,13 @@ class Application : public QApplication {
     MainWindow* m_mainWindow = nullptr;
 
     QSplashScreen* m_jartonSplash = nullptr;
+
+    Jarton::JartonManifestService* m_jartonManifest = nullptr;
+    Jarton::ConfigService* m_jartonConfig = nullptr;
+    Jarton::ServerStatusService* m_jartonStatus = nullptr;
+    Jarton::WallpaperService* m_jartonWallpaper = nullptr;
+    Jarton::DefaultInstanceService* m_jartonDefaultInstance = nullptr;
+    bool m_jartonServicesInitialized = false;
 
     // log window, if any
     ViewLogWindow* m_viewLogWindow = nullptr;

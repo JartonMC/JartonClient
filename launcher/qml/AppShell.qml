@@ -1,29 +1,16 @@
 import QtQuick
-import QtQuick.Layouts
 
+// Sidebar-only shell. The central widget area is managed by C++ (QStackedWidget
+// holding HomeTab + Prism's InstanceView) and swapped on tabSelected.
 Item {
     id: root
 
     property int currentTab: 0
-
     signal tabSelected(int index)
 
-    RowLayout {
+    Sidebar {
         anchors.fill: parent
-        spacing: 0
-
-        Sidebar {
-            Layout.fillHeight: true
-            currentTab: root.currentTab
-            onTabSelected: function(index) { root.tabSelected(index) }
-        }
-
-        // Content area, host for the embedded Widgets stack.
-        // C++ side does the actual widget swapping via the tabSelected signal.
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            color: "#0f0a06"
-        }
+        currentTab: root.currentTab
+        onTabSelected: function(index) { root.tabSelected(index) }
     }
 }

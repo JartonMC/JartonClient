@@ -1,11 +1,9 @@
 import QtQuick
-import QtQuick.Layouts
 
 Rectangle {
     id: sidebar
 
     property int currentTab: 0
-
     signal tabSelected(int index)
 
     width: 64
@@ -23,16 +21,16 @@ Rectangle {
         }
     }
 
-    ColumnLayout {
-        anchors.fill: parent
+    Column {
+        id: topColumn
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
         anchors.topMargin: 14
-        anchors.bottomMargin: 14
         spacing: 18
 
-        // Brand mark, honey J. Clicking opens About.
         Image {
-            Layout.alignment: Qt.AlignHCenter
-            source: "qrc:/jarton/icons/jartonclient.svg"
+            anchors.horizontalCenter: parent.horizontalCenter
+            source: "qrc:/jarton/icons/jartonclient_64.png"
             width: 36
             height: 36
             sourceSize.width: 72
@@ -46,37 +44,33 @@ Rectangle {
         }
 
         SidebarTab {
-            Layout.alignment: Qt.AlignHCenter
-            iconSource: "qrc:/multimc/scalable/launcher.svg"
-            label: "Home"
+            anchors.horizontalCenter: parent.horizontalCenter
+            glyph: "⌂"
             active: sidebar.currentTab === 0
             onClicked: sidebar.tabSelected(0)
         }
 
         SidebarTab {
-            Layout.alignment: Qt.AlignHCenter
-            iconSource: "qrc:/multimc/scalable/viewfolder.svg"
-            label: "Instances"
+            anchors.horizontalCenter: parent.horizontalCenter
+            glyph: "▦"
             active: sidebar.currentTab === 1
             onClicked: sidebar.tabSelected(1)
         }
 
         SidebarTab {
-            Layout.alignment: Qt.AlignHCenter
-            iconSource: "qrc:/multimc/scalable/centralmods.svg"
-            label: "Marketplace"
+            anchors.horizontalCenter: parent.horizontalCenter
+            glyph: "⌬"
             active: sidebar.currentTab === 2
             onClicked: sidebar.tabSelected(2)
         }
+    }
 
-        Item { Layout.fillHeight: true }
-
-        SidebarTab {
-            Layout.alignment: Qt.AlignHCenter
-            iconSource: "qrc:/multimc/scalable/appearance.svg"
-            label: "Settings"
-            active: sidebar.currentTab === 3
-            onClicked: sidebar.tabSelected(3)
-        }
+    SidebarTab {
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottomMargin: 14
+        glyph: "⚙"
+        active: sidebar.currentTab === 3
+        onClicked: sidebar.tabSelected(3)
     }
 }

@@ -68,6 +68,7 @@
 #include <QProgressDialog>
 #include <QQuickItem>
 #include <QQuickWidget>
+#include <QStackedWidget>
 #include <QShortcut>
 #include <QStatusBar>
 #include <QToolBar>
@@ -292,14 +293,15 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         updateNewsLabel();
     }
 
-    // Jarton AppShell. 64-px QML sidebar lives at index 0 of the central
-    // horizontalLayout, so InstanceView (added below) sits to its right.
+    // Jarton AppShell: 64-px QML sidebar at index 0; the central area is a
+    // QStackedWidget holding HomeTab (index 0) and Prism's InstanceView (index 1),
+    // swapped by sidebar selection. App boots to Home.
     {
         auto* shell = new QQuickWidget(ui->centralWidget);
         shell->setObjectName("jartonShell");
         shell->setFixedWidth(64);
         shell->setResizeMode(QQuickWidget::SizeRootObjectToView);
-        shell->setSource(QUrl(QStringLiteral("qrc:/qt/qml/jarton/AppShell.qml")));
+        shell->setSource(QUrl(QStringLiteral("qrc:/qt/qml/Jarton/AppShell.qml")));
 
         if (auto* shellRoot = shell->rootObject()) {
             connect(shellRoot, SIGNAL(tabSelected(int)), this, SLOT(onSidebarTabSelected(int)));
@@ -308,6 +310,18 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         }
 
         ui->horizontalLayout->insertWidget(0, shell);
+
+        m_centralStack = new QStackedWidget(ui->centralWidget);
+
+        m_homeTab = new QQuickWidget(m_centralStack);
+        m_homeTab->setResizeMode(QQuickWidget::SizeRootObjectToView);
+        m_homeTab->setSource(QUrl(QStringLiteral("qrc:/qt/qml/Jarton/HomeTab.qml")));
+        if (m_homeTab->rootObject() == nullptr) {
+            qWarning() << "Jarton HomeTab failed to load:" << m_homeTab->errors();
+        }
+        m_centralStack->addWidget(m_homeTab);
+
+        ui->horizontalLayout->addWidget(m_centralStack);
     }
 
     // Create the instance list widget
@@ -352,7 +366,12 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         view->setSourceOfGroupCollapseStatus(
             [](const QString& groupName) -> bool { return APPLICATION->instances()->isGroupCollapsed(groupName); });
         connect(view, &InstanceView::groupStateChanged, APPLICATION->instances(), &InstanceList::on_GroupStateChanged);
-        ui->horizontalLayout->addWidget(view);
+        if (m_centralStack != nullptr) {
+            m_centralStack->addWidget(view);
+            m_centralStack->setCurrentWidget(m_homeTab);  // boot to Home
+        } else {
+            ui->horizontalLayout->addWidget(view);
+        }
     }
     // The cat background
     {
@@ -1503,9 +1522,9 @@ void MainWindow::on_actionAbout_triggered()
     dialog.exec();
 }
 
-// Sidebar indices: -1 brand, 0 Home, 1 Instances, 2 Marketplace, 3 Settings.
-// Phase 1 has no Home page or top-level tabbed content, so we route the four
-// tabs onto the existing toolbar actions and leave Home as a no-op.
+// Sidebar indices: -1 brand mark (opens About); 0 Home; 1 Instances; 2 Marketplace;
+// 3 Settings. Marketplace browsing is per-instance in Prism, so the top-level
+// tab swaps the stack to Instances and surfaces a tooltip via the Sidebar.
 void MainWindow::onSidebarTabSelected(int index)
 {
     switch (index) {
@@ -1513,18 +1532,16 @@ void MainWindow::onSidebarTabSelected(int index)
             on_actionAbout_triggered();
             return;
         case 0:
-            // Home is a Phase 2 deliverable. Until then, surface the instance list.
-            if (view) {
-                view->setFocus(Qt::OtherFocusReason);
+            if (m_centralStack != nullptr && m_homeTab != nullptr) {
+                m_centralStack->setCurrentWidget(m_homeTab);
             }
             return;
         case 1:
-            if (view) {
+        case 2:  // Marketplace lives inside an instance; route to instance list.
+            if (m_centralStack != nullptr && view != nullptr) {
+                m_centralStack->setCurrentWidget(view);
                 view->setFocus(Qt::OtherFocusReason);
             }
-            return;
-        case 2:
-            on_actionAddInstance_triggered();
             return;
         case 3:
             on_actionSettings_triggered();

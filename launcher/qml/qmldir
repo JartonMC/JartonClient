@@ -1,0 +1,9 @@
+module Jarton
+AppShell 1.0 AppShell.qml
+Sidebar 1.0 Sidebar.qml
+SidebarTab 1.0 SidebarTab.qml
+HomeTab 1.0 HomeTab.qml
+HeroBar 1.0 HeroBar.qml
+StatusPill 1.0 StatusPill.qml
+PlayButton 1.0 PlayButton.qml
+WallpaperLayer 1.0 WallpaperLayer.qml

@@ -1,11 +1,9 @@
 import QtQuick
-import QtQuick.Controls
 
 Rectangle {
     id: tab
 
-    property string iconSource: ""
-    property string label: ""
+    property string glyph: ""
     property bool active: false
 
     signal clicked()
@@ -27,23 +25,18 @@ Rectangle {
         GradientStop { position: 1.0; color: "#FFB81C" }
     }
 
-    Image {
+    Text {
         anchors.centerIn: parent
-        source: tab.iconSource
-        width: 22
-        height: 22
-        opacity: active ? 1.0 : 0.55
+        text: tab.glyph
+        color: tab.active ? "#1a1a1a" : "#FFE082"
+        font.pixelSize: 22
+        font.weight: tab.active ? Font.Bold : Font.Medium
     }
 
     MouseArea {
-        id: hoverArea
         anchors.fill: parent
         hoverEnabled: true
         onClicked: tab.clicked()
         cursorShape: Qt.PointingHandCursor
     }
-
-    ToolTip.text: label
-    ToolTip.visible: hoverArea.containsMouse && label !== ""
-    ToolTip.delay: 400
 }

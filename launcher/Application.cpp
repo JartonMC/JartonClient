@@ -98,6 +98,13 @@
 #include <QList>
 #include <QNetworkAccessManager>
 #include <QSplashScreen>
+#include <QtQml/qqml.h>
+
+#include "jarton/services/ConfigService.h"
+#include "jarton/services/DefaultInstanceService.h"
+#include "jarton/services/JartonManifestService.h"
+#include "jarton/services/ServerStatusService.h"
+#include "jarton/services/WallpaperService.h"
 #include <QStringList>
 #include <QStringLiteral>
 #include <QStyleFactory>
@@ -306,9 +313,13 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 
     // Jarton splash, shown during startup, dismissed once MainWindow is up
     {
-        QPixmap splashPixmap(":/jarton/splash/splash.png");
+        const qreal dpr = this->devicePixelRatio();
+        const QString splashPath = dpr >= 3.0   ? QStringLiteral(":/jarton/splash/splash@3x.png")
+                                   : dpr >= 2.0 ? QStringLiteral(":/jarton/splash/splash@2x.png")
+                                                : QStringLiteral(":/jarton/splash/splash.png");
+        QPixmap splashPixmap(splashPath);
         if (!splashPixmap.isNull()) {
-            splashPixmap.setDevicePixelRatio(this->devicePixelRatio());
+            splashPixmap.setDevicePixelRatio(dpr);
             m_jartonSplash = new QSplashScreen(splashPixmap);
             m_jartonSplash->show();
             processEvents();
@@ -1214,6 +1225,8 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     m_themeManager->applyCurrentlySelectedTheme(true);
     applyJartonStyleOverlay();
 
+    initJartonServices();
+
     performMainStartupAction();
 }
 
@@ -1517,6 +1530,39 @@ JavaInstallList* Application::javalist()
 QIcon Application::logo()
 {
     return QIcon(":/" + BuildConfig.LAUNCHER_SVGFILENAME);
+}
+
+void Application::initJartonServices()
+{
+    if (m_jartonServicesInitialized) {
+        return;
+    }
+    m_jartonServicesInitialized = true;
+
+    m_jartonManifest = new Jarton::JartonManifestService(this);
+    m_jartonConfig = new Jarton::ConfigService(this);
+    m_jartonStatus = new Jarton::ServerStatusService(m_jartonManifest, this);
+    m_jartonWallpaper = new Jarton::WallpaperService(m_jartonManifest, m_jartonConfig, this);
+    m_jartonDefaultInstance = new Jarton::DefaultInstanceService(m_jartonManifest, this);
+
+    qmlRegisterSingletonInstance("Jarton", 1, 0, "JartonManifestService", m_jartonManifest);
+    qmlRegisterSingletonInstance("Jarton", 1, 0, "ConfigService", m_jartonConfig);
+    qmlRegisterSingletonInstance("Jarton", 1, 0, "ServerStatusService", m_jartonStatus);
+    qmlRegisterSingletonInstance("Jarton", 1, 0, "WallpaperService", m_jartonWallpaper);
+    qmlRegisterSingletonInstance("Jarton", 1, 0, "DefaultInstanceService", m_jartonDefaultInstance);
+
+    // Refresh the default-instance detection once the InstanceList finishes loading.
+    if (auto* list = instances()) {
+        connect(list, &InstanceList::dataChanged, m_jartonDefaultInstance,
+                [this](const QModelIndex&, const QModelIndex&, const QList<int>&) { m_jartonDefaultInstance->refresh(); });
+    }
+
+    // PlayButton in QML emits launchRequested(instanceId); route to Prism's launch flow.
+    connect(m_jartonDefaultInstance, &Jarton::DefaultInstanceService::launchRequested, this, [this](const QString& id) {
+        if (auto* inst = instances()->getInstanceById(id)) {
+            launch(inst);
+        }
+    });
 }
 
 void Application::applyJartonStyleOverlay()

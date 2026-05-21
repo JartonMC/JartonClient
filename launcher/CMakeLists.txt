@@ -790,6 +790,22 @@ else()
 endif()
 
 SET(LAUNCHER_SOURCES
+    # Jarton: services + protocol
+    jarton/net/McServerPing.h
+    jarton/net/McServerPing.cpp
+    jarton/services/JartonManifest.h
+    jarton/services/JartonManifest.cpp
+    jarton/services/JartonManifestService.h
+    jarton/services/JartonManifestService.cpp
+    jarton/services/ServerStatusService.h
+    jarton/services/ServerStatusService.cpp
+    jarton/services/ConfigService.h
+    jarton/services/ConfigService.cpp
+    jarton/services/WallpaperService.h
+    jarton/services/WallpaperService.cpp
+    jarton/services/DefaultInstanceService.h
+    jarton/services/DefaultInstanceService.cpp
+
     # Application base
     Application.h
     Application.cpp

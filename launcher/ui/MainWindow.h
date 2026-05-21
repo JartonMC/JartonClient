@@ -46,6 +46,9 @@
 #include <QProcess>
 #include <QTimer>
 
+class QStackedWidget;
+class QQuickWidget;
+
 #include "BaseInstance.h"
 #include "minecraft/auth/MinecraftAccount.h"
 
@@ -222,6 +225,9 @@ class MainWindow : public QMainWindow {
 
    private:
     void retranslateUi();
+
+    QStackedWidget* m_centralStack = nullptr;
+    QQuickWidget* m_homeTab = nullptr;
 
     void addInstance(const QString& url = QString(), const QMap<QString, QString>& extra_info = {});
     void activateInstance(BaseInstance* instance);
