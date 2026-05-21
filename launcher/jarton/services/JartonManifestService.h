@@ -23,6 +23,9 @@ class JartonManifestService : public QObject {
     Q_PROPERTY(bool stale READ stale NOTIFY readyChanged)
     Q_PROPERTY(QDateTime lastUpdated READ lastUpdated NOTIFY readyChanged)
     Q_PROPERTY(int consecutiveFailures READ consecutiveFailures NOTIFY readyChanged)
+    Q_PROPERTY(QString featuredTitle READ featuredTitle NOTIFY readyChanged)
+    Q_PROPERTY(QString featuredImageUrl READ featuredImageUrl NOTIFY readyChanged)
+    Q_PROPERTY(QString featuredCtaUrl READ featuredCtaUrl NOTIFY readyChanged)
 
    public:
     explicit JartonManifestService(QObject* parent = nullptr);
@@ -33,6 +36,10 @@ class JartonManifestService : public QObject {
     QDateTime lastUpdated() const { return m_lastUpdated; }
     int consecutiveFailures() const { return m_consecutiveFailures; }
     const Manifest& manifest() const { return m_manifest; }
+
+    QString featuredTitle() const { return m_manifest.featured.present ? m_manifest.featured.title : QString{}; }
+    QString featuredImageUrl() const { return m_manifest.featured.present ? m_manifest.featured.imageUrl : QString{}; }
+    QString featuredCtaUrl() const { return m_manifest.featured.present ? m_manifest.featured.ctaUrl : QString{}; }
 
     // Override the endpoint for testing / dev builds. Default is the BuildConfig URL.
     void setEndpointUrl(const QString& url);

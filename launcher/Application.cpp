@@ -102,7 +102,9 @@
 
 #include "jarton/services/ConfigService.h"
 #include "jarton/services/DefaultInstanceService.h"
+#include "jarton/services/DiscordWidgetService.h"
 #include "jarton/services/JartonManifestService.h"
+#include "jarton/services/NewsService.h"
 #include "jarton/services/ServerStatusService.h"
 #include "jarton/services/WallpaperService.h"
 #include <QStringList>
@@ -1544,12 +1546,16 @@ void Application::initJartonServices()
     m_jartonStatus = new Jarton::ServerStatusService(m_jartonManifest, this);
     m_jartonWallpaper = new Jarton::WallpaperService(m_jartonManifest, m_jartonConfig, this);
     m_jartonDefaultInstance = new Jarton::DefaultInstanceService(m_jartonManifest, this);
+    m_jartonNews = new Jarton::NewsService(m_jartonManifest, this);
+    m_jartonDiscord = new Jarton::DiscordWidgetService(QStringLiteral("1391645092137406494"), this);
 
     qmlRegisterSingletonInstance("Jarton", 1, 0, "JartonManifestService", m_jartonManifest);
     qmlRegisterSingletonInstance("Jarton", 1, 0, "ConfigService", m_jartonConfig);
     qmlRegisterSingletonInstance("Jarton", 1, 0, "ServerStatusService", m_jartonStatus);
     qmlRegisterSingletonInstance("Jarton", 1, 0, "WallpaperService", m_jartonWallpaper);
     qmlRegisterSingletonInstance("Jarton", 1, 0, "DefaultInstanceService", m_jartonDefaultInstance);
+    qmlRegisterSingletonInstance("Jarton", 1, 0, "NewsService", m_jartonNews);
+    qmlRegisterSingletonInstance("Jarton", 1, 0, "DiscordWidgetService", m_jartonDiscord);
 
     // Refresh the default-instance detection once the InstanceList finishes loading.
     if (auto* list = instances()) {

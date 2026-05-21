@@ -73,6 +73,8 @@ class ServerStatusService;
 class ConfigService;
 class WallpaperService;
 class DefaultInstanceService;
+class NewsService;
+class DiscordWidgetService;
 }  // namespace Jarton
 class JavaInstallList;
 class ExternalUpdater;
@@ -319,6 +321,8 @@ class Application : public QApplication {
     Jarton::ServerStatusService* m_jartonStatus = nullptr;
     Jarton::WallpaperService* m_jartonWallpaper = nullptr;
     Jarton::DefaultInstanceService* m_jartonDefaultInstance = nullptr;
+    Jarton::NewsService* m_jartonNews = nullptr;
+    Jarton::DiscordWidgetService* m_jartonDiscord = nullptr;
     bool m_jartonServicesInitialized = false;
 
     // log window, if any

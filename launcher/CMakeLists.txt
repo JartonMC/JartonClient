@@ -805,6 +805,10 @@ SET(LAUNCHER_SOURCES
     jarton/services/WallpaperService.cpp
     jarton/services/DefaultInstanceService.h
     jarton/services/DefaultInstanceService.cpp
+    jarton/services/NewsService.h
+    jarton/services/NewsService.cpp
+    jarton/services/DiscordWidgetService.h
+    jarton/services/DiscordWidgetService.cpp
 
     # Application base
     Application.h
