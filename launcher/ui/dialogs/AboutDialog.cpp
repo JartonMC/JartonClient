@@ -89,7 +89,7 @@ AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent), ui(new Ui::AboutDia
 
     ui->urlLabel->setOpenExternalLinks(true);
 
-    ui->icon->setPixmap(APPLICATION->logo().pixmap(64));
+    ui->icon->setPixmap(APPLICATION->logo().pixmap(128, 128));
     ui->title->setText(launcherName);
 
     ui->versionLabel->setText(BuildConfig.printableVersionString());
@@ -117,7 +117,12 @@ AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent), ui(new Ui::AboutDia
     QString urlText("<html><head/><body><p><a href=\"%1\">%1</a></p></body></html>");
     ui->urlLabel->setText(urlText.arg(BuildConfig.LAUNCHER_GIT));
 
-    ui->copyLabel->setText(BuildConfig.LAUNCHER_COPYRIGHT);
+    ui->copyLabel->setText(
+        tr("Jarton Client, built on Prism Launcher. Licensed under GPLv3.<br/>"
+           "Upstream: <a href=\"https://github.com/PrismLauncher/PrismLauncher\">PrismLauncher</a> · "
+           "Repo: <a href=\"https://github.com/JartonMC/JartonClient\">JartonMC/JartonClient</a>"));
+    ui->copyLabel->setTextFormat(Qt::RichText);
+    ui->copyLabel->setOpenExternalLinks(true);
 
     connect(ui->closeButton, &QPushButton::clicked, this, &AboutDialog::close);
 
