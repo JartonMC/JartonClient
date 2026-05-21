@@ -49,6 +49,10 @@ int main(int argc, char* argv[])
 #endif
 
     // initialize Qt
+    // Jarton resources are loaded during Application construction (splash, stylesheet),
+    // so they must be initialized before app instantiation.
+    Q_INIT_RESOURCE(jarton);
+
     Application app(argc, argv);
     switch (app.status()) {
         case Application::StartingUp:
