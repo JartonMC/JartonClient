@@ -477,3 +477,33 @@ QMenu::separator {
     background-color: #3a2a14;
     margin: 4px 8px;
 }
+
+/* ============ Polish layer ============ */
+
+QMainWindow {
+    background-color: #0f0a06;
+    background-image: radial-gradient(circle at 0 0, rgba(255, 184, 28, 0.06) 1px, transparent 2px);
+    background-repeat: repeat;
+    background-position: 0 0;
+}
+
+CategoryView::item[featured="true"] {
+    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+        stop:0 rgba(255, 184, 28, 0.18),
+        stop:0.04 #221911,
+        stop:1 #1a140e);
+    border: 1px solid rgba(255, 184, 28, 0.5);
+    border-top: 3px solid #FFB81C;
+}
+
+QPushButton:hover {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:1,
+        stop:0 #FFF0A8, stop:1 #FFD24A);
+    border: 1px solid #FFB81C;
+}
+
+QLabel[separator="true"] {
+    color: #5C5C5C;
+    font-size: 14px;
+    padding: 0 6px;
+}
