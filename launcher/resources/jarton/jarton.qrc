@@ -6,4 +6,9 @@
         <file>splash/splash@2x.png</file>
         <file>splash/splash@3x.png</file>
     </qresource>
+    <qresource prefix="/qt/qml/jarton">
+        <file alias="AppShell.qml">../../qml/AppShell.qml</file>
+        <file alias="Sidebar.qml">../../qml/Sidebar.qml</file>
+        <file alias="SidebarTab.qml">../../qml/SidebarTab.qml</file>
+    </qresource>
 </RCC>
