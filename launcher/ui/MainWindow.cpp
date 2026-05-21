@@ -66,6 +66,8 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QProgressDialog>
+#include <QQuickItem>
+#include <QQuickWidget>
 #include <QShortcut>
 #include <QStatusBar>
 #include <QToolBar>
@@ -288,6 +290,24 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         connect(newsLabel, &QAbstractButton::clicked, this, &MainWindow::newsButtonClicked);
         connect(m_newsChecker.get(), &NewsChecker::newsLoaded, this, &MainWindow::updateNewsLabel);
         updateNewsLabel();
+    }
+
+    // Jarton AppShell. 64-px QML sidebar lives at index 0 of the central
+    // horizontalLayout, so InstanceView (added below) sits to its right.
+    {
+        auto* shell = new QQuickWidget(ui->centralWidget);
+        shell->setObjectName("jartonShell");
+        shell->setFixedWidth(64);
+        shell->setResizeMode(QQuickWidget::SizeRootObjectToView);
+        shell->setSource(QUrl(QStringLiteral("qrc:/qt/qml/jarton/AppShell.qml")));
+
+        if (auto* shellRoot = shell->rootObject()) {
+            connect(shellRoot, SIGNAL(tabSelected(int)), this, SLOT(onSidebarTabSelected(int)));
+        } else {
+            qWarning() << "Jarton AppShell failed to load";
+        }
+
+        ui->horizontalLayout->insertWidget(0, shell);
     }
 
     // Create the instance list widget
@@ -1481,6 +1501,37 @@ void MainWindow::on_actionAbout_triggered()
 {
     AboutDialog dialog(this);
     dialog.exec();
+}
+
+// Sidebar indices: -1 brand, 0 Home, 1 Instances, 2 Marketplace, 3 Settings.
+// Phase 1 has no Home page or top-level tabbed content, so we route the four
+// tabs onto the existing toolbar actions and leave Home as a no-op.
+void MainWindow::onSidebarTabSelected(int index)
+{
+    switch (index) {
+        case -1:
+            on_actionAbout_triggered();
+            return;
+        case 0:
+            // Home is a Phase 2 deliverable. Until then, surface the instance list.
+            if (view) {
+                view->setFocus(Qt::OtherFocusReason);
+            }
+            return;
+        case 1:
+            if (view) {
+                view->setFocus(Qt::OtherFocusReason);
+            }
+            return;
+        case 2:
+            on_actionAddInstance_triggered();
+            return;
+        case 3:
+            on_actionSettings_triggered();
+            return;
+        default:
+            return;
+    }
 }
 
 void MainWindow::on_actionDeleteInstance_triggered()

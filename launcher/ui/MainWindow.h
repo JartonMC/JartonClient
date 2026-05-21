@@ -218,6 +218,8 @@ class MainWindow : public QMainWindow {
 
     void refreshCurrentInstance();
 
+    void onSidebarTabSelected(int index);
+
    private:
     void retranslateUi();
 
