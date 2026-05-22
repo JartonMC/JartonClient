@@ -1,24 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "NewsService.h"
 
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QTimer>
+#include <QVariantMap>
 
 namespace Jarton {
 
 namespace {
-constexpr int g_refreshIntervalMs = 15 * 60 * 1000;
+constexpr int g_refreshIntervalMs = 5 * 60 * 1000;
 constexpr int g_requestTimeoutMs = 10 * 1000;
-// Default to raw GitHub until Cloudflare Pages is wired at jarton.me/launcher/*.
-// Either URL serves the same content; the manifest can override this at runtime.
+// Switch to jarton.me/launcher/announcements.json once Cloudflare Pages is
+// wired. Same file either way.
 const char* const g_defaultEndpoint =
-    "https://raw.githubusercontent.com/JartonMC/jarton-launcher-cdn/main/launcher/changelog.md";
+    "https://raw.githubusercontent.com/JartonMC/jarton-launcher-cdn/main/launcher/announcements.json";
 }  // namespace
 
 NewsService::NewsService(QObject* parent)
-    : QObject(parent),
+    : QAbstractListModel(parent),
       m_nam(new QNetworkAccessManager(this)),
       m_timer(new QTimer(this)),
       m_endpoint(QString::fromLatin1(g_defaultEndpoint))
@@ -30,6 +34,72 @@ NewsService::NewsService(QObject* parent)
 }
 
 NewsService::~NewsService() = default;
+
+int NewsService::rowCount(const QModelIndex& parent) const
+{
+    if (parent.isValid()) {
+        return 0;
+    }
+    return static_cast<int>(m_entries.size());
+}
+
+QString NewsService::latestTitle() const
+{
+    return m_entries.isEmpty() ? QString{} : m_entries.first().title;
+}
+
+QVariant NewsService::data(const QModelIndex& index, int role) const
+{
+    if (!index.isValid() || index.row() < 0 || index.row() >= m_entries.size()) {
+        return {};
+    }
+    const auto& e = m_entries.at(index.row());
+    switch (role) {
+        case IdRole:
+            return e.id;
+        case TitleRole:
+        case Qt::DisplayRole:
+            return e.title;
+        case BodyRole:
+            return e.body;
+        case PostedRole:
+            return e.posted;
+        case ImageUrlRole:
+            return e.imageUrl;
+        case UrlRole:
+            return e.url;
+        default:
+            return {};
+    }
+}
+
+QHash<int, QByteArray> NewsService::roleNames() const
+{
+    return {
+        { IdRole, "newsId" },
+        { TitleRole, "title" },
+        { BodyRole, "body" },
+        { PostedRole, "posted" },
+        { ImageUrlRole, "imageUrl" },
+        { UrlRole, "url" },
+    };
+}
+
+QVariantMap NewsService::entry(int index) const
+{
+    QVariantMap out;
+    if (index < 0 || index >= m_entries.size()) {
+        return out;
+    }
+    const auto& e = m_entries.at(index);
+    out["newsId"] = e.id;
+    out["title"] = e.title;
+    out["body"] = e.body;
+    out["posted"] = e.posted;
+    out["imageUrl"] = e.imageUrl;
+    out["url"] = e.url;
+    return out;
+}
 
 void NewsService::setEndpointUrl(const QString& url)
 {
@@ -60,16 +130,37 @@ void NewsService::onReplyFinished()
         return;
     }
     reply->deleteLater();
-
     if (reply->error() != QNetworkReply::NoError) {
-        return;  // keep last-known content
+        return;  // keep last-known
     }
-
-    const QString fetched = QString::fromUtf8(reply->readAll());
-    if (fetched.isEmpty() || fetched == m_markdown) {
+    const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+    if (!doc.isObject()) {
         return;
     }
-    m_markdown = fetched;
+    const QJsonArray arr = doc.object().value("entries").toArray();
+
+    QVector<AnnouncementEntry> next;
+    next.reserve(arr.size());
+    for (const auto& v : arr) {
+        const QJsonObject obj = v.toObject();
+        AnnouncementEntry e;
+        e.id = obj.value("id").toString();
+        e.title = obj.value("title").toString();
+        e.body = obj.value("body").toString();
+        e.imageUrl = obj.value("image_url").toString();
+        e.url = obj.value("url").toString();
+        e.posted = QDateTime::fromString(obj.value("posted").toString(), Qt::ISODate);
+        if (!e.title.isEmpty()) {
+            next.append(e);
+        }
+    }
+    // Newest first, in case the source isn't ordered.
+    std::sort(next.begin(), next.end(),
+              [](const AnnouncementEntry& a, const AnnouncementEntry& b) { return a.posted > b.posted; });
+
+    beginResetModel();
+    m_entries = next;
+    endResetModel();
     emit changed();
 }
 

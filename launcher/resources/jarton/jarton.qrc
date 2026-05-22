@@ -25,6 +25,8 @@
         <file alias="StatsRow.qml">../../qml/StatsRow.qml</file>
         <file alias="NewsFeed.qml">../../qml/NewsFeed.qml</file>
         <file alias="FeaturedCard.qml">../../qml/FeaturedCard.qml</file>
+        <file alias="LatestNewsBar.qml">../../qml/LatestNewsBar.qml</file>
+        <file alias="NewsDialog.qml">../../qml/NewsDialog.qml</file>
         <file alias="SoundSystem.qml">../../qml/SoundSystem.qml</file>
     </qresource>
 </RCC>

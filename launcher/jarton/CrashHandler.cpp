@@ -69,7 +69,7 @@ void writeCrashDump(int sig) noexcept
     }
     char header[256];
     int hlen = std::snprintf(header, sizeof(header), "Jarton Client crash: signal %s (%d)\n\n", signalName(sig), sig);
-    write(fd, header, hlen);
+    [[maybe_unused]] auto written = write(fd, header, hlen);
 
     void* frames[64];
     int n = backtrace(frames, 64);

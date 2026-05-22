@@ -44,13 +44,14 @@ Rectangle {
         }
 
         // Discord shortcut — opens the JartonMC invite in the system browser.
+        // Matches SidebarTab dimensions (44x44) so it sits flush with the nav tabs.
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 36
-            height: 36
-            radius: 8
+            width: 44
+            height: 44
+            radius: 10
             color: "transparent"
-            border.color: discordHover.containsMouse ? "#FFE082" : "transparent"
+            border.color: discordHover.containsMouse ? "#8B6F2A" : "transparent"
             border.width: 1
             Behavior on border.color { ColorAnimation { duration: 140 } }
 
@@ -61,7 +62,8 @@ Rectangle {
                 height: 22
                 sourceSize.width: 96
                 sourceSize.height: 96
-                opacity: discordHover.containsMouse ? 1.0 : 0.7
+                fillMode: Image.PreserveAspectFit
+                opacity: discordHover.containsMouse ? 1.0 : 0.55
                 Behavior on opacity { NumberAnimation { duration: 140 } }
             }
 

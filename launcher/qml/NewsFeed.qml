@@ -4,6 +4,8 @@ import Jarton
 Item {
     id: feed
 
+    signal entryClicked(int index)
+
     Rectangle {
         anchors.fill: parent
         radius: 14
@@ -18,28 +20,25 @@ Item {
         anchors.rightMargin: 14
         anchors.topMargin: 18
         anchors.bottomMargin: 18
-        spacing: 12
+        spacing: 14
 
         Row {
             spacing: 10
-
             Text {
-                text: qsTr("CHANGELOG")
+                text: qsTr("NEWS")
                 color: "#FFB81C"
                 font.pixelSize: 11
                 font.weight: Font.Bold
                 font.letterSpacing: 1.6
             }
-
             Rectangle {
                 width: 1
                 height: 11
                 color: "#3a2a14"
                 anchors.verticalCenter: parent.verticalCenter
             }
-
             Text {
-                text: qsTr("JartonMC")
+                text: qsTr("JartonMC announcements")
                 color: "#888"
                 font.pixelSize: 11
                 font.weight: Font.Medium
@@ -48,41 +47,84 @@ Item {
             }
         }
 
-        Flickable {
-            id: scroller
+        ListView {
+            id: list
             width: parent.width
             height: parent.height - parent.spacing - 22
-            contentHeight: changelog.implicitHeight + 24
             clip: true
+            spacing: 10
+            model: NewsService
             boundsBehavior: Flickable.StopAtBounds
 
-            Text {
-                id: changelog
-                width: scroller.width - 6
-                text: NewsService.ready ? NewsService.markdown : feed.placeholderMarkdown
-                color: "#C9C9C9"
-                font.pixelSize: 13
-                lineHeight: 1.5
-                wrapMode: Text.WordWrap
-                textFormat: Text.MarkdownText
-                onLinkActivated: function(link) { Qt.openUrlExternally(link) }
+            delegate: Rectangle {
+                required property int index
+                required property string title
+                required property string body
+                required property var posted
+                required property string imageUrl
+                required property string url
+
+                width: list.width
+                implicitHeight: cardCol.implicitHeight + 24
+                radius: 10
+                color: cardHover.containsMouse ? "#2a1f10" : "#22150c"
+                border.color: cardHover.containsMouse ? "#8B6F2A" : "#3a2a14"
+                border.width: 1
+                Behavior on color { ColorAnimation { duration: 140 } }
+                Behavior on border.color { ColorAnimation { duration: 140 } }
+
+                Column {
+                    id: cardCol
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 6
+
+                    Text {
+                        text: title
+                        color: "#FFE082"
+                        font.pixelSize: 15
+                        font.weight: Font.Bold
+                        wrapMode: Text.WordWrap
+                        width: parent.width
+                    }
+
+                    Text {
+                        visible: posted && !isNaN(posted)
+                        text: Qt.formatDate(posted, "MMM d, yyyy")
+                        color: "#888"
+                        font.pixelSize: 11
+                    }
+
+                    Text {
+                        text: body
+                        color: "#C9C9C9"
+                        font.pixelSize: 12
+                        lineHeight: 1.45
+                        wrapMode: Text.WordWrap
+                        textFormat: Text.MarkdownText
+                        width: parent.width
+                        maximumLineCount: 3
+                        elide: Text.ElideRight
+                    }
+                }
+
+                MouseArea {
+                    id: cardHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: feed.entryClicked(index)
+                }
             }
 
-            // Subtle fade at top/bottom so the scrolling text feels softer.
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: 24
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#cc1a140e" }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
+            Text {
+                anchors.centerIn: parent
+                visible: NewsService.count === 0
+                text: qsTr("Loading announcements…")
+                color: "#5C5C5C"
+                font.pixelSize: 12
+                font.italic: true
             }
         }
     }
-
-    readonly property string placeholderMarkdown:
-        "_Pulling the latest from jarton.me…_\n\n" +
-        "Once changelog.md is live in jarton-launcher-cdn, every push updates this panel within 15 minutes."
 }

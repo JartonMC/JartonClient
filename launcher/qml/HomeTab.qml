@@ -8,14 +8,30 @@ Item {
         anchors.fill: parent
     }
 
-    // Left column: hero + stats. Featured card slides in just above the
-    // stats when the manifest has one.
+    // Right column: scrolling list of news entries.
+    Item {
+        id: rightColumn
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: bottomBar.top
+        anchors.rightMargin: 28
+        anchors.topMargin: 32
+        anchors.bottomMargin: 18
+        width: 420
+
+        NewsFeed {
+            anchors.fill: parent
+            onEntryClicked: function(index) { newsDialog.showIndex(index) }
+        }
+    }
+
+    // Left column: hero + featured (if any) + stats.
     Column {
         id: leftColumn
         anchors.left: parent.left
-        anchors.bottom: parent.bottom
+        anchors.bottom: bottomBar.top
         anchors.leftMargin: 48
-        anchors.bottomMargin: 56
+        anchors.bottomMargin: 24
         anchors.right: rightColumn.left
         anchors.rightMargin: 32
         spacing: 22
@@ -33,20 +49,20 @@ Item {
         StatsRow {}
     }
 
-    // Right column: full-height news panel, doubled from the v1.0.1 width
-    // so the markdown changelog has room to breathe.
-    Item {
-        id: rightColumn
+    // Latest-news ticker pinned to the bottom of the home tab.
+    LatestNewsBar {
+        id: bottomBar
+        anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: parent.top
         anchors.bottom: parent.bottom
+        anchors.leftMargin: 48
         anchors.rightMargin: 28
-        anchors.topMargin: 32
-        anchors.bottomMargin: 32
-        width: 720
+        anchors.bottomMargin: 18
+        onClicked: newsDialog.showIndex(0)
+    }
 
-        NewsFeed {
-            anchors.fill: parent
-        }
+    NewsDialog {
+        id: newsDialog
+        anchors.fill: parent
     }
 }
