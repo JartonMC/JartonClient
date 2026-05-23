@@ -172,24 +172,8 @@ InstanceView, QListView, QTreeView, QTableView {
     show-decoration-selected: 0;
 }
 
-QListView::item, QTreeView::item, QTableView::item {
-    background-color: transparent;
-    color: #C9C9C9;
-    padding: 6px 8px;
-    border: 1px solid transparent;
-    border-radius: 6px;
-}
-
-QListView::item:hover, QTreeView::item:hover, QTableView::item:hover {
-    background-color: #221911;
-    border: 1px solid #3a2a14;
-}
-
-QListView::item:selected, QTreeView::item:selected, QTableView::item:selected {
-    background-color: #221911;
-    border: 1px solid rgba(255, 184, 28, 0.4);
-    color: #FFE082;
-}
+/* Hover / selection rules deliberately left to Prism's custom InstanceView
+   delegate so selection state paints on the actual clicked item. */
 
 CategoryView::item {
     background-color: #221911;

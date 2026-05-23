@@ -48,6 +48,23 @@ QString NewsService::latestTitle() const
     return m_entries.isEmpty() ? QString{} : m_entries.first().title;
 }
 
+QVariantList NewsService::entriesAsList() const
+{
+    QVariantList out;
+    out.reserve(m_entries.size());
+    for (const auto& e : m_entries) {
+        QVariantMap m;
+        m["newsId"] = e.id;
+        m["title"] = e.title;
+        m["body"] = e.body;
+        m["posted"] = e.posted;
+        m["imageUrl"] = e.imageUrl;
+        m["url"] = e.url;
+        out.append(m);
+    }
+    return out;
+}
+
 QVariant NewsService::data(const QModelIndex& index, int role) const
 {
     if (!index.isValid() || index.row() < 0 || index.row() >= m_entries.size()) {
@@ -161,7 +178,66 @@ void NewsService::onReplyFinished()
     beginResetModel();
     m_entries = next;
     endResetModel();
+    if (m_selectedIndex >= m_entries.size()) {
+        m_selectedIndex = 0;
+    }
     emit changed();
+    emit selectedChanged();
+}
+
+void NewsService::setSelectedIndex(int i)
+{
+    if (i < 0) {
+        i = 0;
+    }
+    if (i >= m_entries.size()) {
+        i = m_entries.isEmpty() ? 0 : m_entries.size() - 1;
+    }
+    if (m_selectedIndex == i) {
+        return;
+    }
+    m_selectedIndex = i;
+    emit selectedChanged();
+}
+
+QString NewsService::selectedTitle() const
+{
+    if (m_selectedIndex < 0 || m_selectedIndex >= m_entries.size()) {
+        return {};
+    }
+    return m_entries.at(m_selectedIndex).title;
+}
+
+QString NewsService::selectedBody() const
+{
+    if (m_selectedIndex < 0 || m_selectedIndex >= m_entries.size()) {
+        return {};
+    }
+    return m_entries.at(m_selectedIndex).body;
+}
+
+QString NewsService::selectedImageUrl() const
+{
+    if (m_selectedIndex < 0 || m_selectedIndex >= m_entries.size()) {
+        return {};
+    }
+    return m_entries.at(m_selectedIndex).imageUrl;
+}
+
+QString NewsService::selectedUrl() const
+{
+    if (m_selectedIndex < 0 || m_selectedIndex >= m_entries.size()) {
+        return {};
+    }
+    return m_entries.at(m_selectedIndex).url;
+}
+
+QDateTime NewsService::selectedPosted() const
+{
+    if (m_selectedIndex < 0 || m_selectedIndex >= m_entries.size()) {
+        return {};
+    }
+    return m_entries.at(m_selectedIndex).posted;
 }
 
 }  // namespace Jarton

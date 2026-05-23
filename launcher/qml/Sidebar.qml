@@ -9,50 +9,62 @@ Rectangle {
     width: 64
     color: "#0f0a06"
 
+    // Right hairline.
     Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: 1
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 0.5; color: "#FFB81C44" }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
+        color: "#332a14"
     }
 
     Column {
-        id: topColumn
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.topMargin: 14
-        spacing: 18
+        spacing: 14
 
-        Image {
+        // Brand mark — clicking opens About.
+        Rectangle {
+            id: brandWrap
             anchors.horizontalCenter: parent.horizontalCenter
-            source: "qrc:/jarton/icons/jartonclient_64.png"
-            width: 36
-            height: 36
-            sourceSize.width: 72
-            sourceSize.height: 72
+            width: 44
+            height: 44
+            radius: 10
+            color: brandHover.containsMouse ? "#2a1f10" : "transparent"
+            border.color: brandHover.containsMouse ? "#8B6F2A" : "transparent"
+            border.width: 1
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on border.color { ColorAnimation { duration: 140 } }
+
+            Image {
+                anchors.centerIn: parent
+                source: "qrc:/jarton/icons/jartonclient_64.png"
+                width: 30
+                height: 30
+                sourceSize.width: 64
+                sourceSize.height: 64
+            }
 
             MouseArea {
+                id: brandHover
                 anchors.fill: parent
-                onClicked: sidebar.tabSelected(-1)
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
+                onClicked: sidebar.tabSelected(-1)
             }
         }
 
-        // Discord shortcut — opens the JartonMC invite in the system browser.
-        // Matches SidebarTab dimensions (44x44) so it sits flush with the nav tabs.
+        // Discord — opens invite in system browser.
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 44
             height: 44
             radius: 10
-            color: "transparent"
+            color: discordHover.containsMouse ? "#2a1f10" : "transparent"
             border.color: discordHover.containsMouse ? "#8B6F2A" : "transparent"
             border.width: 1
+            Behavior on color { ColorAnimation { duration: 140 } }
             Behavior on border.color { ColorAnimation { duration: 140 } }
 
             Image {
@@ -63,7 +75,7 @@ Rectangle {
                 sourceSize.width: 96
                 sourceSize.height: 96
                 fillMode: Image.PreserveAspectFit
-                opacity: discordHover.containsMouse ? 1.0 : 0.55
+                opacity: discordHover.containsMouse ? 1.0 : 0.7
                 Behavior on opacity { NumberAnimation { duration: 140 } }
             }
 
@@ -75,35 +87,35 @@ Rectangle {
                 onClicked: Qt.openUrlExternally("https://discord.gg/JartonMC")
             }
         }
-
-        SidebarTab {
-            anchors.horizontalCenter: parent.horizontalCenter
-            glyph: "⌂"
-            active: sidebar.currentTab === 0
-            onClicked: sidebar.tabSelected(0)
-        }
-
-        SidebarTab {
-            anchors.horizontalCenter: parent.horizontalCenter
-            glyph: "▦"
-            active: sidebar.currentTab === 1
-            onClicked: sidebar.tabSelected(1)
-        }
-
-        SidebarTab {
-            anchors.horizontalCenter: parent.horizontalCenter
-            glyph: "⌬"
-            active: sidebar.currentTab === 2
-            onClicked: sidebar.tabSelected(2)
-        }
     }
 
-    SidebarTab {
+    // Settings pinned to the bottom.
+    Rectangle {
         anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottomMargin: 14
-        glyph: "⚙"
-        active: sidebar.currentTab === 3
-        onClicked: sidebar.tabSelected(3)
+        width: 44
+        height: 44
+        radius: 10
+        color: settingsHover.containsMouse ? "#2a1f10" : "transparent"
+        border.color: settingsHover.containsMouse ? "#8B6F2A" : "transparent"
+        border.width: 1
+        Behavior on color { ColorAnimation { duration: 140 } }
+        Behavior on border.color { ColorAnimation { duration: 140 } }
+
+        Text {
+            anchors.centerIn: parent
+            text: "⚙"
+            color: "#FFE082"
+            font.pixelSize: 22
+        }
+
+        MouseArea {
+            id: settingsHover
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: sidebar.tabSelected(3)
+        }
     }
 }

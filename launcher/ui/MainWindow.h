@@ -46,8 +46,14 @@
 #include <QProcess>
 #include <QTimer>
 
-class QStackedWidget;
 class QQuickWidget;
+class QHBoxLayout;
+namespace Jarton {
+class WallpaperBackground;
+class ChangelogPanel;
+class AnnouncementDialog;
+class StatsOverlayWidget;
+}
 
 #include "BaseInstance.h"
 #include "minecraft/auth/MinecraftAccount.h"
@@ -223,11 +229,18 @@ class MainWindow : public QMainWindow {
 
     void onSidebarTabSelected(int index);
 
+    void onAnnouncementPopupOpen();
+    void repositionFloatingOverlays();
+
    private:
     void retranslateUi();
 
-    QStackedWidget* m_centralStack = nullptr;
-    QQuickWidget* m_homeTab = nullptr;
+    Jarton::WallpaperBackground* m_centralBg = nullptr;
+    QHBoxLayout* m_centralTopRow = nullptr;
+    Jarton::ChangelogPanel* m_changelogPanel = nullptr;
+    QQuickWidget* m_announceBar = nullptr;
+    Jarton::AnnouncementDialog* m_announcementDialog = nullptr;
+    Jarton::StatsOverlayWidget* m_statsOverlay = nullptr;
 
     void addInstance(const QString& url = QString(), const QMap<QString, QString>& extra_info = {});
     void activateInstance(BaseInstance* instance);

@@ -807,10 +807,20 @@ SET(LAUNCHER_SOURCES
     jarton/services/DefaultInstanceService.cpp
     jarton/services/NewsService.h
     jarton/services/NewsService.cpp
+    jarton/services/ChangelogService.h
+    jarton/services/ChangelogService.cpp
     jarton/services/DiscordWidgetService.h
     jarton/services/DiscordWidgetService.cpp
     jarton/CrashHandler.h
     jarton/CrashHandler.cpp
+    jarton/WallpaperBackground.h
+    jarton/WallpaperBackground.cpp
+    jarton/ChangelogPanel.h
+    jarton/ChangelogPanel.cpp
+    jarton/AnnouncementDialog.h
+    jarton/AnnouncementDialog.cpp
+    jarton/StatsOverlayWidget.h
+    jarton/StatsOverlayWidget.cpp
 
     # Application base
     Application.h

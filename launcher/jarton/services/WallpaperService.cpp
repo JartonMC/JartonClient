@@ -18,7 +18,7 @@
 namespace Jarton {
 
 namespace {
-constexpr int g_rotationIntervalMs = 5 * 60 * 1000;
+constexpr int g_rotationIntervalMs = 60 * 1000;
 constexpr int g_downloadTimeoutMs = 30 * 1000;
 const char* const g_fallbackResource = "qrc:/jarton/wallpapers/fallback.jpg";
 }  // namespace

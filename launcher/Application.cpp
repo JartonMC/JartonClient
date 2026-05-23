@@ -101,7 +101,10 @@
 #include <QNetworkAccessManager>
 #include <QSplashScreen>
 #include <QtQml/qqml.h>
+#include <QQmlEngine>
+#include <QJSEngine>
 
+#include "jarton/services/ChangelogService.h"
 #include "jarton/services/ConfigService.h"
 #include "jarton/services/DefaultInstanceService.h"
 #include "jarton/services/DiscordWidgetService.h"
@@ -1550,15 +1553,29 @@ void Application::initJartonServices()
     m_jartonWallpaper = new Jarton::WallpaperService(m_jartonManifest, m_jartonConfig, this);
     m_jartonDefaultInstance = new Jarton::DefaultInstanceService(m_jartonManifest, this);
     m_jartonNews = new Jarton::NewsService(this);
+    m_jartonChangelog = new Jarton::ChangelogService(this);
     m_jartonDiscord = new Jarton::DiscordWidgetService(QStringLiteral("1391645092137406494"), this);
 
-    qmlRegisterSingletonInstance("Jarton", 1, 0, "JartonManifestService", m_jartonManifest);
-    qmlRegisterSingletonInstance("Jarton", 1, 0, "ConfigService", m_jartonConfig);
-    qmlRegisterSingletonInstance("Jarton", 1, 0, "ServerStatusService", m_jartonStatus);
-    qmlRegisterSingletonInstance("Jarton", 1, 0, "WallpaperService", m_jartonWallpaper);
-    qmlRegisterSingletonInstance("Jarton", 1, 0, "DefaultInstanceService", m_jartonDefaultInstance);
-    qmlRegisterSingletonInstance("Jarton", 1, 0, "NewsService", m_jartonNews);
-    qmlRegisterSingletonInstance("Jarton", 1, 0, "DiscordWidgetService", m_jartonDiscord);
+    // qmlRegisterSingletonType (callback form) instead of registerSingletonInstance:
+    // the launcher hosts multiple QQuickWidgets, and each one spawns its own
+    // QML engine. registerSingletonInstance locks a singleton to ONE engine;
+    // the callback form returns the same C++ object to every engine that
+    // imports the module.
+    auto registerService = [](const char* name, QObject* instance) {
+        qmlRegisterSingletonType<QObject>("Jarton", 1, 0, name,
+            [instance](QQmlEngine*, QJSEngine*) -> QObject* {
+                QQmlEngine::setObjectOwnership(instance, QQmlEngine::CppOwnership);
+                return instance;
+            });
+    };
+    registerService("JartonManifestService", m_jartonManifest);
+    registerService("ConfigService", m_jartonConfig);
+    registerService("ServerStatusService", m_jartonStatus);
+    registerService("WallpaperService", m_jartonWallpaper);
+    registerService("DefaultInstanceService", m_jartonDefaultInstance);
+    registerService("NewsService", m_jartonNews);
+    registerService("ChangelogService", m_jartonChangelog);
+    registerService("DiscordWidgetService", m_jartonDiscord);
 
     // Refresh the default-instance detection once the InstanceList finishes loading.
     if (auto* list = instances()) {

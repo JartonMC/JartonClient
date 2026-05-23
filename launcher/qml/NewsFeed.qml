@@ -1,130 +1,102 @@
 import QtQuick
 import Jarton
 
+// JartonMC Changelog right panel. Drifts continuously; pauses only while
+// the user actively drags the scroller, resumes from current position.
 Item {
-    id: feed
+    id: panel
 
-    signal entryClicked(int index)
-
+    // Glassy translucent panel — single layer, rounded.
     Rectangle {
         anchors.fill: parent
-        radius: 14
-        color: "#881a140e"
-        border.color: "#332a14"
+        radius: 22
+        color: "#331a140e"
+        border.color: "#44FFB81C"
         border.width: 1
     }
 
     Column {
         anchors.fill: parent
-        anchors.leftMargin: 20
-        anchors.rightMargin: 14
-        anchors.topMargin: 18
-        anchors.bottomMargin: 18
-        spacing: 14
+        anchors.leftMargin: 22
+        anchors.rightMargin: 16
+        anchors.topMargin: 20
+        anchors.bottomMargin: 20
+        spacing: 12
 
-        Row {
-            spacing: 10
-            Text {
-                text: qsTr("NEWS")
-                color: "#FFB81C"
-                font.pixelSize: 11
-                font.weight: Font.Bold
-                font.letterSpacing: 1.6
-            }
-            Rectangle {
-                width: 1
-                height: 11
-                color: "#3a2a14"
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            Text {
-                text: qsTr("JartonMC announcements")
-                color: "#888"
-                font.pixelSize: 11
-                font.weight: Font.Medium
-                font.letterSpacing: 1.0
-                anchors.verticalCenter: parent.verticalCenter
-            }
+        Text {
+            text: qsTr("JARTONMC CHANGELOG")
+            color: "#FFE082"
+            font.pixelSize: 13
+            font.weight: Font.Black
+            font.letterSpacing: 1.8
         }
 
-        ListView {
-            id: list
+        Rectangle {
             width: parent.width
-            height: parent.height - parent.spacing - 22
+            height: 1
+            color: "#44FFB81C"
+        }
+
+        Flickable {
+            id: scroller
+            width: parent.width
+            height: parent.height - parent.spacing * 2 - 13 - 1
+            contentHeight: changelog.implicitHeight + 32
             clip: true
-            spacing: 10
-            model: NewsService
             boundsBehavior: Flickable.StopAtBounds
 
-            delegate: Rectangle {
-                required property int index
-                required property string title
-                required property string body
-                required property var posted
-                required property string imageUrl
-                required property string url
-
-                width: list.width
-                implicitHeight: cardCol.implicitHeight + 24
-                radius: 10
-                color: cardHover.containsMouse ? "#2a1f10" : "#22150c"
-                border.color: cardHover.containsMouse ? "#8B6F2A" : "#3a2a14"
-                border.width: 1
-                Behavior on color { ColorAnimation { duration: 140 } }
-                Behavior on border.color { ColorAnimation { duration: 140 } }
-
-                Column {
-                    id: cardCol
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 6
-
-                    Text {
-                        text: title
-                        color: "#FFE082"
-                        font.pixelSize: 15
-                        font.weight: Font.Bold
-                        wrapMode: Text.WordWrap
-                        width: parent.width
-                    }
-
-                    Text {
-                        visible: posted && !isNaN(posted)
-                        text: Qt.formatDate(posted, "MMM d, yyyy")
-                        color: "#888"
-                        font.pixelSize: 11
-                    }
-
-                    Text {
-                        text: body
-                        color: "#C9C9C9"
-                        font.pixelSize: 12
-                        lineHeight: 1.45
-                        wrapMode: Text.WordWrap
-                        textFormat: Text.MarkdownText
-                        width: parent.width
-                        maximumLineCount: 3
-                        elide: Text.ElideRight
-                    }
-                }
-
-                MouseArea {
-                    id: cardHover
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: feed.entryClicked(index)
-                }
-            }
-
             Text {
-                anchors.centerIn: parent
-                visible: NewsService.count === 0
-                text: qsTr("Loading announcements…")
-                color: "#5C5C5C"
-                font.pixelSize: 12
-                font.italic: true
+                id: changelog
+                width: scroller.width - 6
+                text: ChangelogService.ready
+                    ? ChangelogService.markdown
+                    : qsTr("_Loading the latest changelog…_")
+                color: "#D8D8D8"
+                font.pixelSize: 13
+                lineHeight: 1.55
+                wrapMode: Text.WordWrap
+                textFormat: Text.MarkdownText
+                onLinkActivated: function(link) { Qt.openUrlExternally(link) }
             }
         }
+    }
+
+    // Drift driver: bumps contentY a few pixels per tick. Stops while
+    // dragging or flicking so the user can read freely; resumes from the
+    // current scroll position once they release.
+    Timer {
+        id: drift
+        interval: 60
+        repeat: true
+        running: ChangelogService.ready
+            && scroller.contentHeight > scroller.height
+            && !scroller.dragging
+            && !scroller.flicking
+        onTriggered: {
+            const max = scroller.contentHeight - scroller.height
+            if (scroller.contentY >= max) {
+                if (pauseTimer.running) return
+                pauseTimer.restart()
+            } else {
+                scroller.contentY = Math.min(max, scroller.contentY + 1.2)
+            }
+        }
+    }
+
+    // After hitting the bottom, pause a bit, then ease back to the top.
+    Timer {
+        id: pauseTimer
+        interval: 3500
+        repeat: false
+        onTriggered: returnToTop.start()
+    }
+    NumberAnimation {
+        id: returnToTop
+        target: scroller
+        property: "contentY"
+        from: scroller.contentHeight - scroller.height
+        to: 0
+        duration: 1600
+        easing.type: Easing.InOutQuad
     }
 }

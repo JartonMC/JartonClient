@@ -74,6 +74,7 @@ class ConfigService;
 class WallpaperService;
 class DefaultInstanceService;
 class NewsService;
+class ChangelogService;
 class DiscordWidgetService;
 }  // namespace Jarton
 class JavaInstallList;
@@ -223,6 +224,10 @@ class Application : public QApplication {
 
     Jarton::ConfigService* jartonConfig() const { return m_jartonConfig; }
     Jarton::JartonManifestService* jartonManifest() const { return m_jartonManifest; }
+    Jarton::WallpaperService* jartonWallpaper() const { return m_jartonWallpaper; }
+    Jarton::ChangelogService* jartonChangelog() const { return m_jartonChangelog; }
+    Jarton::ServerStatusService* jartonStatus() const { return m_jartonStatus; }
+    Jarton::DiscordWidgetService* jartonDiscord() const { return m_jartonDiscord; }
 
    signals:
     void updateAllowedChanged(bool status);
@@ -325,6 +330,7 @@ class Application : public QApplication {
     Jarton::WallpaperService* m_jartonWallpaper = nullptr;
     Jarton::DefaultInstanceService* m_jartonDefaultInstance = nullptr;
     Jarton::NewsService* m_jartonNews = nullptr;
+    Jarton::ChangelogService* m_jartonChangelog = nullptr;
     Jarton::DiscordWidgetService* m_jartonDiscord = nullptr;
     bool m_jartonServicesInitialized = false;
 

@@ -2,15 +2,7 @@ module Jarton
 AppShell 1.0 AppShell.qml
 Sidebar 1.0 Sidebar.qml
 SidebarTab 1.0 SidebarTab.qml
-HomeTab 1.0 HomeTab.qml
-HeroBar 1.0 HeroBar.qml
-StatusPill 1.0 StatusPill.qml
-PlayButton 1.0 PlayButton.qml
-WallpaperLayer 1.0 WallpaperLayer.qml
-StatsTile 1.0 StatsTile.qml
-StatsRow 1.0 StatsRow.qml
 NewsFeed 1.0 NewsFeed.qml
-LatestNewsBar 1.0 LatestNewsBar.qml
-NewsDialog 1.0 NewsDialog.qml
-FeaturedCard 1.0 FeaturedCard.qml
-singleton SoundSystem 1.0 SoundSystem.qml
+AnnouncementBar 1.0 AnnouncementBar.qml
+AnnouncementPopup 1.0 AnnouncementPopup.qml
+StatsOverlay 1.0 StatsOverlay.qml

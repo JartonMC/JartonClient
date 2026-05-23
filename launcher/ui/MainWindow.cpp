@@ -68,7 +68,16 @@
 #include <QProgressDialog>
 #include <QQuickItem>
 #include <QQuickWidget>
-#include <QStackedWidget>
+#include <QVBoxLayout>
+
+#include "jarton/AnnouncementDialog.h"
+#include "jarton/ChangelogPanel.h"
+#include "jarton/StatsOverlayWidget.h"
+#include "jarton/WallpaperBackground.h"
+#include "jarton/services/ChangelogService.h"
+#include "jarton/services/DiscordWidgetService.h"
+#include "jarton/services/ServerStatusService.h"
+#include "jarton/services/WallpaperService.h"
 #include <QShortcut>
 #include <QStatusBar>
 #include <QToolBar>
@@ -278,9 +287,35 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         connect(secretEventFilter, &KonamiCode::triggered, this, &MainWindow::konamiTriggered);
     }
 
-    // Jarton Client: Prism's upstream news RSS is hidden — the home tab pulls
-    // JartonMC-specific news directly. The toolbar itself is also hidden.
-    ui->newsToolBar->setVisible(false);
+    // Jarton Client: Prism's upstream news RSS is gone. We reuse the
+    // newsToolBar slot for our own AnnouncementBar QQuickWidget so the
+    // ticker sits in the exact spot Prism used (above the status bar).
+    if (ui->actionMoreNews != nullptr) {
+        ui->actionMoreNews->setVisible(false);
+        ui->actionMoreNews->setEnabled(false);
+    }
+    // Clear any existing widgets on the news toolbar.
+    ui->newsToolBar->clear();
+    ui->newsToolBar->setMovable(false);
+    ui->newsToolBar->setFloatable(false);
+    ui->newsToolBar->setIconSize(QSize(0, 0));
+    ui->newsToolBar->setContextMenuPolicy(Qt::PreventContextMenu);
+    {
+        auto* bar = new QQuickWidget();
+        bar->setResizeMode(QQuickWidget::SizeRootObjectToView);
+        bar->setAttribute(Qt::WA_TranslucentBackground);
+        bar->setClearColor(Qt::transparent);
+        bar->setFixedHeight(38);
+        bar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        bar->setSource(QUrl(QStringLiteral("qrc:/qt/qml/Jarton/AnnouncementBar.qml")));
+        ui->newsToolBar->addWidget(bar);
+        ui->newsToolBar->setVisible(true);
+
+        // Wire bar.openRequested → show the popup overlay on the wallpaper area.
+        if (auto* barRoot = bar->rootObject()) {
+            connect(barRoot, SIGNAL(openRequested()), this, SLOT(onAnnouncementPopupOpen()));
+        }
+    }
 
     // Jarton AppShell: 64-px QML sidebar at index 0; the central area is a
     // QStackedWidget holding HomeTab (index 0) and Prism's InstanceView (index 1),
@@ -300,17 +335,51 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
 
         ui->horizontalLayout->insertWidget(0, shell);
 
-        m_centralStack = new QStackedWidget(ui->centralWidget);
+        // Wallpaper-backed central area. InstanceView and Changelog QQuickWidget
+        // sit on top of the wallpaper; AnnouncementBar QQuickWidget is pinned
+        // above Prism's status bar. No custom QML home tab — Prism's instance
+        // grid IS the home page.
+        m_centralBg = new Jarton::WallpaperBackground(ui->centralWidget);
+        auto* centralColumn = new QVBoxLayout(m_centralBg);
+        centralColumn->setContentsMargins(0, 0, 0, 0);
+        centralColumn->setSpacing(0);
 
-        m_homeTab = new QQuickWidget(m_centralStack);
-        m_homeTab->setResizeMode(QQuickWidget::SizeRootObjectToView);
-        m_homeTab->setSource(QUrl(QStringLiteral("qrc:/qt/qml/Jarton/HomeTab.qml")));
-        if (m_homeTab->rootObject() == nullptr) {
-            qWarning() << "Jarton HomeTab failed to load:" << m_homeTab->errors();
+        m_centralTopRow = new QHBoxLayout();
+        m_centralTopRow->setContentsMargins(0, 0, 0, 0);
+        m_centralTopRow->setSpacing(0);
+        centralColumn->addLayout(m_centralTopRow, 1);
+
+        // JartonMC Changelog — native QFrame + QTextBrowser. Native widget
+        // gives proper rounded translucent corners (via QSS) and reliable
+        // markdown + image rendering without QML overlay issues.
+        m_changelogPanel = new Jarton::ChangelogPanel(APPLICATION->jartonChangelog(), m_centralBg);
+        m_centralBg->installEventFilter(this);
+        m_changelogPanel->raise();
+
+        // Floating stats tiles — native QFrame widgets so the rounded
+        // corners actually clip to a mask (QML compositing past the rounded
+        // edges doesn't work right under macOS QQuickWidget).
+        m_statsOverlay = new Jarton::StatsOverlayWidget(APPLICATION->jartonStatus(),
+                                                        APPLICATION->jartonDiscord(),
+                                                        m_centralBg);
+
+        // Announcement modal as a proper frameless QDialog — handles
+        // transparency reliably on macOS, modal show/hide, dismiss on X.
+        m_announcementDialog = new Jarton::AnnouncementDialog(this);
+        installEventFilter(this);  // catch MainWindow resize for overlays
+        // (InstanceView gets added to the top row when it's constructed below.)
+
+        ui->horizontalLayout->addWidget(m_centralBg, 1);
+
+        // Wire the wallpaper service to the background widget.
+        if (auto* ws = APPLICATION->jartonWallpaper()) {
+            connect(ws, &Jarton::WallpaperService::currentChanged, this, [this]() {
+                if (auto* svc = APPLICATION->jartonWallpaper()) {
+                    m_centralBg->setWallpaperUrl(svc->currentUrl());
+                }
+            });
+            m_centralBg->setWallpaperUrl(ws->currentUrl());
         }
-        m_centralStack->addWidget(m_homeTab);
-
-        ui->horizontalLayout->addWidget(m_centralStack);
     }
 
     // Create the instance list widget
@@ -355,9 +424,16 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         view->setSourceOfGroupCollapseStatus(
             [](const QString& groupName) -> bool { return APPLICATION->instances()->isGroupCollapsed(groupName); });
         connect(view, &InstanceView::groupStateChanged, APPLICATION->instances(), &InstanceList::on_GroupStateChanged);
-        if (m_centralStack != nullptr) {
-            m_centralStack->addWidget(view);
-            m_centralStack->setCurrentWidget(m_homeTab);  // boot to Home
+        // Make the instance view's surface transparent so the wallpaper
+        // shows through, while keeping the tile delegate's own backdrop
+        // (so individual instances stay legible).
+        view->setAttribute(Qt::WA_TranslucentBackground);
+        view->viewport()->setAutoFillBackground(false);
+        view->viewport()->setAttribute(Qt::WA_TranslucentBackground);
+        view->setStyleSheet("InstanceView, QListView { background: transparent; border: none; }");
+
+        if (m_centralTopRow != nullptr) {
+            m_centralTopRow->addWidget(view, 1);
         } else {
             ui->horizontalLayout->addWidget(view);
         }
@@ -800,6 +876,9 @@ void MainWindow::defaultAccountChanged()
 
 bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
 {
+    if ((obj == m_centralBg || obj == this) && ev->type() == QEvent::Resize) {
+        repositionFloatingOverlays();
+    }
     if (obj == view) {
         if (ev->type() == QEvent::KeyPress) {
             secretEventFilter->input(ev);
@@ -1488,9 +1567,49 @@ void MainWindow::on_actionAbout_triggered()
     dialog.exec();
 }
 
-// Sidebar indices: -1 brand mark (opens About); 0 Home; 1 Instances; 2 Marketplace;
-// 3 Settings. Marketplace browsing is per-instance in Prism, so the top-level
-// tab swaps the stack to Instances and surfaces a tooltip via the Sidebar.
+void MainWindow::onAnnouncementPopupOpen()
+{
+    if (m_announcementDialog != nullptr) {
+        m_announcementDialog->showAtIndex(0);
+    }
+}
+
+void MainWindow::repositionFloatingOverlays()
+{
+    if (m_centralBg != nullptr && m_changelogPanel != nullptr) {
+        // Glassy panel, floating to the right with a chunky inset and a bit
+        // wider than 1/3 — feels detached from the right edge.
+        const int rightMargin = 38;
+        const int verticalMargin = 28;
+        const int desired = static_cast<int>(m_centralBg->width() * 0.38);
+        const int panelWidth = std::clamp(desired, 420, 780);
+        const int x = m_centralBg->width() - panelWidth - rightMargin;
+        const int y = verticalMargin;
+        const int h = std::max(0, m_centralBg->height() - 2 * verticalMargin);
+        m_changelogPanel->setGeometry(x, y, panelWidth, h);
+        m_changelogPanel->raise();
+    }
+    if (m_centralBg != nullptr && m_statsOverlay != nullptr) {
+        // Bottom-left — position only; width/height come from the QML root.
+        m_statsOverlay->adjustSize();
+        const int x = 28;
+        const int y = std::max(0, m_centralBg->height() - m_statsOverlay->height() - 24);
+        m_statsOverlay->move(x, y);
+        m_statsOverlay->raise();
+    }
+    if (m_announcementDialog != nullptr && m_announcementDialog->isVisible()) {
+        const int w = qMin(width() - 80, 1100);
+        const int h = qMin(height() - 80, 720);
+        const int x = (width() - w) / 2;
+        const int y = (height() - h) / 2;
+        m_announcementDialog->setGeometry(x, y, w, h);
+        m_announcementDialog->raise();
+    }
+}
+
+// Sidebar indices: -1 brand mark (opens About); 0 Home / 1 Instances /
+// 2 Marketplace all focus the instance grid (it IS the home page);
+// 3 opens Settings.
 void MainWindow::onSidebarTabSelected(int index)
 {
     switch (index) {
@@ -1498,14 +1617,9 @@ void MainWindow::onSidebarTabSelected(int index)
             on_actionAbout_triggered();
             return;
         case 0:
-            if (m_centralStack != nullptr && m_homeTab != nullptr) {
-                m_centralStack->setCurrentWidget(m_homeTab);
-            }
-            return;
         case 1:
-        case 2:  // Marketplace lives inside an instance; route to instance list.
-            if (m_centralStack != nullptr && view != nullptr) {
-                m_centralStack->setCurrentWidget(view);
+        case 2:
+            if (view != nullptr) {
                 view->setFocus(Qt::OtherFocusReason);
             }
             return;

@@ -30,6 +30,13 @@ class NewsService : public QAbstractListModel {
     Q_PROPERTY(int count READ rowCount NOTIFY changed)
     Q_PROPERTY(bool ready READ ready NOTIFY changed)
     Q_PROPERTY(QString latestTitle READ latestTitle NOTIFY changed)
+    Q_PROPERTY(QVariantList entries READ entriesAsList NOTIFY changed)
+    Q_PROPERTY(int selectedIndex READ selectedIndex WRITE setSelectedIndex NOTIFY selectedChanged)
+    Q_PROPERTY(QString selectedTitle READ selectedTitle NOTIFY selectedChanged)
+    Q_PROPERTY(QString selectedBody READ selectedBody NOTIFY selectedChanged)
+    Q_PROPERTY(QString selectedImageUrl READ selectedImageUrl NOTIFY selectedChanged)
+    Q_PROPERTY(QString selectedUrl READ selectedUrl NOTIFY selectedChanged)
+    Q_PROPERTY(QDateTime selectedPosted READ selectedPosted NOTIFY selectedChanged)
 
    public:
     enum Roles : uint16_t {
@@ -50,6 +57,15 @@ class NewsService : public QAbstractListModel {
 
     bool ready() const { return !m_entries.isEmpty(); }
     QString latestTitle() const;
+    QVariantList entriesAsList() const;
+
+    int selectedIndex() const { return m_selectedIndex; }
+    void setSelectedIndex(int i);
+    QString selectedTitle() const;
+    QString selectedBody() const;
+    QString selectedImageUrl() const;
+    QString selectedUrl() const;
+    QDateTime selectedPosted() const;
 
     void setEndpointUrl(const QString& url);
     Q_INVOKABLE void refreshNow();
@@ -57,6 +73,7 @@ class NewsService : public QAbstractListModel {
 
    signals:
     void changed();
+    void selectedChanged();
 
    private slots:
     void onReplyFinished();
@@ -67,6 +84,7 @@ class NewsService : public QAbstractListModel {
     QTimer* m_timer = nullptr;
     QString m_endpoint;
     QVector<AnnouncementEntry> m_entries;
+    int m_selectedIndex = 0;
 };
 
 }  // namespace Jarton
