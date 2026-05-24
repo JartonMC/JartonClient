@@ -78,4 +78,8 @@ runs:
         aqtversion: "==3.1.*"
         version: ${{ inputs.qt-version }}
         modules: qtimageformats qtnetworkauth
+        # Ship the OpenSSL backend + libssl/libcrypto on Windows so HTTPS works
+        # for users whose machines don't cooperate with Schannel. macOS uses
+        # SecureTransport which Qt always bundles; this tool is a no-op there.
+        tools: ${{ runner.os == 'Windows' && 'tools_opensslv3_x64' || '' }}
         cache: ${{ inputs.build-type == 'Debug' }}
