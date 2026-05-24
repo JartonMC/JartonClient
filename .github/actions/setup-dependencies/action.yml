@@ -83,3 +83,16 @@ runs:
         # SecureTransport which Qt always bundles; this tool is a no-op there.
         tools: ${{ runner.os == 'Windows' && 'tools_opensslv3_x64' || '' }}
         cache: ${{ inputs.build-type == 'Debug' }}
+
+    # install-qt-action sets IQTA_TOOLS but does not put the OpenSSL bin dir
+    # on PATH, and windeployqt only finds libssl/libcrypto via PATH search.
+    # Without this the openssl TLS backend plugin gets skipped at deploy time.
+    - name: Put Qt's OpenSSL on PATH (Windows)
+      if: ${{ runner.os == 'Windows' && inputs.msystem == '' }}
+      shell: pwsh
+      run: |
+        $opensslBin = "$env:IQTA_TOOLS\OpenSSLv3\Win_x64\bin"
+        if (-not (Test-Path $opensslBin)) {
+          throw "Expected OpenSSL bin dir not found: $opensslBin"
+        }
+        $opensslBin | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
