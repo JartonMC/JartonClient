@@ -5,12 +5,15 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QLoggingCategory>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
+
+Q_LOGGING_CATEGORY(jartonWallpaper, "jarton.wallpaper")
 
 #include "ConfigService.h"
 #include "JartonManifestService.h"
@@ -179,7 +182,13 @@ void WallpaperService::onDownloadFinished()
             if (m_activeUrls.value(m_currentIndex) == url) {
                 emit currentChanged();
             }
+        } else {
+            qCWarning(jartonWallpaper) << "could not write cache file for" << url
+                                       << "path=" << localPathFor(url);
         }
+    } else {
+        qCWarning(jartonWallpaper) << "download failed:" << reply->errorString()
+                                   << "(code" << reply->error() << ") url=" << url;
     }
     startNextDownload();
 }

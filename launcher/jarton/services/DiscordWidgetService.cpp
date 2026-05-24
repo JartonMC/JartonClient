@@ -4,10 +4,13 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLoggingCategory>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QTimer>
+
+Q_LOGGING_CATEGORY(jartonDiscord, "jarton.discord")
 
 namespace Jarton {
 
@@ -51,6 +54,8 @@ void DiscordWidgetService::onReplyFinished()
     reply->deleteLater();
 
     if (reply->error() != QNetworkReply::NoError) {
+        qCWarning(jartonDiscord) << "widget fetch failed:" << reply->errorString()
+                                 << "(code" << reply->error() << ") guild=" << m_guildId;
         m_consecutiveFailures++;
         if (m_consecutiveFailures >= g_failuresUntilHidden) {
             m_available = false;
@@ -61,6 +66,7 @@ void DiscordWidgetService::onReplyFinished()
 
     const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
     if (!doc.isObject()) {
+        qCWarning(jartonDiscord) << "widget response is not a JSON object; guild=" << m_guildId;
         m_consecutiveFailures++;
         return;
     }
