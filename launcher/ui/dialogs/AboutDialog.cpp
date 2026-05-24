@@ -35,9 +35,9 @@
 
 #include "AboutDialog.h"
 #include <QIcon>
+#include <QPixmap>
 #include "Application.h"
 #include "BuildConfig.h"
-#include "Markdown.h"
 #include "StringUtils.h"
 #include "ui_AboutDialog.h"
 
@@ -53,22 +53,7 @@ QString getCreditsHtml()
     }
     QString fileContent = QString::fromUtf8(dataFile.readAll());
     dataFile.close();
-
-    return fileContent.arg(QObject::tr("%1 Developers").arg(BuildConfig.LAUNCHER_DISPLAYNAME), QObject::tr("MultiMC Developers"),
-                           QObject::tr("With special thanks to"));
-}
-
-QString getLicenseHtml()
-{
-    QFile dataFile(":/documents/COPYING.md");
-    if (dataFile.open(QIODevice::ReadOnly)) {
-        QString output = markdownToHTML(dataFile.readAll());
-        dataFile.close();
-        return output;
-    } else {
-        qWarning() << "Failed to open file" << dataFile.fileName() << "for reading:" << dataFile.errorString();
-        return QString();
-    }
+    return fileContent;
 }
 
 }  // namespace
@@ -84,12 +69,14 @@ AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent), ui(new Ui::AboutDia
     QString chtml = getCreditsHtml();
     ui->creditsText->setHtml(StringUtils::htmlListPatch(chtml));
 
-    QString lhtml = getLicenseHtml();
-    ui->licenseText->setHtml(StringUtils::htmlListPatch(lhtml));
-
     ui->urlLabel->setOpenExternalLinks(true);
 
-    ui->icon->setPixmap(APPLICATION->logo().pixmap(128, 128));
+    {
+        QPixmap pix(":/jarton/icons/jartonclient_128.png");
+        const int target = 64;
+        ui->icon->setFixedSize(target, target);
+        ui->icon->setPixmap(pix.scaled(target, target, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
     ui->title->setText(launcherName);
 
     ui->versionLabel->setText(BuildConfig.printableVersionString());
@@ -125,8 +112,6 @@ AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent), ui(new Ui::AboutDia
     ui->copyLabel->setOpenExternalLinks(true);
 
     connect(ui->closeButton, &QPushButton::clicked, this, &AboutDialog::close);
-
-    connect(ui->aboutQt, &QPushButton::clicked, &QApplication::aboutQt);
 }
 
 AboutDialog::~AboutDialog()

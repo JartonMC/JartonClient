@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPaintEvent>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -18,35 +19,47 @@ namespace Jarton {
 StatsTile::StatsTile(const QString& label, const QString& accent, QWidget* parent) : QWidget(parent)
 {
     setAttribute(Qt::WA_TranslucentBackground, true);
+    setAttribute(Qt::WA_NoSystemBackground, true);
 
     auto* lay = new QVBoxLayout(this);
-    lay->setContentsMargins(16, 10, 16, 10);
+    lay->setContentsMargins(12, 6, 12, 6);
     lay->setSpacing(0);
 
     auto* labelText = new QLabel(label, this);
     QFont labelFont = labelText->font();
-    labelFont.setPixelSize(10);
+    labelFont.setPixelSize(9);
     labelFont.setBold(true);
-    labelFont.setLetterSpacing(QFont::AbsoluteSpacing, 1.2);
+    labelFont.setLetterSpacing(QFont::AbsoluteSpacing, 1.0);
     labelText->setFont(labelFont);
     labelText->setStyleSheet(QString("color: %1; background: transparent; border: none;").arg(accent));
 
     m_value = new QLabel("—", this);
     QFont valueFont = m_value->font();
-    valueFont.setPixelSize(24);
+    valueFont.setPixelSize(18);
     valueFont.setWeight(QFont::Black);
     m_value->setFont(valueFont);
     m_value->setStyleSheet("color: #FFE082; background: transparent; border: none;");
 
     m_subtitle = new QLabel(QString{}, this);
     QFont subFont = m_subtitle->font();
-    subFont.setPixelSize(11);
+    subFont.setPixelSize(9);
     m_subtitle->setFont(subFont);
     m_subtitle->setStyleSheet("color: #888; background: transparent; border: none;");
 
     lay->addWidget(labelText);
     lay->addWidget(m_value);
     lay->addWidget(m_subtitle);
+}
+
+void StatsTile::paintEvent(QPaintEvent* event)
+{
+    Q_UNUSED(event);
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing, true);
+
+    QPainterPath path;
+    path.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), 10, 10);
+    p.fillPath(path, QColor(26, 20, 14));
 }
 
 void StatsTile::setValue(const QString& value)
@@ -63,29 +76,20 @@ void StatsTile::setSubtitle(const QString& subtitle)
     }
 }
 
-void StatsTile::paintEvent(QPaintEvent* event)
-{
-    Q_UNUSED(event);
-    QPainter p(this);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setBrush(QColor(26, 20, 14));
-    p.setPen(Qt::NoPen);
-    p.drawRoundedRect(rect(), 12, 12);
-}
-
 StatsOverlayWidget::StatsOverlayWidget(ServerStatusService* status, DiscordWidgetService* discord, QWidget* parent)
     : QWidget(parent), m_status(status), m_discord(discord)
 {
     setAttribute(Qt::WA_TranslucentBackground, true);
+    setAttribute(Qt::WA_NoSystemBackground, true);
 
     auto* row = new QHBoxLayout(this);
     row->setContentsMargins(0, 0, 0, 0);
-    row->setSpacing(12);
+    row->setSpacing(10);
 
     m_playersTile = new StatsTile(tr("PLAYERS ONLINE"), "#FFB81C", this);
-    m_playersTile->setFixedSize(230, 76);
+    m_playersTile->setFixedSize(180, 60);
     m_discordTile = new StatsTile(tr("DISCORD"), "#FFB81C", this);
-    m_discordTile->setFixedSize(170, 76);
+    m_discordTile->setFixedSize(130, 60);
 
     m_discordTile->setCursor(Qt::PointingHandCursor);
 
@@ -133,6 +137,8 @@ void StatsOverlayWidget::onDiscordChanged()
     } else {
         m_discordTile->setVisible(false);
     }
+    adjustSize();
+    update();
 }
 
 }  // namespace Jarton
