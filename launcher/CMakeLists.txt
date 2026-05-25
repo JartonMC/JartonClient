@@ -1583,6 +1583,30 @@ if(WIN32 OR (UNIX AND APPLE))
         SCRIPT ${QT_DEPLOY_SCRIPT}
         COMPONENT bundle
     )
+
+    # windeployqt silently skips qopensslbackend.dll when OpenSSL isn't on
+    # the small set of paths it looks at. Since install-qt-action puts the
+    # OpenSSL tool somewhere windeployqt doesn't find, copy the plugin and
+    # the runtime DLLs ourselves so the result is deterministic instead of
+    # relying on the deploy tool's auto-detection.
+    if(WIN32 AND NOT MINGW AND DEFINED ENV{IQTA_TOOLS})
+        set(_jarton_openssl_bin "$ENV{IQTA_TOOLS}/OpenSSLv3/Win_x64/bin")
+        if(EXISTS "${_jarton_openssl_bin}")
+            file(GLOB _jarton_openssl_dlls
+                "${_jarton_openssl_bin}/libssl-*.dll"
+                "${_jarton_openssl_bin}/libcrypto-*.dll")
+            install(FILES ${_jarton_openssl_dlls}
+                DESTINATION ${BINARY_DEST_DIR} COMPONENT bundle)
+        endif()
+
+        file(GLOB _jarton_qt_openssl_plugin
+            "${QT_PLUGINS_DIR}/tls/qopensslbackend*.dll")
+        if(_jarton_qt_openssl_plugin)
+            install(FILES ${_jarton_qt_openssl_plugin}
+                DESTINATION ${PLUGIN_DEST_DIR}/tls COMPONENT bundle)
+        endif()
+    endif()
+
     # FIXME: remove this crap once we stop using msys2
     if(MINGW)
         # i've not found a solution better than injecting the config vars like this...
