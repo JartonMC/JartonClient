@@ -1590,7 +1590,12 @@ if(WIN32 OR (UNIX AND APPLE))
     # the runtime DLLs ourselves so the result is deterministic instead of
     # relying on the deploy tool's auto-detection.
     if(WIN32 AND NOT MINGW AND DEFINED ENV{IQTA_TOOLS})
-        set(_jarton_openssl_bin "$ENV{IQTA_TOOLS}/OpenSSLv3/Win_x64/bin")
+        # IQTA_TOOLS is set by install-qt-action with native Windows backslashes
+        # (e.g. D:\a\JartonClient\Qt\Tools), which CMake reads as escape
+        # sequences once the install rule gets serialized. Normalize to
+        # forward slashes before using it in any string context.
+        file(TO_CMAKE_PATH "$ENV{IQTA_TOOLS}" _jarton_iqta_tools)
+        set(_jarton_openssl_bin "${_jarton_iqta_tools}/OpenSSLv3/Win_x64/bin")
         if(EXISTS "${_jarton_openssl_bin}")
             file(GLOB _jarton_openssl_dlls
                 "${_jarton_openssl_bin}/libssl-*.dll"
