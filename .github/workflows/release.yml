@@ -46,10 +46,6 @@ jobs:
         run: |
           mv ${{ github.workspace }}/JartonClient-source JartonClient-${{ env.VERSION }}
 
-          mv JartonClient-Linux-Qt6-Portable*/JartonClient-portable.tar.gz JartonClient-Linux-Portable-${{ env.VERSION }}.tar.gz
-          mv JartonClient-*.AppImage/JartonClient-*-x86_64.AppImage JartonClient-Linux-x86_64.AppImage
-          mv JartonClient-*.AppImage.zsync/JartonClient-*-x86_64.AppImage.zsync JartonClient-Linux-x86_64.AppImage.zsync
-
           mv JartonClient-macOS*/JartonClient.zip JartonClient-macOS-${{ env.VERSION }}.zip
           mv JartonClient-macOS*/JartonClient.dmg JartonClient-macOS-${{ env.VERSION }}.dmg
 
@@ -77,9 +73,6 @@ jobs:
           prerelease: false
           fail_on_unmatched_files: false
           files: |
-            JartonClient-Linux-x86_64.AppImage
-            JartonClient-Linux-x86_64.AppImage.zsync
-            JartonClient-Linux-Portable-${{ env.VERSION }}.tar.gz
             JartonClient-Windows-MSVC-${{ env.VERSION }}.zip
             JartonClient-Windows-MSVC-Portable-${{ env.VERSION }}.zip
             JartonClient-Windows-MSVC-Setup-${{ env.VERSION }}.exe
