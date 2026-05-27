@@ -288,6 +288,49 @@ ModPage QComboBox {
     min-width: 140px;
 }
 
+/* ============ Instance window sidebar (PageContainer) ============ */
+
+/* PageView is the QListView subclass used as the sidebar in instance windows
+   and most multi-page dialogs (Settings, Modpack Wizard, etc.). Without
+   explicit item-state rules it falls through to the platform style on
+   Windows, which paints the pressed/active state with a dark system colour
+   that reads as black against the honey theme. */
+
+PageView {
+    background-color: #1a140e;
+    border: none;
+    border-right: 1px solid #3a2a14;
+    color: #C9C9C9;
+    outline: 0;
+}
+
+PageView::item {
+    padding: 8px 12px;
+    border: none;
+    border-left: 3px solid transparent;
+    color: #8B6F2A;
+    background-color: transparent;
+}
+
+PageView::item:hover {
+    background-color: rgba(255, 184, 28, 0.06);
+    color: #C9C9C9;
+}
+
+PageView::item:selected,
+PageView::item:selected:active,
+PageView::item:selected:!active {
+    background-color: rgba(255, 184, 28, 0.13);
+    border-left: 3px solid #FFB81C;
+    color: #FFE082;
+    font-weight: 600;
+}
+
+PageView::item:pressed {
+    background-color: rgba(255, 184, 28, 0.18);
+    color: #FFE082;
+}
+
 /* ============ Settings ============ */
 
 QListWidget#pageSwitcher {
