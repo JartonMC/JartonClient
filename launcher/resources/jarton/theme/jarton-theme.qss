@@ -288,6 +288,41 @@ ModPage QComboBox {
     min-width: 140px;
 }
 
+/* ============ Quick Setup wizard ============ */
+
+/* SetupWizard runs in QWizard::ClassicStyle to dodge platform variability, but
+   without explicit rules the chrome falls through to the OS palette (grey on
+   Windows, system blue on macOS). Force the honey palette across the whole
+   wizard surface — page background, labels, separator lines. Buttons in the
+   bottom strip pick up the global QPushButton honey gradient. */
+
+QWizard#SetupWizard,
+QWizard#SetupWizard > QWidget {
+    background-color: #0f0a06;
+    color: #C9C9C9;
+}
+
+QWizard#SetupWizard QLabel {
+    color: #C9C9C9;
+    background-color: transparent;
+    border: none;
+}
+
+/* The first QLabel on each page carries the title in rich text — match the
+   honey accent used everywhere else for headings. */
+QWizard#SetupWizard QLabel#label {
+    color: #FFE082;
+    background-color: transparent;
+}
+
+/* Horizontal separator Line widgets inside pages. */
+QWizard#SetupWizard QFrame[frameShape="4"] {
+    color: #3a2a14;
+    background-color: #3a2a14;
+    max-height: 1px;
+    border: none;
+}
+
 /* ============ Instance window sidebar (PageContainer) ============ */
 
 /* PageView is the QListView subclass used as the sidebar in instance windows
