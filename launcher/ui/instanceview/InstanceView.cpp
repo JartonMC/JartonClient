@@ -258,7 +258,11 @@ QString InstanceView::groupNameAt(const QPoint& point)
 
 int InstanceView::calculateItemsPerRow() const
 {
-    return qFloor((qreal)(contentWidth()) / (qreal)(itemWidth() + m_spacing));
+    // qMax(1, ...) guards the first resizeEvent: width() hasn't been measured
+    // yet, contentWidth() can be 0, and a 0 here divides by zero in
+    // VisualGroup::update() which Qt 6.11's qCheckedFPConversionToInteger
+    // turns into a hard SIGABRT. Mirror InstanceDelegate.cpp:140.
+    return qMax(1, qFloor((qreal)(contentWidth()) / (qreal)(itemWidth() + m_spacing)));
 }
 
 int InstanceView::contentWidth() const
