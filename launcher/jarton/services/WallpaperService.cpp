@@ -81,8 +81,10 @@ QString WallpaperService::resolvedUrl(int index) const
     if (QFileInfo::exists(local)) {
         return QUrl::fromLocalFile(local).toString();
     }
-    // Not yet downloaded — return remote URL; QML Image handles HTTP loading.
-    return remote;
+    // Not yet cached. Show the bundled fallback rather than handing the native
+    // WallpaperBackground a URL it can't render — onDownloadFinished re-emits
+    // currentChanged once the file lands.
+    return fallbackUrl();
 }
 
 QString WallpaperService::localPathFor(const QString& url)

@@ -37,11 +37,18 @@ void WallpaperBackground::setWallpaperUrl(const QString& url)
         return;
     }
     const QUrl parsed(url);
-    const QString localPath = parsed.isLocalFile() ? parsed.toLocalFile() : QString{};
-    if (localPath.isEmpty()) {
+    QString readerPath;
+    if (parsed.scheme() == QLatin1String("qrc")) {
+        // qrc:/foo.jpg → :/foo.jpg (the form QImageReader accepts for resources)
+        readerPath = QStringLiteral(":") + parsed.path();
+    } else if (parsed.isLocalFile()) {
+        readerPath = parsed.toLocalFile();
+    } else {
+        // Remote URLs are downloaded by WallpaperService; nothing to render until
+        // the cached file lands and we get called again with a file:// path.
         return;
     }
-    QImageReader reader(localPath);
+    QImageReader reader(readerPath);
     reader.setAutoTransform(true);
     QImage img = reader.read();
     if (img.isNull()) {
