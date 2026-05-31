@@ -66,9 +66,11 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QProgressDialog>
+#include <QPushButton>
 #include <QQuickItem>
 #include <QQuickWidget>
 #include <QVBoxLayout>
+#include <QWindowStateChangeEvent>
 
 #include "jarton/AnnouncementDialog.h"
 #include "jarton/ChangelogPanel.h"
@@ -355,6 +357,34 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         m_changelogPanel = new Jarton::ChangelogPanel(APPLICATION->jartonChangelog(), m_centralBg);
         m_centralBg->installEventFilter(this);
         m_changelogPanel->raise();
+        // Hidden by default — the WindowStateChange handler (or the deferred
+        // initial check below) reveals it once the window is actually maximized.
+        m_changelogPanel->hide();
+
+        // Edge tab that pulls the changelog in or tucks it away. Always visible.
+        m_changelogToggle = new QPushButton(m_centralBg);
+        m_changelogToggle->setObjectName(QStringLiteral("changelogToggle"));
+        m_changelogToggle->setCursor(Qt::PointingHandCursor);
+        m_changelogToggle->setFocusPolicy(Qt::NoFocus);
+        m_changelogToggle->setFixedSize(14, 64);
+        m_changelogToggle->setToolTip(tr("Show or hide the changelog"));
+        m_changelogToggle->setText(QStringLiteral("‹"));
+        m_changelogToggle->show();
+        connect(m_changelogToggle, &QPushButton::clicked, this, [this]() {
+            const bool nextVisible = !m_changelogPanel->isVisible();
+            m_changelogManuallyHidden = !nextVisible;
+            applyChangelogVisibility(nextVisible);
+        });
+
+        // Restored window state isn't authoritative until after show(); defer
+        // the initial visibility decision to the event loop.
+        QTimer::singleShot(0, this, [this]() {
+            if (!m_changelogManuallyHidden && isMaximized()) {
+                applyChangelogVisibility(true);
+            } else {
+                applyChangelogVisibility(false);
+            }
+        });
 
         // Floating stats tiles — native QFrame widgets so the rounded
         // corners actually clip to a mask (QML compositing past the rounded
@@ -1583,11 +1613,20 @@ void MainWindow::repositionFloatingOverlays()
         const int verticalMargin = 28;
         const int desired = static_cast<int>(m_centralBg->width() * 0.38);
         const int panelWidth = std::clamp(desired, 420, 780);
-        const int x = m_centralBg->width() - panelWidth - rightMargin;
-        const int y = verticalMargin;
-        const int h = std::max(0, m_centralBg->height() - 2 * verticalMargin);
-        m_changelogPanel->setGeometry(x, y, panelWidth, h);
+        const int panelX = m_centralBg->width() - panelWidth - rightMargin;
+        const int panelY = verticalMargin;
+        const int panelH = std::max(0, m_centralBg->height() - 2 * verticalMargin);
+        m_changelogPanel->setGeometry(panelX, panelY, panelWidth, panelH);
         m_changelogPanel->raise();
+
+        if (m_changelogToggle != nullptr) {
+            const int toggleY = (m_centralBg->height() - m_changelogToggle->height()) / 2;
+            const int toggleX = m_changelogPanel->isVisible()
+                                    ? panelX - m_changelogToggle->width() - 6
+                                    : m_centralBg->width() - m_changelogToggle->width();
+            m_changelogToggle->move(toggleX, toggleY);
+            m_changelogToggle->raise();
+        }
     }
     if (m_centralBg != nullptr && m_statsOverlay != nullptr) {
         // Bottom-left — position only; width/height come from the QML root.
@@ -1741,7 +1780,31 @@ void MainWindow::changeEvent(QEvent* event)
     if (event->type() == QEvent::LanguageChange) {
         retranslateUi();
     }
+    if (event->type() == QEvent::WindowStateChange && m_changelogPanel != nullptr) {
+        auto* stateEvent = static_cast<QWindowStateChangeEvent*>(event);
+        const bool wasMaximized = (stateEvent->oldState() & Qt::WindowMaximized) != 0;
+        const bool nowMaximized = isMaximized();
+        if (nowMaximized && !wasMaximized && !m_changelogManuallyHidden) {
+            applyChangelogVisibility(true);
+        } else if (!nowMaximized && wasMaximized) {
+            // Un-maximize always hides; the sticky manual-hidden flag is
+            // untouched so the next maximize honours the user's last choice.
+            applyChangelogVisibility(false);
+        }
+    }
     QMainWindow::changeEvent(event);
+}
+
+void MainWindow::applyChangelogVisibility(bool visible)
+{
+    if (m_changelogPanel != nullptr) {
+        m_changelogPanel->setVisible(visible);
+    }
+    if (m_changelogToggle != nullptr) {
+        // Chevron points toward where the panel currently sits / will go.
+        m_changelogToggle->setText(visible ? QStringLiteral("›") : QStringLiteral("‹"));
+    }
+    repositionFloatingOverlays();
 }
 
 void MainWindow::instanceActivated(QModelIndex index)
