@@ -4,11 +4,14 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLoggingCategory>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QTimer>
 #include <QVariantMap>
+
+Q_LOGGING_CATEGORY(jartonNews, "jarton.news")
 
 namespace Jarton {
 
@@ -148,10 +151,13 @@ void NewsService::onReplyFinished()
     }
     reply->deleteLater();
     if (reply->error() != QNetworkReply::NoError) {
+        qCWarning(jartonNews) << "fetch failed:" << reply->errorString()
+                              << "(code" << reply->error() << ") url=" << m_endpoint;
         return;  // keep last-known
     }
     const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
     if (!doc.isObject()) {
+        qCWarning(jartonNews) << "response is not a JSON object; url=" << m_endpoint;
         return;
     }
     const QJsonArray arr = doc.object().value("entries").toArray();

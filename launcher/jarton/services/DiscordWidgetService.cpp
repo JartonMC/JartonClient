@@ -4,10 +4,13 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLoggingCategory>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QTimer>
+
+Q_LOGGING_CATEGORY(jartonDiscord, "jarton.discord")
 
 namespace Jarton {
 
@@ -35,7 +38,7 @@ void DiscordWidgetService::refreshNow()
     }
     const QString url = QStringLiteral("https://discord.com/api/guilds/%1/widget.json").arg(m_guildId);
     QNetworkRequest req{ QUrl(url) };
-    req.setRawHeader("User-Agent", "JartonClient/0.3");
+    req.setRawHeader("User-Agent", "JartonClient/1.0");
     req.setTransferTimeout(g_requestTimeoutMs);
     m_inFlight = m_nam->get(req);
     connect(m_inFlight, &QNetworkReply::finished, this, &DiscordWidgetService::onReplyFinished);
@@ -51,6 +54,8 @@ void DiscordWidgetService::onReplyFinished()
     reply->deleteLater();
 
     if (reply->error() != QNetworkReply::NoError) {
+        qCWarning(jartonDiscord) << "widget fetch failed:" << reply->errorString()
+                                 << "(code" << reply->error() << ") guild=" << m_guildId;
         m_consecutiveFailures++;
         if (m_consecutiveFailures >= g_failuresUntilHidden) {
             m_available = false;
@@ -61,6 +66,7 @@ void DiscordWidgetService::onReplyFinished()
 
     const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
     if (!doc.isObject()) {
+        qCWarning(jartonDiscord) << "widget response is not a JSON object; guild=" << m_guildId;
         m_consecutiveFailures++;
         return;
     }

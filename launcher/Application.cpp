@@ -100,6 +100,7 @@
 #include <QMessageBox>
 #include <QNetworkAccessManager>
 #include <QSplashScreen>
+#include <QSslSocket>
 #include <QtQml/qqml.h>
 #include <QQmlEngine>
 #include <QJSEngine>
@@ -1546,6 +1547,14 @@ void Application::initJartonServices()
         return;
     }
     m_jartonServicesInitialized = true;
+
+    // Log the TLS situation once so that "live data isn't loading" reports
+    // from Windows testers don't require a debug build to diagnose.
+    qInfo() << "[jarton] TLS supported:" << QSslSocket::supportsSsl()
+            << "active backend:" << QSslSocket::activeBackend()
+            << "available backends:" << QSslSocket::availableBackends()
+            << "Qt build SSL lib:" << QSslSocket::sslLibraryBuildVersionString()
+            << "runtime SSL lib:" << QSslSocket::sslLibraryVersionString();
 
     m_jartonManifest = new Jarton::JartonManifestService(this);
     m_jartonConfig = new Jarton::ConfigService(this);

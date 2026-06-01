@@ -5,11 +5,14 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLoggingCategory>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QStandardPaths>
 #include <QTimer>
+
+Q_LOGGING_CATEGORY(jartonManifest, "jarton.manifest")
 
 namespace Jarton {
 
@@ -87,7 +90,7 @@ void JartonManifestService::refreshNow()
         return;
     }
     QNetworkRequest req{ QUrl(m_endpoint) };
-    req.setRawHeader("User-Agent", "JartonClient/0.2");
+    req.setRawHeader("User-Agent", "JartonClient/1.0");
     req.setTransferTimeout(g_requestTimeoutMs);
     m_inFlight = m_nam->get(req);
     connect(m_inFlight, &QNetworkReply::finished, this, &JartonManifestService::onReplyFinished);
@@ -103,6 +106,8 @@ void JartonManifestService::onReplyFinished()
     reply->deleteLater();
 
     if (reply->error() != QNetworkReply::NoError) {
+        qCWarning(jartonManifest) << "fetch failed:" << reply->errorString()
+                                  << "(code" << reply->error() << ") url=" << m_endpoint;
         m_consecutiveFailures++;
         emit fetchFailed(reply->errorString());
         emit readyChanged();

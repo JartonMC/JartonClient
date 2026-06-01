@@ -5,12 +5,16 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
+#include <QLoggingCategory>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
+
+Q_LOGGING_CATEGORY(jartonWallpaper, "jarton.wallpaper")
 
 #include "ConfigService.h"
 #include "JartonManifestService.h"
@@ -78,8 +82,10 @@ QString WallpaperService::resolvedUrl(int index) const
     if (QFileInfo::exists(local)) {
         return QUrl::fromLocalFile(local).toString();
     }
-    // Not yet downloaded — return remote URL; QML Image handles HTTP loading.
-    return remote;
+    // Not yet cached. Show the bundled fallback rather than handing the native
+    // WallpaperBackground a URL it can't render — onDownloadFinished re-emits
+    // currentChanged once the file lands.
+    return fallbackUrl();
 }
 
 QString WallpaperService::localPathFor(const QString& url)
@@ -171,15 +177,22 @@ void WallpaperService::onDownloadFinished()
     const QString url = reply->request().url().toString();
     if (reply->error() == QNetworkReply::NoError) {
         const QByteArray bytes = reply->readAll();
-        QFile out(localPathFor(url));
-        if (out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-            out.write(bytes);
+        // QSaveFile writes to a temp sibling and atomically renames on commit, so a
+        // crash mid-write can't leave a truncated image that exists() then trusts forever.
+        QSaveFile out(localPathFor(url));
+        if (out.open(QIODevice::WriteOnly) && (out.write(bytes) == bytes.size()) && out.commit()) {
             // If this URL is what we're currently showing, refresh QML binding so it
             // switches from the remote fetch URL to the now-cached local file.
             if (m_activeUrls.value(m_currentIndex) == url) {
                 emit currentChanged();
             }
+        } else {
+            qCWarning(jartonWallpaper) << "could not write cache file for" << url
+                                       << "path=" << localPathFor(url);
         }
+    } else {
+        qCWarning(jartonWallpaper) << "download failed:" << reply->errorString()
+                                   << "(code" << reply->error() << ") url=" << url;
     }
     startNextDownload();
 }

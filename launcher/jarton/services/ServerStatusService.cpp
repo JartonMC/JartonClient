@@ -4,9 +4,12 @@
 #include <QElapsedTimer>
 #include <QFuture>
 #include <QFutureWatcher>
+#include <QLoggingCategory>
 #include <QTcpSocket>
 #include <QTimer>
 #include <QtConcurrent/QtConcurrent>
+
+Q_LOGGING_CATEGORY(jartonStatus, "jarton.status")
 
 #include "JartonManifestService.h"
 #include "jarton/net/McServerPing.h"
@@ -136,6 +139,8 @@ void ServerStatusService::runPing()
             return;
         }
 
+        qCWarning(jartonStatus) << "ping failed for" << m_host << ":" << m_port
+                                << "—" << outcome.transportError;
         m_consecutiveFailures++;
         if (m_consecutiveFailures >= g_failuresUntilUnknown) {
             m_state = Unknown;

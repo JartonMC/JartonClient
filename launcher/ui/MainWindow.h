@@ -48,6 +48,7 @@
 
 class QQuickWidget;
 class QHBoxLayout;
+class QPushButton;
 namespace Jarton {
 class WallpaperBackground;
 class ChangelogPanel;
@@ -241,6 +242,12 @@ class MainWindow : public QMainWindow {
     QQuickWidget* m_announceBar = nullptr;
     Jarton::AnnouncementDialog* m_announcementDialog = nullptr;
     Jarton::StatsOverlayWidget* m_statsOverlay = nullptr;
+    QPushButton* m_changelogToggle = nullptr;
+    // Sticky preference. Set true when the user explicitly hides the changelog
+    // and cleared when they explicitly show it; window-maximize transitions
+    // respect this flag (no auto-show) but never set it on their own.
+    bool m_changelogManuallyHidden = false;
+    void applyChangelogVisibility(bool visible);
 
     void addInstance(const QString& url = QString(), const QMap<QString, QString>& extra_info = {});
     void activateInstance(BaseInstance* instance);

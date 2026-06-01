@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "ChangelogService.h"
 
+#include <QLoggingCategory>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QTimer>
+
+Q_LOGGING_CATEGORY(jartonChangelog, "jarton.changelog")
 
 namespace Jarton {
 
@@ -62,6 +65,8 @@ void ChangelogService::onReplyFinished()
     }
     reply->deleteLater();
     if (reply->error() != QNetworkReply::NoError) {
+        qCWarning(jartonChangelog) << "fetch failed:" << reply->errorString()
+                                   << "(code" << reply->error() << ") url=" << m_endpoint;
         return;
     }
     const QString fetched = QString::fromUtf8(reply->readAll());
