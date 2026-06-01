@@ -38,7 +38,7 @@ void DiscordWidgetService::refreshNow()
     }
     const QString url = QStringLiteral("https://discord.com/api/guilds/%1/widget.json").arg(m_guildId);
     QNetworkRequest req{ QUrl(url) };
-    req.setRawHeader("User-Agent", "JartonClient/0.3");
+    req.setRawHeader("User-Agent", "JartonClient/1.0");
     req.setTransferTimeout(g_requestTimeoutMs);
     m_inFlight = m_nam->get(req);
     connect(m_inFlight, &QNetworkReply::finished, this, &DiscordWidgetService::onReplyFinished);

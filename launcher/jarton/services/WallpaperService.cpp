@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QLoggingCategory>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -176,9 +177,10 @@ void WallpaperService::onDownloadFinished()
     const QString url = reply->request().url().toString();
     if (reply->error() == QNetworkReply::NoError) {
         const QByteArray bytes = reply->readAll();
-        QFile out(localPathFor(url));
-        if (out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-            out.write(bytes);
+        // QSaveFile writes to a temp sibling and atomically renames on commit, so a
+        // crash mid-write can't leave a truncated image that exists() then trusts forever.
+        QSaveFile out(localPathFor(url));
+        if (out.open(QIODevice::WriteOnly) && (out.write(bytes) == bytes.size()) && out.commit()) {
             // If this URL is what we're currently showing, refresh QML binding so it
             // switches from the remote fetch URL to the now-cached local file.
             if (m_activeUrls.value(m_currentIndex) == url) {

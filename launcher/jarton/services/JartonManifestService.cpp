@@ -90,7 +90,7 @@ void JartonManifestService::refreshNow()
         return;
     }
     QNetworkRequest req{ QUrl(m_endpoint) };
-    req.setRawHeader("User-Agent", "JartonClient/0.2");
+    req.setRawHeader("User-Agent", "JartonClient/1.0");
     req.setTransferTimeout(g_requestTimeoutMs);
     m_inFlight = m_nam->get(req);
     connect(m_inFlight, &QNetworkReply::finished, this, &JartonManifestService::onReplyFinished);
