@@ -97,6 +97,10 @@ void JartonPackUpdateTask::apply()
     const QStringList oldJars =
         liveMods.entryList({ QStringLiteral("*.jar"), QStringLiteral("*.jar.disabled") }, QDir::Files);
     for (const QString& name : oldJars) {
+        // JartonUI is launcher-managed (force-injected per launch); leave it alone.
+        if (name.startsWith(QStringLiteral("jartonui"), Qt::CaseInsensitive)) {
+            continue;
+        }
         if (!liveMods.remove(name)) {
             emitFailed(tr("Couldn't remove %1 from the mods folder.").arg(name));
             return;
@@ -104,6 +108,9 @@ void JartonPackUpdateTask::apply()
     }
     QDir packMods(FS::PathCombine(packGame, "mods"));
     for (const QString& name : packMods.entryList({ QStringLiteral("*.jar") }, QDir::Files)) {
+        if (name.startsWith(QStringLiteral("jartonui"), Qt::CaseInsensitive)) {
+            continue;
+        }
         if (!QFile::copy(packMods.absoluteFilePath(name), liveMods.absoluteFilePath(name))) {
             emitFailed(tr("Couldn't install %1.").arg(name));
             return;

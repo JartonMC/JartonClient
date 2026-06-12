@@ -32,6 +32,26 @@ QDir modsDir(const QString& gameRoot)
     return QDir(gameRoot + QStringLiteral("/mods"));
 }
 
+// The launcher force-injects its bundled JartonUI at launch, renaming the pack's
+// versioned jar to a canonical JartonUI.jar. That file is launcher-managed, not
+// player-managed, so it can never count as an edit — filter it from both the
+// stored baseline and the live scan or every launched instance reads as edited.
+bool isLauncherManaged(const QString& name)
+{
+    return name.startsWith(QStringLiteral("jartonui"), Qt::CaseInsensitive);
+}
+
+QMap<QString, QString> withoutLauncherManaged(const QMap<QString, QString>& in)
+{
+    QMap<QString, QString> out;
+    for (auto it = in.begin(); it != in.end(); ++it) {
+        if (!isLauncherManaged(it.key())) {
+            out.insert(it.key(), it.value());
+        }
+    }
+    return out;
+}
+
 }  // namespace
 
 PackRecord PackRecord::read(const QString& instanceRoot)
@@ -83,7 +103,7 @@ PackRecord PackRecord::capture(const QString& gameRoot, const QString& mcVersion
 
 bool PackRecord::modsMatch(const QString& gameRoot) const
 {
-    return hashMods(gameRoot) == modHashes;
+    return hashMods(gameRoot) == withoutLauncherManaged(modHashes);
 }
 
 QMap<QString, QString> PackRecord::hashMods(const QString& gameRoot)
@@ -93,6 +113,9 @@ QMap<QString, QString> PackRecord::hashMods(const QString& gameRoot)
     const QStringList jars =
         dir.entryList({ QStringLiteral("*.jar"), QStringLiteral("*.jar.disabled") }, QDir::Files, QDir::Name);
     for (const QString& name : jars) {
+        if (isLauncherManaged(name)) {
+            continue;
+        }
         out.insert(name, hashFile(dir.absoluteFilePath(name)));
     }
     return out;
