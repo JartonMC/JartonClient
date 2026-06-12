@@ -31,6 +31,15 @@ inputs:
   apple-notarize-password:
     description: Password used for notarizing macOS builds
     required: false
+  apple-notarize-api-key:
+    description: App Store Connect API private key (base64-encoded .p8) for notarizing macOS builds
+    required: false
+  apple-notarize-api-key-id:
+    description: App Store Connect API key ID for notarizing macOS builds
+    required: false
+  apple-notarize-api-issuer:
+    description: App Store Connect API issuer ID for notarizing macOS builds
+    required: false
   sparkle-ed25519-key:
     description: Private key for signing Sparkle updates
     required: false
@@ -82,7 +91,18 @@ runs:
       run: |
         cd ${{ env.INSTALL_DIR }}
 
-        if [ -n '${{ inputs.apple-notarize-password }}' ]; then
+        if [ -n '${{ inputs.apple-notarize-api-key }}' ]; then
+          echo '${{ inputs.apple-notarize-api-key }}' | base64 --decode > ../notary-key.p8
+          ditto -c -k --sequesterRsrc --keepParent "Jarton Client.app" ../JartonClient.zip
+          xcrun notarytool submit ../JartonClient.zip \
+            --wait --progress \
+            --key ../notary-key.p8 \
+            --key-id '${{ inputs.apple-notarize-api-key-id }}' \
+            --issuer '${{ inputs.apple-notarize-api-issuer }}'
+          rm -f ../notary-key.p8
+
+          xcrun stapler staple "Jarton Client.app"
+        elif [ -n '${{ inputs.apple-notarize-password }}' ]; then
           ditto -c -k --sequesterRsrc --keepParent "Jarton Client.app" ../JartonClient.zip
           xcrun notarytool submit ../JartonClient.zip \
             --wait --progress \
