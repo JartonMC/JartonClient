@@ -1,0 +1,81 @@
+name: Build Application and Make Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions: {}
+
+jobs:
+  build_release:
+    name: Build Release
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    with:
+      build-type: Release
+      environment: Release
+    secrets: inherit
+
+  create_release:
+    needs: build_release
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: "true"
+          path: "JartonClient-source"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+
+      - name: Grab and store version
+        run: |
+          tag_name=$(echo ${{ github.ref }} | grep -oE "[^/]+$")
+          echo "VERSION=$tag_name" >> $GITHUB_ENV
+
+      - name: Package artifacts properly
+        run: |
+          mv ${{ github.workspace }}/JartonClient-source JartonClient-${{ env.VERSION }}
+
+          mv JartonClient-macOS*/JartonClient.zip JartonClient-macOS-${{ env.VERSION }}.zip
+          mv JartonClient-macOS*/JartonClient.dmg JartonClient-macOS-${{ env.VERSION }}.dmg
+
+          tar --exclude='.git' -czf JartonClient-${{ env.VERSION }}.tar.gz JartonClient-${{ env.VERSION }}
+
+          for d in JartonClient-Windows-MSVC*; do
+            cd "${d}" || continue
+            INST="$(echo -n ${d} | grep -o Setup || true)"
+            PORT="$(echo -n ${d} | grep -o Portable || true)"
+            NAME="JartonClient-Windows-MSVC"
+            test -z "${PORT}" || NAME="${NAME}-Portable"
+            test -z "${INST}" || mv JartonClient-*.exe ../${NAME}-Setup-${{ env.VERSION }}.exe
+            test -n "${INST}" || zip -r -9 "../${NAME}-${{ env.VERSION }}.zip" *
+            cd ..
+          done
+
+      - name: Create release
+        id: create_release
+        uses: softprops/action-gh-release@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ github.ref }}
+          name: Jarton Client ${{ env.VERSION }}
+          draft: true
+          prerelease: false
+          fail_on_unmatched_files: false
+          files: |
+            JartonClient-Windows-MSVC-${{ env.VERSION }}.zip
+            JartonClient-Windows-MSVC-Portable-${{ env.VERSION }}.zip
+            JartonClient-Windows-MSVC-Setup-${{ env.VERSION }}.exe
+            JartonClient-macOS-${{ env.VERSION }}.zip
+            JartonClient-macOS-${{ env.VERSION }}.dmg
+            JartonClient-${{ env.VERSION }}.tar.gz

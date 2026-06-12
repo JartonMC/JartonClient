@@ -1,0 +1,615 @@
+/* Jarton Client — palette + global backgrounds
+   Honey palette (tokens documented for the reader, since QSS lacks vars):
+       honey-light  #FFE082
+       honey-mid    #FFD700
+       honey-dark   #FFB81C
+       honey-deep   #8B6F2A
+       bg-deepest   #0f0a06
+       bg-panel     #1a140e
+       bg-card      #221911
+       border-warm  #3a2a14
+       text-body    #C9C9C9
+       text-dim     #5C5C5C
+       success      #A9E673
+       error        #E94B4B
+       player       #F0F0F0
+*/
+
+QMainWindow,
+QDialog,
+QWidget {
+    background-color: #0f0a06;
+    color: #C9C9C9;
+    font-family: "Inter", "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+QFrame {
+    background-color: transparent;
+}
+
+QLabel {
+    color: #C9C9C9;
+    background-color: transparent;
+}
+
+QLabel[heading="true"] {
+    color: #FFE082;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+QToolTip {
+    background-color: #1a140e;
+    color: #FFE082;
+    border: 1px solid #3a2a14;
+    padding: 4px 8px;
+}
+
+/* ---- Primary action button (default = honey gradient pill) ---- */
+QPushButton {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:1,
+        stop:0 #FFE082, stop:1 #FFB81C);
+    color: #1a1a1a;
+    border: none;
+    border-radius: 14px;
+    padding: 6px 16px;
+    font-weight: 700;
+    min-height: 28px;
+}
+
+QPushButton:hover {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:1,
+        stop:0 #FFF0A8, stop:1 #FFD24A);
+}
+
+QPushButton:pressed {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:1,
+        stop:0 #FFB81C, stop:1 #8B6F2A);
+}
+
+QPushButton:disabled {
+    background: #2a1f10;
+    color: #5C5C5C;
+}
+
+/* ---- Secondary button (transparent with honey border, opt-in via property) ---- */
+QPushButton[buttonStyle="secondary"] {
+    background: transparent;
+    color: #FFE082;
+    border: 1px solid rgba(255, 184, 28, 0.4);
+    border-radius: 14px;
+}
+
+QPushButton[buttonStyle="secondary"]:hover {
+    background: rgba(255, 184, 28, 0.13);
+}
+
+/* ---- Inputs ---- */
+QLineEdit,
+QPlainTextEdit,
+QTextEdit,
+QComboBox,
+QSpinBox,
+QDoubleSpinBox {
+    background-color: #1a140e;
+    color: #C9C9C9;
+    border: 1px solid #3a2a14;
+    border-radius: 6px;
+    padding: 4px 8px;
+    selection-background-color: #FFB81C;
+    selection-color: #1a1a1a;
+}
+
+QLineEdit:focus,
+QPlainTextEdit:focus,
+QTextEdit:focus,
+QComboBox:focus {
+    border: 1px solid #FFB81C;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #1a140e;
+    color: #C9C9C9;
+    border: 1px solid #3a2a14;
+    selection-background-color: #FFB81C;
+    selection-color: #1a1a1a;
+}
+
+/* ---- Checkboxes / radios ---- */
+QCheckBox, QRadioButton {
+    color: #C9C9C9;
+    spacing: 6px;
+}
+
+QCheckBox::indicator, QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #3a2a14;
+    background-color: #1a140e;
+}
+
+QCheckBox::indicator { border-radius: 3px; }
+QRadioButton::indicator { border-radius: 8px; }
+
+QCheckBox::indicator:checked, QRadioButton::indicator:checked {
+    background-color: #FFB81C;
+    border: 1px solid #8B6F2A;
+}
+
+/* ---- Separators ---- */
+QFrame[frameShape="4"],
+QFrame[frameShape="5"] {
+    color: #3a2a14;
+    background: #3a2a14;
+}
+
+/* ---- Group boxes ---- */
+QGroupBox {
+    color: #FFE082;
+    border: 1px solid #3a2a14;
+    border-radius: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+    color: #FFE082;
+}
+
+/* ============ Instance Manager ============ */
+
+InstanceView, QListView, QTreeView, QTableView {
+    background-color: #0f0a06;
+    color: #C9C9C9;
+    border: none;
+    selection-background-color: transparent;
+    outline: 0;
+    show-decoration-selected: 0;
+}
+
+/* Hover / selection rules deliberately left to Prism's custom InstanceView
+   delegate so selection state paints on the actual clicked item. */
+
+CategoryView::item {
+    background-color: #221911;
+    border: 1px solid #3a2a14;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 4px;
+}
+
+CategoryView::item:selected {
+    border-color: rgba(255, 184, 28, 0.5);
+    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+        stop:0 rgba(255, 184, 28, 0.13), stop:1 #221911);
+}
+
+QToolBar {
+    background-color: #1a140e;
+    border-bottom: 1px solid #3a2a14;
+    spacing: 6px;
+    padding: 4px;
+}
+
+QToolButton {
+    background: transparent;
+    color: #FFE082;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+
+QToolButton:hover {
+    background: rgba(255, 184, 28, 0.13);
+    border-color: rgba(255, 184, 28, 0.4);
+}
+
+QToolButton:pressed, QToolButton:checked {
+    background: rgba(255, 184, 28, 0.25);
+    border-color: #FFB81C;
+}
+
+QStatusBar {
+    background-color: #1a140e;
+    color: #8B6F2A;
+    border-top: 1px solid #3a2a14;
+}
+
+QSplitter::handle {
+    background-color: #3a2a14;
+}
+
+/* ============ Mod Browser (Modrinth + CurseForge) ============ */
+
+QTabWidget::pane {
+    border: 1px solid #3a2a14;
+    background-color: #1a140e;
+    border-radius: 8px;
+}
+
+QTabBar::tab {
+    background-color: transparent;
+    color: #8B6F2A;
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    margin-right: 2px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+QTabBar::tab:hover {
+    color: #FFE082;
+    background-color: rgba(255, 184, 28, 0.06);
+}
+
+QTabBar::tab:selected {
+    color: #FFE082;
+    background-color: #1a140e;
+    border-color: #3a2a14;
+    border-bottom-color: #1a140e;
+}
+
+ResourcePage QLineEdit,
+ModPage QLineEdit {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+ResourcePage QListView::item,
+ModPage QListView::item {
+    background-color: #221911;
+    border: 1px solid #3a2a14;
+    border-radius: 6px;
+    padding: 10px;
+    margin: 4px 0;
+}
+
+ResourcePage QListView::item:hover,
+ModPage QListView::item:hover {
+    border-color: rgba(255, 184, 28, 0.4);
+}
+
+ResourcePage QListView::item:selected,
+ModPage QListView::item:selected {
+    background-color: #2a1f10;
+    border: 1px solid #FFB81C;
+}
+
+ResourcePage QComboBox,
+ModPage QComboBox {
+    min-width: 140px;
+}
+
+/* ============ Changelog edge toggle ============ */
+
+/* Thin honey tab pinned to the right edge of the wallpaper area. Defaults
+   override the global QPushButton honey gradient + 28px min-height so the
+   tab can be a tight 14×64 sliver instead of a pill. */
+
+QPushButton#changelogToggle {
+    background-color: rgba(255, 184, 28, 0.40);
+    color: #FFE082;
+    border: 1px solid rgba(255, 184, 28, 0.72);
+    border-radius: 4px;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 700;
+    min-width: 0;
+    min-height: 0;
+}
+
+QPushButton#changelogToggle:hover {
+    background-color: rgba(255, 184, 28, 0.55);
+    border-color: rgba(255, 184, 28, 0.9);
+    color: #FFE082;
+}
+
+QPushButton#changelogToggle:pressed {
+    background-color: rgba(255, 184, 28, 0.66);
+}
+
+/* ============ Quick Setup wizard ============ */
+
+/* SetupWizard runs in QWizard::ClassicStyle to dodge platform variability, but
+   without explicit rules the chrome falls through to the OS palette (grey on
+   Windows, system blue on macOS). Force the honey palette across the whole
+   wizard surface — page background, labels, separator lines. Buttons in the
+   bottom strip pick up the global QPushButton honey gradient. */
+
+QWizard#SetupWizard,
+QWizard#SetupWizard > QWidget {
+    background-color: #0f0a06;
+    color: #C9C9C9;
+}
+
+QWizard#SetupWizard QLabel {
+    color: #C9C9C9;
+    background-color: transparent;
+    border: none;
+}
+
+/* The first QLabel on each page carries the title in rich text — match the
+   honey accent used everywhere else for headings. */
+QWizard#SetupWizard QLabel#label {
+    color: #FFE082;
+    background-color: transparent;
+}
+
+/* Horizontal separator Line widgets inside pages. */
+QWizard#SetupWizard QFrame[frameShape="4"] {
+    color: #3a2a14;
+    background-color: #3a2a14;
+    max-height: 1px;
+    border: none;
+}
+
+/* ============ Instance window sidebar (PageContainer) ============ */
+
+/* PageView is the QListView subclass used as the sidebar in instance windows
+   and most multi-page dialogs (Settings, Modpack Wizard, etc.). Without
+   explicit item-state rules it falls through to the platform style on
+   Windows, which paints the pressed/active state with a dark system colour
+   that reads as black against the honey theme. */
+
+PageView {
+    background-color: #1a140e;
+    border: none;
+    border-right: 1px solid #3a2a14;
+    color: #C9C9C9;
+    outline: 0;
+}
+
+PageView::item {
+    padding: 8px 12px;
+    border: none;
+    border-left: 3px solid transparent;
+    color: #8B6F2A;
+    background-color: transparent;
+}
+
+PageView::item:hover {
+    background-color: rgba(255, 184, 28, 0.06);
+    color: #C9C9C9;
+}
+
+PageView::item:selected,
+PageView::item:selected:active,
+PageView::item:selected:!active {
+    background-color: rgba(255, 184, 28, 0.13);
+    border-left: 3px solid #FFB81C;
+    color: #FFE082;
+    font-weight: 600;
+}
+
+PageView::item:pressed {
+    background-color: rgba(255, 184, 28, 0.18);
+    color: #FFE082;
+}
+
+/* ============ Settings ============ */
+
+QListWidget#pageSwitcher {
+    background-color: #1a140e;
+    border: none;
+    border-right: 1px solid #3a2a14;
+    color: #C9C9C9;
+    padding: 8px 0;
+    outline: 0;
+}
+
+QListWidget#pageSwitcher::item {
+    padding: 10px 16px;
+    border: none;
+    border-left: 3px solid transparent;
+    color: #8B6F2A;
+}
+
+QListWidget#pageSwitcher::item:hover {
+    background-color: rgba(255, 184, 28, 0.06);
+    color: #C9C9C9;
+}
+
+QListWidget#pageSwitcher::item:selected {
+    background-color: rgba(255, 184, 28, 0.13);
+    border-left: 3px solid #FFB81C;
+    color: #FFE082;
+    font-weight: 600;
+}
+
+QWidget#settingsPage QLabel#header {
+    color: #FFE082;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 12px 0;
+    border-bottom: 1px solid #3a2a14;
+    margin-bottom: 12px;
+}
+
+QScrollBar:vertical {
+    background-color: #1a140e;
+    width: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #3a2a14;
+    border-radius: 4px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #FFB81C;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    background: transparent;
+    height: 0;
+}
+
+QScrollBar:horizontal {
+    background-color: #1a140e;
+    height: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #3a2a14;
+    border-radius: 4px;
+    min-width: 30px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #FFB81C;
+}
+
+/* ============ Account Manager ============ */
+
+AccountListPage QTableView,
+AccountListPage QTreeView {
+    background-color: #1a140e;
+    alternate-background-color: #221911;
+    gridline-color: #3a2a14;
+}
+
+QHeaderView::section {
+    background-color: #1a140e;
+    color: #8B6F2A;
+    border: none;
+    border-right: 1px solid #3a2a14;
+    border-bottom: 1px solid #3a2a14;
+    padding: 6px 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* ============ Dialogs ============ */
+
+QDialog {
+    background-color: #0f0a06;
+}
+
+QDialogButtonBox QPushButton {
+    min-width: 84px;
+}
+
+MSALoginDialog QLabel#qrMessage {
+    color: #C9C9C9;
+}
+
+MSALoginDialog QLabel#qrMessage a {
+    color: #FFB81C;
+}
+
+MSALoginDialog QLabel#code {
+    color: #FFE082;
+    background-color: #1a140e;
+    border: 1px solid #3a2a14;
+    border-radius: 8px;
+    padding: 8px 16px;
+}
+
+QProgressBar {
+    background-color: #1a140e;
+    border: 1px solid #3a2a14;
+    border-radius: 4px;
+    text-align: center;
+    color: #FFE082;
+    min-height: 16px;
+}
+
+QProgressBar::chunk {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+        stop:0 #FFE082, stop:1 #FFB81C);
+    border-radius: 3px;
+}
+
+/* ============ Menus ============ */
+
+QMenuBar {
+    background-color: #1a140e;
+    color: #C9C9C9;
+}
+
+QMenuBar::item:selected {
+    background-color: rgba(255, 184, 28, 0.13);
+    color: #FFE082;
+}
+
+QMenu {
+    background-color: #1a140e;
+    color: #C9C9C9;
+    border: 1px solid #3a2a14;
+    padding: 4px;
+}
+
+QMenu::item {
+    padding: 6px 16px;
+    border-radius: 4px;
+}
+
+QMenu::item:selected {
+    background-color: rgba(255, 184, 28, 0.13);
+    color: #FFE082;
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: #3a2a14;
+    margin: 4px 8px;
+}
+
+/* ============ Polish layer ============ */
+
+QMainWindow {
+    background-color: #0f0a06;
+    background-image: radial-gradient(circle at 0 0, rgba(255, 184, 28, 0.06) 1px, transparent 2px);
+    background-repeat: repeat;
+    background-position: 0 0;
+}
+
+CategoryView::item[featured="true"] {
+    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+        stop:0 rgba(255, 184, 28, 0.18),
+        stop:0.04 #221911,
+        stop:1 #1a140e);
+    border: 1px solid rgba(255, 184, 28, 0.5);
+    border-top: 3px solid #FFB81C;
+}
+
+QPushButton:hover {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:1,
+        stop:0 #FFF0A8, stop:1 #FFD24A);
+    border: 1px solid #FFB81C;
+}
+
+QLabel[separator="true"] {
+    color: #5C5C5C;
+    font-size: 14px;
+    padding: 0 6px;
+}
+
+/* ============ New Instance loader picker ============ */
+
+QLabel#recommendedBadge {
+    color: #FFE082;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 0 0 2px 0;
+}
+
+QLabel#loaderHint {
+    color: #FFB81C;
+    font-size: 11px;
+    padding-top: 4px;
+}

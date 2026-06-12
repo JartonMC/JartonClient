@@ -1,0 +1,8 @@
+module Jarton
+AppShell 1.0 AppShell.qml
+Sidebar 1.0 Sidebar.qml
+SidebarTab 1.0 SidebarTab.qml
+NewsFeed 1.0 NewsFeed.qml
+AnnouncementBar 1.0 AnnouncementBar.qml
+AnnouncementPopup 1.0 AnnouncementPopup.qml
+StatsOverlay 1.0 StatsOverlay.qml

@@ -1,0 +1,35 @@
+<RCC>
+    <qresource prefix="/jarton">
+        <file>theme/jarton-theme.qss</file>
+        <file>JartonUI-1.21.4.jar</file>
+        <file>JartonUI-1.21.5.jar</file>
+        <file>JartonUI-1.21.6.jar</file>
+        <file>JartonUI-1.21.7.jar</file>
+        <file>JartonUI-1.21.8.jar</file>
+        <file>JartonUI-1.21.9.jar</file>
+        <file>JartonUI-1.21.10.jar</file>
+        <file>JartonUI-1.21.11.jar</file>
+        <file>JartonUI-26.1.jar</file>
+        <file>JartonUI-26.1.1.jar</file>
+        <file>JartonUI-26.1.2.jar</file>
+        <file>icons/jartonclient.svg</file>
+        <file>icons/jartonclient_64.png</file>
+        <file>icons/jartonclient_128.png</file>
+        <file>icons/discord_48.png</file>
+        <file>icons/discord_96.png</file>
+        <file>splash/splash.png</file>
+        <file>splash/splash@2x.png</file>
+        <file>splash/splash@3x.png</file>
+        <file>wallpapers/fallback.jpg</file>
+    </qresource>
+    <qresource prefix="/qt/qml/Jarton">
+        <file alias="qmldir">../../qml/qmldir</file>
+        <file alias="AppShell.qml">../../qml/AppShell.qml</file>
+        <file alias="Sidebar.qml">../../qml/Sidebar.qml</file>
+        <file alias="SidebarTab.qml">../../qml/SidebarTab.qml</file>
+        <file alias="NewsFeed.qml">../../qml/NewsFeed.qml</file>
+        <file alias="AnnouncementBar.qml">../../qml/AnnouncementBar.qml</file>
+        <file alias="AnnouncementPopup.qml">../../qml/AnnouncementPopup.qml</file>
+        <file alias="StatsOverlay.qml">../../qml/StatsOverlay.qml</file>
+    </qresource>
+</RCC>
