@@ -2,21 +2,15 @@
 #include "JartonUpdateService.h"
 
 #include <QMessageBox>
-#include <QUrl>
 
 #include "BaseInstance.h"
 #include "BuildConfig.h"
-#include "DesktopServices.h"
 #include "InstanceList.h"
 #include "JartonManifestService.h"
 #include "PackRecord.h"
 #include "Version.h"
 
 namespace Jarton {
-
-namespace {
-const char* const g_releasesUrl = "https://github.com/JartonMC/JartonClient/releases";
-}  // namespace
 
 JartonUpdateService::JartonUpdateService(JartonManifestService* manifest, InstanceList* instances, QObject* parent)
     : QObject(parent), m_manifest(manifest), m_instances(instances)
@@ -36,6 +30,20 @@ void JartonUpdateService::onManifestChanged(bool stale)
         return;
     }
     checkAll();
+}
+
+void JartonUpdateService::manualCheck()
+{
+    m_launcherPrompted = false;
+    const bool ready = m_manifest != nullptr && m_manifest->ready();
+    const QString available = ready ? m_manifest->manifest().launcherVersion : QString();
+    if (!available.isEmpty() && Version(runningLauncherVersion()) < Version(available)) {
+        checkLauncherUpdate();
+        return;
+    }
+    QMessageBox::information(nullptr, tr("No updates"),
+                             ready ? tr("Jarton Client %1 is up to date.").arg(runningLauncherVersion())
+                                   : tr("Couldn't reach the update server. Try again in a minute."));
 }
 
 void JartonUpdateService::checkAll()
@@ -143,17 +151,8 @@ void JartonUpdateService::checkLauncherUpdate()
     }
     m_launcherPrompted = true;
 
-    QMessageBox box;
-    box.setWindowTitle(tr("Launcher update available"));
-    box.setIcon(QMessageBox::Information);
-    box.setText(tr("A newer Jarton Client is available (%1, you have %2).").arg(manifestVersion, runningLauncherVersion()));
-    box.setInformativeText(tr("Open the releases page to download the installer for your platform?"));
-    auto* openBtn = box.addButton(tr("Open releases"), QMessageBox::AcceptRole);
-    box.addButton(tr("Later"), QMessageBox::RejectRole);
-    box.exec();
-    if (box.clickedButton() == openBtn) {
-        DesktopServices::openUrl(QUrl(QString::fromLatin1(g_releasesUrl)));
-    }
+    qInfo() << "[jarton.update] launcher" << manifestVersion << "available, running" << runningLauncherVersion();
+    emit launcherUpdateAvailable(manifestVersion);
 }
 
 }  // namespace Jarton

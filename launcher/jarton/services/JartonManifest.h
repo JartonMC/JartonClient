@@ -38,6 +38,21 @@ struct ManifestPack {
     QString packUrl;
 };
 
+struct ManifestUiJar {
+    QString mcVersion;
+    QString url;
+    QString sha256;
+};
+
+// CDN-hosted JartonUI builds keyed by Minecraft version (the "jartonui" section).
+// Covers the per-MC-version Fabric/Quilt jars; Forge and NeoForge keep their single
+// bundled jars. The section is optional — when absent the launcher runs entirely off
+// the jars compiled into the binary.
+struct ManifestUi {
+    QString version;
+    QVector<ManifestUiJar> jars;
+};
+
 struct ManifestWallpaper {
     QString id;
     QString type;
@@ -65,6 +80,7 @@ struct Manifest {
     QString minSupportedVersion;
     ManifestInstance instance;
     QVector<ManifestPack> packs;
+    ManifestUi ui;
     QVector<ManifestWallpaper> wallpapers;
     QVector<ManifestNewsItem> news;
     ManifestFeaturedCard featured;

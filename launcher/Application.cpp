@@ -112,6 +112,8 @@
 #include "jarton/services/DiscordWidgetService.h"
 #include "jarton/services/JartonManifestService.h"
 #include "jarton/services/JartonProvisionService.h"
+#include "jarton/services/JartonSelfUpdateService.h"
+#include "jarton/services/JartonUiSyncService.h"
 #include "jarton/services/JartonUpdateService.h"
 #include "jarton/services/NewsService.h"
 #include "jarton/services/PackRecord.h"
@@ -1427,18 +1429,8 @@ void Application::performMainStartupAction()
         qDebug() << "<> Main window shown.";
     }
 
-    // initialize the updater
-    if (updaterEnabled()) {
-        qDebug() << "Initializing updater";
-#ifdef Q_OS_MAC
-#if defined(SPARKLE_ENABLED)
-        m_updater.reset(new MacSparkleUpdater());
-#endif
-#else
-        m_updater.reset(new PrismExternalUpdater(m_mainWindow, m_rootPath, m_dataPath));
-#endif
-        qDebug() << "<> Updater started.";
-    }
+    // Prism's own update channel stays off: launcher updates are manifest-driven
+    // through JartonSelfUpdateService, and running both would double-prompt.
 
     {  // delete instances tmp dirctory
         auto instDir = m_settings->get("InstanceDir").toString();
@@ -1577,7 +1569,15 @@ void Application::initJartonServices()
     m_jartonWallpaper = new Jarton::WallpaperService(m_jartonManifest, m_jartonConfig, this);
     m_jartonDefaultInstance = new Jarton::DefaultInstanceService(m_jartonManifest, this);
     m_jartonUpdate = new Jarton::JartonUpdateService(m_jartonManifest, instances(), this);
+    {
+        const QString updaterPath = FS::PathCombine(m_rootPath, updaterBinaryName());
+        m_jartonSelfUpdate = new Jarton::JartonSelfUpdateService(
+            m_dataPath, QFileInfo(updaterPath).isFile() ? updaterPath : QString(), network(), this);
+    m_jartonSelfUpdate->setUpdatesAllowedCheck([this] { return updatesAreAllowed(); });
+        m_jartonSelfUpdate->cleanupStaleArtifacts();
+    }
     m_jartonProvision = new Jarton::JartonProvisionService(m_jartonManifest, this);
+    m_jartonUiSync = new Jarton::JartonUiSyncService(m_jartonManifest, FS::PathCombine(dataRoot(), "jartonui"), this);
     m_jartonNews = new Jarton::NewsService(this);
     m_jartonChangelog = new Jarton::ChangelogService(this);
     m_jartonDiscord = new Jarton::DiscordWidgetService(QStringLiteral("1391645092137406494"), this);
@@ -1642,6 +1642,11 @@ void Application::initJartonServices()
             [this](const QString& packUrl, const QString& instanceName, const QString& mcVersion, const QString& packVersion) {
                 importJartonPack(packUrl, instanceName, mcVersion, packVersion, {});
             });
+
+    // Launcher updates: detection lives in JartonUpdateService, everything from
+    // the silent download through the restart prompt in JartonSelfUpdateService.
+    connect(m_jartonUpdate, &Jarton::JartonUpdateService::launcherUpdateAvailable, m_jartonSelfUpdate,
+            &Jarton::JartonSelfUpdateService::onLauncherUpdateAvailable);
 
     // Accepted pack updates: sync the new pack into the stock instance in place.
     // Runs headless like provisioning; failures surface as a warning box since the
@@ -2240,13 +2245,12 @@ bool Application::handleDataMigration(const QString& currentData,
 
 void Application::triggerUpdateCheck()
 {
-    if (m_updater) {
-        qDebug() << "Checking for updates.";
-        m_updater->setBetaAllowed(false);  // There are no other channels than stable
-        m_updater->checkForUpdates();
-    } else {
+    if (m_jartonUpdate == nullptr || m_jartonSelfUpdate == nullptr) {
         qDebug() << "Updater not available.";
+        return;
     }
+    m_jartonSelfUpdate->rearm();
+    m_jartonUpdate->manualCheck();
 }
 
 QUrl Application::normalizeImportUrl(const QString& url)

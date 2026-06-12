@@ -807,12 +807,18 @@ SET(LAUNCHER_SOURCES
     jarton/services/DefaultInstanceService.cpp
     jarton/services/JartonUpdateService.h
     jarton/services/JartonUpdateService.cpp
+    jarton/services/JartonSelfUpdateService.h
+    jarton/services/JartonSelfUpdateService.cpp
     jarton/services/PackRecord.h
     jarton/services/PackRecord.cpp
     jarton/JartonPackUpdateTask.h
     jarton/JartonPackUpdateTask.cpp
     jarton/services/JartonProvisionService.h
     jarton/services/JartonProvisionService.cpp
+    jarton/services/JartonUiCache.h
+    jarton/services/JartonUiCache.cpp
+    jarton/services/JartonUiSyncService.h
+    jarton/services/JartonUiSyncService.cpp
     jarton/services/NewsService.h
     jarton/services/NewsService.cpp
     jarton/services/ChangelogService.h

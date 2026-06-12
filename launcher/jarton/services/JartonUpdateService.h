@@ -14,7 +14,8 @@ class JartonManifestService;
 // network-confirmed manifest is in.
 //
 // Launcher: compares the running BuildConfig version against
-// manifest.launcher_version and points the user at the GitHub release.
+// manifest.launcher_version and emits launcherUpdateAvailable; the host wires
+// that into JartonSelfUpdateService, which downloads and applies the update.
 //
 // Instances: every instance carrying a jarton-pack.json (written at provision)
 // is compared against the manifest's pack for its Minecraft version. Stock
@@ -33,9 +34,15 @@ class JartonUpdateService : public QObject {
     // Run the checks. Safe to call repeatedly; each prompt fires at most once per launch.
     void checkAll();
 
+    // User-triggered check: re-arms the launcher prompt and gives "up to date" feedback.
+    void manualCheck();
+
    signals:
     // Host downloads packUrl and syncs it into the instance (JartonPackUpdateTask).
     void instanceUpdateRequested(QString instanceId, QString packUrl, QString mcVersion, QString packVersion);
+
+    // Host hands this to JartonSelfUpdateService.
+    void launcherUpdateAvailable(QString version);
 
    private slots:
     void onManifestChanged(bool stale);
@@ -49,7 +56,7 @@ class JartonUpdateService : public QObject {
     JartonManifestService* m_manifest = nullptr;
     InstanceList* m_instances = nullptr;
 
-    bool m_launcherPrompted = false;   // self-update prompt fires once per run
+    bool m_launcherPrompted = false;   // launcher-update signal fires once per run
     bool m_instancesPrompted = false;  // instance-update prompt fires once per run
 };
 

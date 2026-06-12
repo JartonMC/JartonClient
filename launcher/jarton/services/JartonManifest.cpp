@@ -72,6 +72,27 @@ Manifest Manifest::fromJson(const QJsonObject& root)
         }
     }
 
+    const QJsonObject uiObj = root.value("jartonui").toObject();
+    m.ui.version = readString(uiObj, "version", m.parseWarnings);
+    const QJsonObject uiJarsObj = uiObj.value("jars").toObject();
+    m.ui.jars.reserve(uiJarsObj.size());
+    for (auto it = uiJarsObj.constBegin(); it != uiJarsObj.constEnd(); ++it) {
+        const QJsonObject obj = it.value().toObject();
+        ManifestUiJar jar;
+        jar.mcVersion = it.key();
+        // The key becomes a cache filename; a hostile manifest must not escape the cache dir.
+        if (jar.mcVersion.contains(QLatin1Char('/')) || jar.mcVersion.contains(QLatin1Char('\\')) ||
+            jar.mcVersion.contains(QStringLiteral(".."))) {
+            m.parseWarnings << QStringLiteral("jartonui jar key rejected: %1").arg(jar.mcVersion);
+            continue;
+        }
+        jar.url = readString(obj, "url", m.parseWarnings);
+        jar.sha256 = readString(obj, "sha256", m.parseWarnings).toLower();
+        if (!jar.url.isEmpty() && !jar.sha256.isEmpty()) {
+            m.ui.jars.append(jar);
+        }
+    }
+
     const QJsonArray wpArr = root.value("wallpapers").toArray();
     m.wallpapers.reserve(wpArr.size());
     for (const auto& v : wpArr) {
@@ -149,6 +170,20 @@ QJsonObject Manifest::toJson() const
         packsObj[pack.minecraftVersion] = o;
     }
     root["packs"] = packsObj;
+
+    if (!ui.version.isEmpty() || !ui.jars.isEmpty()) {
+        QJsonObject uiObj;
+        uiObj["version"] = ui.version;
+        QJsonObject uiJarsObj;
+        for (const auto& jar : ui.jars) {
+            QJsonObject o;
+            o["url"] = jar.url;
+            o["sha256"] = jar.sha256;
+            uiJarsObj[jar.mcVersion] = o;
+        }
+        uiObj["jars"] = uiJarsObj;
+        root["jartonui"] = uiObj;
+    }
 
     QJsonArray wpArr;
     for (const auto& wp : wallpapers) {

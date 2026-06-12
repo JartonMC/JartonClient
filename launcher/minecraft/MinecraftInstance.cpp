@@ -1244,14 +1244,16 @@ LaunchTask* MinecraftInstance::createLaunchTask(AuthSessionPtr session, Minecraf
 
     APPLICATION->icons()->saveIcon(iconKey(), FS::PathCombine(gameRoot(), "icon.png"), "PNG");
 
-    // Jarton's UI mod is bundled with the client and injected into any instance whose
-    // loader can run it (Fabric, Quilt, NeoForge, Forge), so the look is consistent
-    // regardless of which instance the player launches.
+    // Jarton's UI mod is injected into any instance whose loader can run it (Fabric,
+    // Quilt, NeoForge, Forge), so the look is consistent regardless of which instance
+    // the player launches. CDN-synced jars take priority; the compiled-in bundle is the
+    // first-run/offline fallback.
     const QString jartonMcVersion = m_components->getComponentVersion("net.minecraft");
+    const Jarton::JartonUiCache jartonUiCache(FS::PathCombine(APPLICATION->dataRoot(), "jartonui"));
     for (const QString& comp : { QStringLiteral("net.fabricmc.fabric-loader"), QStringLiteral("org.quiltmc.quilt-loader"),
                                  QStringLiteral("net.neoforged"), QStringLiteral("net.minecraftforge") }) {
         if (!m_components->getComponentVersion(comp).isEmpty()) {
-            jartonInjectUiMod(JartonUiBundle::jarFor(comp, jartonMcVersion));
+            jartonInjectUiMod(JartonUiBundle::resolve(comp, jartonMcVersion, jartonUiCache));
             break;
         }
     }
