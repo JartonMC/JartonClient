@@ -907,6 +907,10 @@ void PrismUpdaterApp::performInstall(QFileInfo file)
         auto env = QProcessEnvironment::systemEnvironment();
         env.insert("__COMPAT_LAYER", "RUNASINVOKER");
         proc.setProcessEnvironment(env);
+        // We only ever reach this installer from an in-client update, so run it
+        // silently: no NSIS wizard, no VC++ redist window. The installer relaunches
+        // the launcher itself once the swap finishes (see .onInstSuccess in the NSIS).
+        proc.setArguments({ "/S" });
 #endif
         proc.setProgram(file.absoluteFilePath());
         bool result = proc.startDetached();
