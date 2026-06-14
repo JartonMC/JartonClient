@@ -515,3 +515,11 @@ ${IfNot} ${Errors}
   !insertmacro UnselectSection ${DESKTOP_SHORTCUTS}
 ${EndIf}
 FunctionEnd
+
+; The Finish page's MUI_FINISHPAGE_RUN only relaunches on an interactive install.
+; In-client updates run us with /S, so relaunch the launcher ourselves on success.
+Function .onInstSuccess
+${If} ${Silent}
+  Exec '"$INSTDIR\@Launcher_APP_BINARY_NAME@.exe"'
+${EndIf}
+FunctionEnd

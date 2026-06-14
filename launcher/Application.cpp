@@ -687,6 +687,9 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         // Remembered state
         m_settings->registerSetting("LastUsedGroupForNewInstance", QString());
 
+        // Set once first-run setup has been completed, so updates don't re-run the wizard.
+        m_settings->registerSetting("SetupWizardCompleted", false);
+
         m_settings->registerSetting("MenuBarInsteadOfToolBar", false);
 
         m_settings->registerSetting("NumberOfConcurrentTasks", 10);
@@ -1278,21 +1281,44 @@ bool Application::createSetupWizard()
     bool validIcons = m_themeManager->isValidIconTheme(settings()->get("IconTheme").toString());
     bool login = !m_accounts->anyAccountIsValid() && capabilities() & Application::SupportsMSA;
     bool themeInterventionRequired = !validWidgets || !validIcons;
+
+    auto defaultWidgetTheme = []() -> QString {
+#if defined(Q_OS_WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+        return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark ? QStringLiteral("dark") : QStringLiteral("bright");
+#else
+        return QStringLiteral("system");
+#endif
+    };
+
+    // A returning install that already finished setup must never be dragged back
+    // through the first-run wizard by an update. Silently repair anything an update
+    // can invalidate (a theme whose assets moved) to its default, keep every saved
+    // selection, and start straight up. The marker lives in the same settings file
+    // as those selections, so it can only be set when they're present too: a wiped
+    // data dir clears both together, and a genuine first run still gets the wizard.
+    if (settings()->get("SetupWizardCompleted").toBool()) {
+        if (!validIcons)
+            settings()->set("IconTheme", QString("pe_colored"));
+        if (!validWidgets)
+            settings()->set("ApplicationTheme", defaultWidgetTheme());
+        if (themeInterventionRequired)
+            m_themeManager->applyCurrentlySelectedTheme(true);
+        return false;
+    }
+
     bool wizardRequired = javaRequired || languageRequired || pasteInterventionRequired || themeInterventionRequired || askjava || login;
+
+    // Existing users from before this flag shipped: if their config already looks
+    // set up, record it so the next update skips the wizard for them too.
+    if (!languageRequired && validWidgets && validIcons)
+        settings()->set("SetupWizardCompleted", true);
+
     if (wizardRequired) {
         // set default theme after going into theme wizard
         if (!validIcons)
             settings()->set("IconTheme", QString("pe_colored"));
-        if (!validWidgets) {
-#if defined(Q_OS_WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-            const QString style =
-                QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark ? QStringLiteral("dark") : QStringLiteral("bright");
-#else
-            const QString style = QStringLiteral("system");
-#endif
-
-            settings()->set("ApplicationTheme", style);
-        }
+        if (!validWidgets)
+            settings()->set("ApplicationTheme", defaultWidgetTheme());
 
         m_themeManager->applyCurrentlySelectedTheme(true);
 
@@ -1372,6 +1398,7 @@ bool Application::event(QEvent* event)
 void Application::setupWizardFinished(int status)
 {
     qDebug() << "Wizard result =" << status;
+    settings()->set("SetupWizardCompleted", true);
     // First-launch path: the wizard short-circuits the normal startup before
     // initJartonServices() runs, so do it here. The idempotency guard makes the
     // call safe even though the no-wizard path already initialized. Without this,
