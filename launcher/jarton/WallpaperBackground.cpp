@@ -26,6 +26,8 @@ WallpaperBackground::WallpaperBackground(QWidget* parent) : QWidget(parent), m_a
     connect(m_anim, &QVariantAnimation::finished, this, [this]() {
         m_current = m_incoming;
         m_incoming = QImage();
+        m_currentScaled = m_incomingScaled;  // already scaled to the current size; no re-scale needed
+        m_incomingScaled = QPixmap();
         m_fade = 1.0;
         update();
     });
@@ -57,37 +59,56 @@ void WallpaperBackground::setWallpaperUrl(const QString& url)
     if (m_current.isNull()) {
         m_current = std::move(img);
         m_fade = 1.0;
+        m_scaledFor = QSize();
         update();
         return;
     }
     m_incoming = std::move(img);
+    m_scaledFor = QSize();
     m_anim->stop();
     m_anim->start();
 }
 
-void WallpaperBackground::paintEvent(QPaintEvent* /*event*/)
+void WallpaperBackground::rebuildScaled(const QSize& target)
 {
+    m_scaledFor = target;
+    auto scale = [&](const QImage& img) -> QPixmap {
+        if (img.isNull() || target.isEmpty()) {
+            return {};
+        }
+        return QPixmap::fromImage(img.scaled(target, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
+    };
+    m_currentScaled = scale(m_current);
+    m_incomingScaled = scale(m_incoming);
+}
+
+void WallpaperBackground::paintEvent(QPaintEvent* event)
+{
+    const QSize target = size();
+    if (target != m_scaledFor) {
+        rebuildScaled(target);
+    }
+
     QPainter p(this);
+    // Translucent children (the changelog/stats overlays) repaint this widget ~16x/s as they
+    // drift-scroll; clip to the dirty region so an idle background isn't re-blitted whole.
+    p.setClipRegion(event->region());
     p.fillRect(rect(), QColor("#0f0a06"));
 
-    const QSize target = size();
-
-    auto draw = [&](const QImage& img, qreal opacity) {
-        if (img.isNull() || opacity <= 0.0) {
+    auto draw = [&](const QPixmap& pm, qreal opacity) {
+        if (pm.isNull() || opacity <= 0.0) {
             return;
         }
-        const QImage scaled =
-            img.scaled(target, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-        const int dx = (scaled.width() - target.width()) / 2;
-        const int dy = (scaled.height() - target.height()) / 2;
+        const int dx = (pm.width() - target.width()) / 2;
+        const int dy = (pm.height() - target.height()) / 2;
         p.setOpacity(opacity);
-        p.drawImage(QPoint(-dx, -dy), scaled);
+        p.drawPixmap(QPoint(-dx, -dy), pm);
         p.setOpacity(1.0);
     };
 
     // Current under, incoming over.
-    draw(m_current, m_fade);
-    draw(m_incoming, 1.0 - m_fade);
+    draw(m_currentScaled, m_fade);
+    draw(m_incomingScaled, 1.0 - m_fade);
 
     // Light bottom darken for legibility against status text.
     QLinearGradient vert(0, 0, 0, height());

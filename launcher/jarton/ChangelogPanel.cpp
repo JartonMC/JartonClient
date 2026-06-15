@@ -3,7 +3,9 @@
 
 #include <QDesktopServices>
 #include <QEvent>
+#include <QHideEvent>
 #include <QImage>
+#include <QShowEvent>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -97,7 +99,8 @@ ChangelogPanel::ChangelogPanel(ChangelogService* service, QWidget* parent)
 
     m_drift->setInterval(g_driftIntervalMs);
     connect(m_drift, &QTimer::timeout, this, &ChangelogPanel::onDriftTick);
-    m_drift->start();
+    // Started/stopped in showEvent/hideEvent — a hidden panel must not keep ticking, since each
+    // tick scrolls the translucent text and forces the wallpaper behind it to repaint.
 
     m_pause->setSingleShot(true);
     m_pause->setInterval(g_pauseAtBottomMs);
@@ -222,6 +225,24 @@ bool ChangelogPanel::eventFilter(QObject* obj, QEvent* ev)
         }
     }
     return QFrame::eventFilter(obj, ev);
+}
+
+void ChangelogPanel::showEvent(QShowEvent* ev)
+{
+    QFrame::showEvent(ev);
+    if (!m_drift->isActive()) {
+        m_drift->start();
+    }
+}
+
+void ChangelogPanel::hideEvent(QHideEvent* ev)
+{
+    QFrame::hideEvent(ev);
+    m_drift->stop();
+    m_pause->stop();
+    if (m_returnAnim != nullptr) {
+        m_returnAnim->stop();
+    }
 }
 
 void ChangelogPanel::onDriftTick()

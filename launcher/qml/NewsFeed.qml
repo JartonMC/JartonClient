@@ -68,7 +68,8 @@ Item {
         id: drift
         interval: 60
         repeat: true
-        running: ChangelogService.ready
+        running: panel.visible
+            && ChangelogService.ready
             && scroller.contentHeight > scroller.height
             && !scroller.dragging
             && !scroller.flicking
