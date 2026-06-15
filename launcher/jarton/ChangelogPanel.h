@@ -6,6 +6,8 @@
 #include <QUrl>
 #include <QHash>
 
+class QShowEvent;
+class QHideEvent;
 class QTextBrowser;
 class QTimer;
 class QPropertyAnimation;
@@ -23,6 +25,8 @@ class ChangelogPanel : public QFrame {
 
    protected:
     bool eventFilter(QObject* obj, QEvent* ev) override;
+    void showEvent(QShowEvent* ev) override;
+    void hideEvent(QHideEvent* ev) override;
 
    private slots:
     void onMarkdownChanged();
