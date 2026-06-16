@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/jarton">
+        <file>theme/jarton-theme.qss</file>
+        <file>icons/jartonclient_256.png</file>
+    </qresource>
+</RCC>

@@ -31,7 +31,9 @@
 
 #include <QAccessible>
 #include <QCommandLineParser>
+#include <QFile>
 #include <QFileInfo>
+#include <QIcon>
 #include <QMessageBox>
 #include <QNetworkProxy>
 #include <QNetworkReply>
@@ -80,6 +82,14 @@ PrismUpdaterApp::PrismUpdaterApp(int& argc, char** argv) : QApplication(argc, ar
     setOrganizationDomain(BuildConfig.LAUNCHER_DOMAIN);
     setApplicationName(BuildConfig.LAUNCHER_NAME + "Updater");
     setApplicationVersion(BuildConfig.printableVersionString() + "\n" + BuildConfig.GIT_COMMIT);
+
+    // The updater is its own process and never loads the launcher's theme, so its dialogs
+    // (the download progress window the user sees on Windows) fall through to the bare OS
+    // style. Apply the Jarton honey sheet + icon so the update flow stays on-brand.
+    if (QFile sheet(QStringLiteral(":/jarton/theme/jarton-theme.qss")); sheet.open(QFile::ReadOnly | QFile::Text)) {
+        setStyleSheet(QString::fromUtf8(sheet.readAll()));
+    }
+    setWindowIcon(QIcon(QStringLiteral(":/jarton/icons/jartonclient_256.png")));
 
     // Command line parsing
     QCommandLineParser parser;

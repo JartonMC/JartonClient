@@ -1438,7 +1438,8 @@ if(Launcher_BUILD_UPDATER)
         target_link_libraries(prism_updater_logic LibArchive::LibArchive)
     endif()
 
-    add_executable("${Launcher_Name}_updater" WIN32 updater/prismupdater/updater_main.cpp)
+    qt_add_resources(UPDATER_RESOURCES resources/jarton/jarton-updater.qrc)
+    add_executable("${Launcher_Name}_updater" WIN32 updater/prismupdater/updater_main.cpp ${UPDATER_RESOURCES})
     target_sources("${Launcher_Name}_updater" PRIVATE updater/prismupdater/updater.exe.manifest)
     target_link_libraries("${Launcher_Name}_updater" prism_updater_logic)
 
