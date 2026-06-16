@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "WallpaperBackground.h"
 
+#include <QGraphicsBlurEffect>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsScene>
 #include <QImageReader>
 #include <QLinearGradient>
 #include <QPaintEvent>
@@ -9,6 +12,33 @@
 #include <QVariantAnimation>
 
 namespace Jarton {
+
+namespace {
+// Light frosted blur on the wallpaper so the instance grid and overlays read cleanly
+// over it. Applied once per wallpaper/resize into the cached pixmap, never per frame.
+constexpr qreal g_blurRadius = 15.0;
+
+QPixmap frosted(const QPixmap& src)
+{
+    if (src.isNull()) {
+        return src;
+    }
+    QGraphicsScene scene;
+    auto* item = new QGraphicsPixmapItem(src);
+    auto* blur = new QGraphicsBlurEffect;
+    blur->setBlurRadius(g_blurRadius);
+    blur->setBlurHints(QGraphicsBlurEffect::QualityHint);
+    item->setGraphicsEffect(blur);  // scene takes ownership of item; item owns the effect
+    scene.addItem(item);
+
+    QImage out(src.size(), QImage::Format_ARGB32_Premultiplied);
+    out.fill(Qt::transparent);
+    QPainter p(&out);
+    scene.render(&p, QRectF(), QRectF(QPointF(0, 0), QSizeF(src.size())));
+    p.end();
+    return QPixmap::fromImage(out);
+}
+}  // namespace
 
 WallpaperBackground::WallpaperBackground(QWidget* parent) : QWidget(parent), m_anim(new QVariantAnimation(this))
 {
@@ -72,11 +102,15 @@ void WallpaperBackground::setWallpaperUrl(const QString& url)
 void WallpaperBackground::rebuildScaled(const QSize& target)
 {
     m_scaledFor = target;
+    // Overscan before blurring: the blur fades the pixmap edges toward transparent, so scale a
+    // margin larger than the window and let paintEvent's center-crop keep that fringe off-screen.
+    const int pad = static_cast<int>(g_blurRadius) * 3;
+    const QSize grown = target + QSize(pad * 2, pad * 2);
     auto scale = [&](const QImage& img) -> QPixmap {
         if (img.isNull() || target.isEmpty()) {
             return {};
         }
-        return QPixmap::fromImage(img.scaled(target, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
+        return frosted(QPixmap::fromImage(img.scaled(grown, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation)));
     };
     m_currentScaled = scale(m_current);
     m_incomingScaled = scale(m_incoming);
