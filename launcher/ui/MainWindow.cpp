@@ -489,15 +489,13 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         }
 
 #ifdef LAUNCHER_STAFF
-        // Staff edition: a docked Companion panel sharing the central row with the
-        // instance grid. Hidden until a staff sidebar tab is picked (showStaffSection).
-        if (m_centralTopRow != nullptr) {
-            m_staffPanel = new QQuickWidget(m_centralBg);
-            m_staffPanel->setResizeMode(QQuickWidget::SizeRootObjectToView);
-            m_staffPanel->setSource(QUrl(QStringLiteral("qrc:/jarton/staff/StaffPanel.qml")));
-            m_centralTopRow->addWidget(m_staffPanel, 1);
-            m_staffPanel->hide();
-        }
+        // Staff edition: a full-cover Companion panel over the whole central area. Kept a
+        // free child of m_centralBg (NOT in m_centralTopRow) so the changelog inset margin
+        // never constrains it. Sized in repositionFloatingOverlays(); shown by showStaffSection().
+        m_staffPanel = new QQuickWidget(m_centralBg);
+        m_staffPanel->setResizeMode(QQuickWidget::SizeRootObjectToView);
+        m_staffPanel->setSource(QUrl(QStringLiteral("qrc:/jarton/staff/StaffPanel.qml")));
+        m_staffPanel->hide();
 #endif
     }
     // The cat background
@@ -1693,6 +1691,11 @@ void MainWindow::repositionFloatingOverlays()
         m_announcementDialog->setGeometry(x, y, w, h);
         m_announcementDialog->raise();
     }
+    // Staff panel covers the entire central area and tracks its resize (null in public).
+    if (m_centralBg != nullptr && m_staffPanel != nullptr && m_staffPanel->isVisible()) {
+        m_staffPanel->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
+        m_staffPanel->raise();
+    }
 }
 
 // Sidebar indices: -1 brand mark (opens About); 0 Home / 1 Instances /
@@ -1748,13 +1751,15 @@ void MainWindow::showStaffSection(const QString& section)
         if (m_changelogToggle != nullptr) {
             m_changelogToggle->show();
         }
+        ui->instanceToolBar->setVisible(true);
         applyChangelogVisibility(!m_changelogManuallyHidden && isMaximized());
         return;
     }
     if (auto* root = m_staffPanel->rootObject()) {
         root->setProperty("section", section);
     }
-    // take over the central area: hide the instance grid + its floating overlays
+    // take over the central area: hide the instance grid + its floating overlays + the
+    // right-side instance toolbar, then cover the whole central area with the panel.
     if (view != nullptr) {
         view->hide();
     }
@@ -1766,6 +1771,10 @@ void MainWindow::showStaffSection(const QString& section)
     }
     if (m_statsOverlay != nullptr) {
         m_statsOverlay->hide();
+    }
+    ui->instanceToolBar->setVisible(false);
+    if (m_centralBg != nullptr) {
+        m_staffPanel->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
     }
     m_staffPanel->show();
     m_staffPanel->raise();
