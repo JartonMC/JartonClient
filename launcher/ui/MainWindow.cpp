@@ -1751,7 +1751,6 @@ void MainWindow::showStaffSection(const QString& section)
         if (m_changelogToggle != nullptr) {
             m_changelogToggle->show();
         }
-        ui->instanceToolBar->setVisible(true);
         applyChangelogVisibility(!m_changelogManuallyHidden && isMaximized());
         return;
     }
@@ -1772,7 +1771,7 @@ void MainWindow::showStaffSection(const QString& section)
     if (m_statsOverlay != nullptr) {
         m_statsOverlay->hide();
     }
-    ui->instanceToolBar->setVisible(false);
+    // The instance toolbar (launch/kill/etc.) stays visible + draggable on staff pages.
     if (m_centralBg != nullptr) {
         m_staffPanel->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
     }
