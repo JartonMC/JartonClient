@@ -1256,6 +1256,24 @@ if(WIN32)
     )
 endif()
 
+######## Staff edition (Companion-in-launcher) — opt-in build flavor ########
+# OFF for the public client; ON (-DLauncher_STAFF=ON) compiles in the staff module.
+# Staff code never ships in the public binary; both flavors build off the same tree.
+option(Launcher_STAFF "Build the staff edition (embeds the Companion surfaces)" OFF)
+if(Launcher_STAFF)
+    set(LAUNCHER_SOURCES
+        ${LAUNCHER_SOURCES}
+        jarton/staff/ProctorClient.h
+        jarton/staff/ProctorClient.cpp
+        jarton/staff/StaffWindow.h
+        jarton/staff/StaffWindow.cpp
+    )
+    # Scope the LAUNCHER_STAFF guard to just the two integration TUs so toggling the
+    # flag doesn't dirty (recompile) the whole target.
+    set_source_files_properties(ui/MainWindow.cpp Application.cpp
+        PROPERTIES COMPILE_DEFINITIONS LAUNCHER_STAFF)
+endif()
+
 qt_add_resources(LAUNCHER_RESOURCES
     resources/backgrounds/backgrounds.qrc
     resources/multimc/multimc.qrc
@@ -1274,6 +1292,10 @@ qt_add_resources(LAUNCHER_RESOURCES
     resources/jarton/jarton.qrc
     "${CMAKE_CURRENT_BINARY_DIR}/../${Launcher_Branding_LogoQRC}"
 )
+
+if(Launcher_STAFF)
+    qt_add_resources(LAUNCHER_RESOURCES resources/jarton/staff.qrc)
+endif()
 
 ######## Windows resource files ########
 if(WIN32)

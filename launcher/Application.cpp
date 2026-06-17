@@ -117,6 +117,9 @@
 #include "jarton/services/JartonUpdateService.h"
 #include "jarton/services/NewsService.h"
 #include "jarton/services/PackRecord.h"
+#ifdef LAUNCHER_STAFF
+#include "jarton/staff/ProctorClient.h"
+#endif
 #include "jarton/services/ServerStatusService.h"
 #include "jarton/services/WallpaperService.h"
 #include <QStringList>
@@ -1630,6 +1633,9 @@ void Application::initJartonServices()
     registerService("NewsService", m_jartonNews);
     registerService("ChangelogService", m_jartonChangelog);
     registerService("DiscordWidgetService", m_jartonDiscord);
+#ifdef LAUNCHER_STAFF
+    registerService("ProctorClient", new Jarton::ProctorClient(this));
+#endif
 
     // Refresh the default-instance detection once the InstanceList finishes loading.
     // Re-run the update check from here too: a network manifest can arrive before the

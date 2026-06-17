@@ -87,6 +87,36 @@ Rectangle {
                 onClicked: Qt.openUrlExternally("https://discord.gg/JartonMC")
             }
         }
+
+        // Staff edition — opens the staff window (Companion surfaces). Staff builds only.
+        // Placeholder glyph; swap for a proper staff icon asset in a later polish pass.
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: typeof jartonStaffBuild !== "undefined" && jartonStaffBuild
+            width: 44
+            height: 44
+            radius: 10
+            color: staffHover.containsMouse ? "#2a1f10" : "transparent"
+            border.color: staffHover.containsMouse ? "#8B6F2A" : "transparent"
+            border.width: 1
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on border.color { ColorAnimation { duration: 140 } }
+
+            Text {
+                anchors.centerIn: parent
+                text: "⬢"
+                color: "#FFE082"
+                font.pixelSize: 22
+            }
+
+            MouseArea {
+                id: staffHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: sidebar.tabSelected(4)
+            }
+        }
     }
 
     // Settings pinned to the bottom.

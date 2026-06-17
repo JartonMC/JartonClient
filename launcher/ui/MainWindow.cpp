@@ -68,7 +68,11 @@
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QQuickItem>
+#include <QQmlContext>
 #include <QQuickWidget>
+#ifdef LAUNCHER_STAFF
+#include "jarton/staff/StaffWindow.h"
+#endif
 #include <QVBoxLayout>
 #include <QWindowStateChangeEvent>
 
@@ -341,6 +345,11 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         shell->setObjectName("jartonShell");
         shell->setFixedWidth(64);
         shell->setResizeMode(QQuickWidget::SizeRootObjectToView);
+#ifdef LAUNCHER_STAFF
+        shell->rootContext()->setContextProperty("jartonStaffBuild", true);
+#else
+        shell->rootContext()->setContextProperty("jartonStaffBuild", false);
+#endif
         shell->setSource(QUrl(QStringLiteral("qrc:/qt/qml/Jarton/AppShell.qml")));
 
         if (auto* shellRoot = shell->rootObject()) {
@@ -1695,6 +1704,22 @@ void MainWindow::onSidebarTabSelected(int index)
         case 3:
             on_actionSettings_triggered();
             return;
+#ifdef LAUNCHER_STAFF
+        case 4: {
+            // Staff edition: open (or re-focus) the staff window.
+            auto* existing = findChild<Jarton::StaffWindow*>(QString(), Qt::FindDirectChildrenOnly);
+            if (existing != nullptr) {
+                existing->show();
+                existing->raise();
+                existing->activateWindow();
+            } else {
+                auto* staffWindow = new Jarton::StaffWindow(this);
+                staffWindow->setAttribute(Qt::WA_DeleteOnClose);
+                staffWindow->show();
+            }
+            return;
+        }
+#endif
         default:
             return;
     }
