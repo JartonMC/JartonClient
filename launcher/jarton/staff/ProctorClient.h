@@ -28,6 +28,12 @@ class ProctorClient : public QObject {
     Q_PROPERTY(bool panelKeyConnected READ panelKeyConnected NOTIFY changed)
     Q_PROPERTY(bool panelKeyBusy READ panelKeyBusy NOTIFY changed)
     Q_PROPERTY(QString panelKeyError READ panelKeyError NOTIFY changed)
+    // Which staff section the sidebar picked ("staff" | "ptero" | "swifty" | "").
+    // Driven from C++ (the host window) but exposed here because the sidebar and the
+    // docked panel run in separate QML engines — the shared singleton is the only
+    // channel both sides see. NOTIFY makes the panel's Loader react, which a plain
+    // setProperty on a QML-declared property did not.
+    Q_PROPERTY(QString currentSection READ currentSection NOTIFY sectionChanged)
 
    public:
     explicit ProctorClient(QObject* parent = nullptr);
@@ -42,11 +48,13 @@ class ProctorClient : public QObject {
     bool panelKeyConnected() const { return m_panelKeyConnected; }
     bool panelKeyBusy() const { return m_panelKeyBusy; }
     QString panelKeyError() const { return m_panelKeyError; }
+    QString currentSection() const { return m_currentSection; }
 
     Q_INVOKABLE void signIn(const QString& username, const QString& password);
     Q_INVOKABLE void signOut();
     Q_INVOKABLE void checkPanelKey();
     Q_INVOKABLE void connectPanelKey(const QString& key);
+    Q_INVOKABLE void setCurrentSection(const QString& section);
 
     // C++-side accessors for sibling staff models that reuse this broker session.
     QNetworkAccessManager* network() const { return m_nam; }
@@ -55,6 +63,7 @@ class ProctorClient : public QObject {
 
    signals:
     void changed();
+    void sectionChanged();
 
    private:
     void applyStaff(const QJsonObject& staff);
@@ -71,6 +80,7 @@ class ProctorClient : public QObject {
     bool m_panelKeyConnected = false;
     bool m_panelKeyBusy = false;
     QString m_panelKeyError;
+    QString m_currentSection;
 };
 
 }  // namespace Jarton

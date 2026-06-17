@@ -14,6 +14,15 @@ ProctorClient::ProctorClient(QObject* parent) : QObject(parent), m_nam(new QNetw
 
 ProctorClient::~ProctorClient() = default;
 
+void ProctorClient::setCurrentSection(const QString& section)
+{
+    if (m_currentSection == section) {
+        return;
+    }
+    m_currentSection = section;
+    emit sectionChanged();
+}
+
 void ProctorClient::signIn(const QString& username, const QString& password)
 {
     if (m_signingIn) {

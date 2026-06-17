@@ -235,6 +235,11 @@ class Application : public QApplication {
     Jarton::DiscordWidgetService* jartonDiscord() const { return m_jartonDiscord; }
     Jarton::JartonProvisionService* jartonProvision() const { return m_jartonProvision; }
 
+    // Staff-build only in practice (null in the public build). Kept as a plain QObject*
+    // and declared unconditionally so Application's layout is identical across TUs that
+    // do/don't see LAUNCHER_STAFF — invoke setCurrentSection on it via QMetaObject.
+    QObject* jartonProctor() const { return m_jartonProctor; }
+
    signals:
     void updateAllowedChanged(bool status);
     void globalSettingsAboutToOpen();
@@ -351,6 +356,7 @@ class Application : public QApplication {
     Jarton::NewsService* m_jartonNews = nullptr;
     Jarton::ChangelogService* m_jartonChangelog = nullptr;
     Jarton::DiscordWidgetService* m_jartonDiscord = nullptr;
+    QObject* m_jartonProctor = nullptr;
     bool m_jartonServicesInitialized = false;
 
     // log window, if any

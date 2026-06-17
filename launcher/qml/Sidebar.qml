@@ -118,41 +118,54 @@ Rectangle {
             }
         }
 
-        // Staff edition tabs (staff builds only) — one button per section, each opens
-        // that section docked in the central area. Placeholder glyphs; real icon assets
-        // come in a later polish pass.
-        Repeater {
-            model: [
-                { glyph: "⚖", idx: 4 },   // Staff
-                { glyph: "▤", idx: 5 },   // Pterodactyl
-                { glyph: "☰", idx: 6 }    // Swifty
-            ]
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                visible: typeof jartonStaffBuild !== "undefined" && jartonStaffBuild
-                width: 44
-                height: 44
-                radius: 10
-                color: tabHover.containsMouse || sidebar.currentTab === modelData.idx ? "#2a1f10" : "transparent"
-                border.color: tabHover.containsMouse || sidebar.currentTab === modelData.idx ? "#8B6F2A" : "transparent"
-                border.width: 1
-                Behavior on color { ColorAnimation { duration: 140 } }
-                Behavior on border.color { ColorAnimation { duration: 140 } }
-
-                Text {
-                    anchors.centerIn: parent
-                    text: modelData.glyph
-                    color: "#FFE082"
-                    font.pixelSize: 20
-                }
-
-                MouseArea {
-                    id: tabHover
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: sidebar.tabSelected(modelData.idx)
-                }
+        // Staff edition tabs (staff builds only) — one explicit button per section.
+        // Placeholder glyphs. Staff = 4, Pterodactyl = 5, Swifty = 6.
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: typeof jartonStaffBuild !== "undefined" && jartonStaffBuild
+            width: 44; height: 44; radius: 10
+            color: staffTabHover.containsMouse ? "#2a1f10" : "transparent"
+            border.color: staffTabHover.containsMouse ? "#8B6F2A" : "transparent"
+            border.width: 1
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Text { anchors.centerIn: parent; text: "⚖"; color: "#FFE082"; font.pixelSize: 20 }
+            MouseArea {
+                id: staffTabHover
+                anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: sidebar.tabSelected(4)
+            }
+        }
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: typeof jartonStaffBuild !== "undefined" && jartonStaffBuild
+            width: 44; height: 44; radius: 10
+            color: pteroTabHover.containsMouse ? "#2a1f10" : "transparent"
+            border.color: pteroTabHover.containsMouse ? "#8B6F2A" : "transparent"
+            border.width: 1
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Text { anchors.centerIn: parent; text: "▤"; color: "#FFE082"; font.pixelSize: 20 }
+            MouseArea {
+                id: pteroTabHover
+                anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: sidebar.tabSelected(5)
+            }
+        }
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: typeof jartonStaffBuild !== "undefined" && jartonStaffBuild
+            width: 44; height: 44; radius: 10
+            color: swiftyTabHover.containsMouse ? "#2a1f10" : "transparent"
+            border.color: swiftyTabHover.containsMouse ? "#8B6F2A" : "transparent"
+            border.width: 1
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Text { anchors.centerIn: parent; text: "☰"; color: "#FFE082"; font.pixelSize: 20 }
+            MouseArea {
+                id: swiftyTabHover
+                anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: sidebar.tabSelected(6)
             }
         }
     }

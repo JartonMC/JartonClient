@@ -2,16 +2,14 @@ import QtQuick
 import Jarton
 
 // Docked staff area. Logged-out: a Proctor login form. Logged-in: whichever section
-// the sidebar selected (set via the `section` property from C++). One ProctorClient
-// singleton backs every section + window. No internal section menu — the sidebar's
-// separate Staff / Pterodactyl / Swifty buttons drive `section` directly.
+// the sidebar selected. The section lives on the ProctorClient singleton
+// (ProctorClient.currentSection) because the sidebar and this panel are separate QML
+// engines — the shared singleton is the only channel both sides see. No internal
+// section menu; the sidebar's Staff / Pterodactyl / Swifty buttons drive it directly.
 Rectangle {
     id: panel
     color: "#0f0a06"
     focus: true
-
-    // "staff" | "ptero" | "swifty" — set by the host when a sidebar tab is picked.
-    property string section: ""
 
     function sectionTitle(s) {
         return s === "ptero" ? "Pterodactyl" : s === "staff" ? "Staff" : s === "swifty" ? "Swifty" : ""
@@ -115,16 +113,16 @@ Rectangle {
 
         Loader {
             anchors.fill: parent
-            active: ProctorClient.connected && (panel.section === "ptero" || panel.section === "staff")
-            source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
-                  : panel.section === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
+            active: ProctorClient.connected && (ProctorClient.currentSection === "ptero" || ProctorClient.currentSection === "staff")
+            source: ProctorClient.currentSection === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
+                  : ProctorClient.currentSection === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
         }
 
         Text {
             anchors.centerIn: parent
-            visible: panel.section !== "ptero" && panel.section !== "staff"
-            text: panel.section === "" ? "Select a staff tab from the sidebar."
-                                       : panel.sectionTitle(panel.section) + " — coming soon"
+            visible: ProctorClient.currentSection !== "ptero" && ProctorClient.currentSection !== "staff"
+            text: ProctorClient.currentSection === "" ? "Select a staff tab from the sidebar."
+                                       : panel.sectionTitle(ProctorClient.currentSection) + " — coming soon"
             color: "#9a8a66"; font.pixelSize: 16
         }
 

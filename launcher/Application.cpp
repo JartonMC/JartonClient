@@ -1641,6 +1641,7 @@ void Application::initJartonServices()
         // linked + registered (otherwise qrc:/jarton/staff/* is "No such file").
         Q_INIT_RESOURCE(staff);
         auto* proctor = new Jarton::ProctorClient(this);
+        m_jartonProctor = proctor;
         registerService("ProctorClient", proctor);
         registerService("ServerListModel", new Jarton::ServerListModel(proctor, this));
         registerService("PlayerSearchModel", new Jarton::PlayerSearchModel(proctor, this));

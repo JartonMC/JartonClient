@@ -1739,6 +1739,12 @@ void MainWindow::showStaffSection(const QString& section)
     if (m_staffPanel == nullptr) {
         return;  // public build — no staff panel
     }
+    // Drive the section through the shared ProctorClient singleton's NOTIFY property:
+    // the sidebar and the docked panel run in separate QML engines, so setProperty on
+    // the panel's own root never reached the panel's Loader. The singleton does.
+    if (auto* proctor = APPLICATION->jartonProctor()) {
+        QMetaObject::invokeMethod(proctor, "setCurrentSection", Q_ARG(QString, section));
+    }
     if (section.isEmpty()) {
         // restore the instance grid + its overlays
         m_staffPanel->hide();
@@ -1753,9 +1759,6 @@ void MainWindow::showStaffSection(const QString& section)
         }
         applyChangelogVisibility(!m_changelogManuallyHidden && isMaximized());
         return;
-    }
-    if (auto* root = m_staffPanel->rootObject()) {
-        root->setProperty("section", section);
     }
     // take over the central area: hide the instance grid + its floating overlays + the
     // right-side instance toolbar, then cover the whole central area with the panel.
