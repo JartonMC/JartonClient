@@ -1,18 +1,18 @@
 import QtQuick
 import Jarton
 
-// Staff panel — Phase 0 shell. Logged-out: a Proctor login form. Logged-in: a
-// placeholder with the three section buttons (Pterodactyl / Staff / Swifty, wired
-// in later phases) plus pop-out and sign-out. The ProctorClient singleton is shared
-// across every engine, so a docked panel and a popped-out window stay in lockstep.
+// Docked staff area. Logged-out: a Proctor login form. Logged-in: whichever section
+// the sidebar selected (set via the `section` property from C++). One ProctorClient
+// singleton backs every section + window. No internal section menu — the sidebar's
+// separate Staff / Pterodactyl / Swifty buttons drive `section` directly.
 Rectangle {
     id: panel
     color: "#0f0a06"
     focus: true
 
-    signal popOutRequested()
-
+    // "staff" | "ptero" | "swifty" — set by the host when a sidebar tab is picked.
     property string section: ""
+
     function sectionTitle(s) {
         return s === "ptero" ? "Pterodactyl" : s === "staff" ? "Staff" : s === "swifty" ? "Swifty" : ""
     }
@@ -42,15 +42,12 @@ Rectangle {
                 anchors.fill: parent
                 anchors.leftMargin: 12; anchors.rightMargin: 12
                 verticalAlignment: TextInput.AlignVCenter
-                color: "#FFFFFF"
-                font.pixelSize: 15
+                color: "#FFFFFF"; font.pixelSize: 15
                 clip: true
                 onAccepted: passInput.forceActiveFocus()
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Username"
-                    color: "#6b5d3f"
-                    font.pixelSize: 15
+                    text: "Username"; color: "#6b5d3f"; font.pixelSize: 15
                     visible: userInput.text.length === 0 && !userInput.activeFocus
                 }
             }
@@ -66,16 +63,13 @@ Rectangle {
                 anchors.fill: parent
                 anchors.leftMargin: 12; anchors.rightMargin: 12
                 verticalAlignment: TextInput.AlignVCenter
-                color: "#FFFFFF"
-                font.pixelSize: 15
+                color: "#FFFFFF"; font.pixelSize: 15
                 echoMode: TextInput.Password
                 clip: true
                 onAccepted: panel.doSignIn()
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Password"
-                    color: "#6b5d3f"
-                    font.pixelSize: 15
+                    text: "Password"; color: "#6b5d3f"; font.pixelSize: 15
                     visible: passInput.text.length === 0 && !passInput.activeFocus
                 }
             }
@@ -84,8 +78,7 @@ Rectangle {
         Text {
             width: parent.width
             text: ProctorClient.loginError
-            color: "#e06c6c"
-            font.pixelSize: 13
+            color: "#e06c6c"; font.pixelSize: 13
             wrapMode: Text.WordWrap
             visible: ProctorClient.loginError.length > 0
         }
@@ -97,14 +90,11 @@ Rectangle {
             Text {
                 anchors.centerIn: parent
                 text: ProctorClient.signingIn ? "Signing in…" : "Sign in"
-                color: "#1a140e"
-                font.pixelSize: 15
-                font.bold: true
+                color: "#1a140e"; font.pixelSize: 15; font.bold: true
             }
             MouseArea {
                 id: signInArea
-                anchors.fill: parent
-                hoverEnabled: true
+                anchors.fill: parent; hoverEnabled: true
                 enabled: !ProctorClient.signingIn
                 cursorShape: Qt.PointingHandCursor
                 onClicked: panel.doSignIn()
@@ -118,135 +108,37 @@ Rectangle {
         ProctorClient.signIn(userInput.text, passInput.text)
     }
 
-    // ---- logged-in: section navigation ----
+    // ---- logged-in: the selected section ----
     Item {
         anchors.fill: parent
         visible: ProctorClient.connected
 
-        // header: back (in a section) + title
-        Row {
-            id: hdr
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.margins: 14
-            height: 34
-            spacing: 10
-
-            Rectangle {
-                visible: panel.section !== ""
-                width: 64; height: 32; radius: 8
-                color: backArea.containsMouse ? "#221a0f" : "transparent"
-                border.color: "#8B6F2A"; border.width: 1
-                Text { anchors.centerIn: parent; text: "‹ Back"; color: "#FFE082"; font.pixelSize: 13 }
-                MouseArea {
-                    id: backArea
-                    anchors.fill: parent; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: panel.section = ""
-                }
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - (panel.section !== "" ? 84 : 0)
-                text: panel.section === ""
-                      ? ("Signed in as " + ProctorClient.displayName +
-                         (ProctorClient.rank.length > 0 ? "  ·  " + ProctorClient.rank : ""))
-                      : panel.sectionTitle(panel.section)
-                color: "#FFE082"; font.pixelSize: 15; font.bold: true
-                elide: Text.ElideRight
-            }
+        Loader {
+            anchors.fill: parent
+            active: ProctorClient.connected && panel.section === "ptero"
+            source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml" : ""
         }
 
-        // content
-        Item {
-            anchors.top: hdr.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: footer.top
-            anchors.topMargin: 6
-
-            // section list
-            Column {
-                anchors.top: parent.top
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.topMargin: 14
-                width: 320
-                spacing: 12
-                visible: panel.section === ""
-
-                Repeater {
-                    model: [
-                        { key: "ptero", label: "Pterodactyl", ready: true },
-                        { key: "staff", label: "Staff", ready: false },
-                        { key: "swifty", label: "Swifty", ready: false }
-                    ]
-                    Rectangle {
-                        width: 320; height: 52; radius: 10
-                        color: secHover.containsMouse && modelData.ready ? "#221a0f" : "#16110a"
-                        border.color: "#332a14"; border.width: 1
-                        opacity: modelData.ready ? 1.0 : 0.5
-                        Text {
-                            anchors.left: parent.left; anchors.leftMargin: 16
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: modelData.label
-                            color: "#FFFFFF"; font.pixelSize: 16
-                        }
-                        Text {
-                            anchors.right: parent.right; anchors.rightMargin: 16
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: modelData.ready ? "›" : "soon"
-                            color: "#6b5d3f"; font.pixelSize: modelData.ready ? 18 : 12
-                        }
-                        MouseArea {
-                            id: secHover
-                            anchors.fill: parent; hoverEnabled: true
-                            cursorShape: modelData.ready ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: if (modelData.ready) panel.section = modelData.key
-                        }
-                    }
-                }
-            }
-
-            // section view
-            Loader {
-                anchors.fill: parent
-                active: panel.section !== ""
-                source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml" : ""
-            }
+        Text {
+            anchors.centerIn: parent
+            visible: panel.section !== "ptero"
+            text: panel.section === "" ? "Select a staff tab from the sidebar."
+                                       : panel.sectionTitle(panel.section) + " — coming soon"
+            color: "#9a8a66"; font.pixelSize: 16
         }
 
-        // footer: pop out + sign out
-        Row {
-            id: footer
-            anchors.bottom: parent.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottomMargin: 12
-            spacing: 10
-
-            Rectangle {
-                width: 150; height: 40; radius: 9
-                color: popArea.containsMouse ? "#221a0f" : "transparent"
-                border.color: "#8B6F2A"; border.width: 1
-                Text { anchors.centerIn: parent; text: "Pop out ⧉"; color: "#FFE082"; font.pixelSize: 14 }
-                MouseArea {
-                    id: popArea
-                    anchors.fill: parent; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: panel.popOutRequested()
-                }
-            }
-            Rectangle {
-                width: 150; height: 40; radius: 9
-                color: outArea.containsMouse ? "#2a1414" : "transparent"
-                border.color: "#5c3a3a"; border.width: 1
-                Text { anchors.centerIn: parent; text: "Sign out"; color: "#e0a0a0"; font.pixelSize: 14 }
-                MouseArea {
-                    id: outArea
-                    anchors.fill: parent; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: { panel.section = ""; ProctorClient.signOut() }
-                }
+        // Minimal sign-out for now; account controls move to Settings later.
+        Rectangle {
+            anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.margins: 12
+            width: 92; height: 28; radius: 8
+            color: outArea.containsMouse ? "#2a1414" : "transparent"
+            border.color: "#5c3a3a"; border.width: 1
+            Text { anchors.centerIn: parent; text: "Sign out"; color: "#e0a0a0"; font.pixelSize: 12 }
+            MouseArea {
+                id: outArea
+                anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: ProctorClient.signOut()
             }
         }
     }

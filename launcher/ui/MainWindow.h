@@ -230,6 +230,9 @@ class MainWindow : public QMainWindow {
     void refreshCurrentInstance();
 
     void onSidebarTabSelected(int index);
+    // Show a staff section docked in the central area, or restore the instance grid when
+    // section is empty. No-op in the public build (m_staffPanel is null).
+    void showStaffSection(const QString& section);
 
     void onAnnouncementPopupOpen();
     void repositionFloatingOverlays();
@@ -244,6 +247,8 @@ class MainWindow : public QMainWindow {
     Jarton::AnnouncementDialog* m_announcementDialog = nullptr;
     Jarton::StatsOverlayWidget* m_statsOverlay = nullptr;
     QPushButton* m_changelogToggle = nullptr;
+    // Staff edition: docked Companion panel in the central area (null in the public build).
+    QQuickWidget* m_staffPanel = nullptr;
     QAction* m_actionCreateJartonInstance = nullptr;
     // Sticky preference. Set true when the user explicitly hides the changelog
     // and cleared when they explicitly show it; window-maximize transitions

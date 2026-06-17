@@ -69,10 +69,8 @@
 #include <QPushButton>
 #include <QQuickItem>
 #include <QQmlContext>
+#include <QQuickItem>
 #include <QQuickWidget>
-#ifdef LAUNCHER_STAFF
-#include "jarton/staff/StaffWindow.h"
-#endif
 #include <QVBoxLayout>
 #include <QWindowStateChangeEvent>
 
@@ -489,6 +487,18 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         } else {
             ui->horizontalLayout->addWidget(view);
         }
+
+#ifdef LAUNCHER_STAFF
+        // Staff edition: a docked Companion panel sharing the central row with the
+        // instance grid. Hidden until a staff sidebar tab is picked (showStaffSection).
+        if (m_centralTopRow != nullptr) {
+            m_staffPanel = new QQuickWidget(m_centralBg);
+            m_staffPanel->setResizeMode(QQuickWidget::SizeRootObjectToView);
+            m_staffPanel->setSource(QUrl(QStringLiteral("qrc:/jarton/staff/StaffPanel.qml")));
+            m_centralTopRow->addWidget(m_staffPanel, 1);
+            m_staffPanel->hide();
+        }
+#endif
     }
     // The cat background
     {
@@ -1697,6 +1707,7 @@ void MainWindow::onSidebarTabSelected(int index)
         case 0:
         case 1:
         case 2:
+            showStaffSection(QString());  // back to the instance grid (no-op in public build)
             if (view != nullptr) {
                 view->setFocus(Qt::OtherFocusReason);
             }
@@ -1705,24 +1716,59 @@ void MainWindow::onSidebarTabSelected(int index)
             on_actionSettings_triggered();
             return;
 #ifdef LAUNCHER_STAFF
-        case 4: {
-            // Staff edition: open (or re-focus) the staff window.
-            auto* existing = findChild<Jarton::StaffWindow*>(QString(), Qt::FindDirectChildrenOnly);
-            if (existing != nullptr) {
-                existing->show();
-                existing->raise();
-                existing->activateWindow();
-            } else {
-                auto* staffWindow = new Jarton::StaffWindow(this);
-                staffWindow->setAttribute(Qt::WA_DeleteOnClose);
-                staffWindow->show();
-            }
+        case 4:
+            showStaffSection(QStringLiteral("staff"));
             return;
-        }
+        case 5:
+            showStaffSection(QStringLiteral("ptero"));
+            return;
+        case 6:
+            showStaffSection(QStringLiteral("swifty"));
+            return;
 #endif
         default:
             return;
     }
+}
+
+void MainWindow::showStaffSection(const QString& section)
+{
+    if (m_staffPanel == nullptr) {
+        return;  // public build — no staff panel
+    }
+    if (section.isEmpty()) {
+        // restore the instance grid + its overlays
+        m_staffPanel->hide();
+        if (view != nullptr) {
+            view->show();
+        }
+        if (m_statsOverlay != nullptr) {
+            m_statsOverlay->show();
+        }
+        if (m_changelogToggle != nullptr) {
+            m_changelogToggle->show();
+        }
+        applyChangelogVisibility(!m_changelogManuallyHidden && isMaximized());
+        return;
+    }
+    if (auto* root = m_staffPanel->rootObject()) {
+        root->setProperty("section", section);
+    }
+    // take over the central area: hide the instance grid + its floating overlays
+    if (view != nullptr) {
+        view->hide();
+    }
+    if (m_changelogPanel != nullptr) {
+        m_changelogPanel->hide();
+    }
+    if (m_changelogToggle != nullptr) {
+        m_changelogToggle->hide();
+    }
+    if (m_statsOverlay != nullptr) {
+        m_statsOverlay->hide();
+    }
+    m_staffPanel->show();
+    m_staffPanel->raise();
 }
 
 void MainWindow::on_actionDeleteInstance_triggered()

@@ -1636,6 +1636,9 @@ void Application::initJartonServices()
     registerService("DiscordWidgetService", m_jartonDiscord);
 #ifdef LAUNCHER_STAFF
     {
+        // The staff .qrc lives in a static lib; force its resource initializer to be
+        // linked + registered (otherwise qrc:/jarton/staff/* is "No such file").
+        Q_INIT_RESOURCE(staff);
         auto* proctor = new Jarton::ProctorClient(this);
         registerService("ProctorClient", proctor);
         registerService("ServerListModel", new Jarton::ServerListModel(proctor, this));
