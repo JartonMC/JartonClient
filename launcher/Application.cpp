@@ -119,6 +119,7 @@
 #include "jarton/services/PackRecord.h"
 #ifdef LAUNCHER_STAFF
 #include "jarton/staff/ProctorClient.h"
+#include "jarton/staff/ServerListModel.h"
 #endif
 #include "jarton/services/ServerStatusService.h"
 #include "jarton/services/WallpaperService.h"
@@ -1634,7 +1635,11 @@ void Application::initJartonServices()
     registerService("ChangelogService", m_jartonChangelog);
     registerService("DiscordWidgetService", m_jartonDiscord);
 #ifdef LAUNCHER_STAFF
-    registerService("ProctorClient", new Jarton::ProctorClient(this));
+    {
+        auto* proctor = new Jarton::ProctorClient(this);
+        registerService("ProctorClient", proctor);
+        registerService("ServerListModel", new Jarton::ServerListModel(proctor, this));
+    }
 #endif
 
     // Refresh the default-instance detection once the InstanceList finishes loading.

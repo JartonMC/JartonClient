@@ -24,6 +24,10 @@ class ProctorClient : public QObject {
     Q_PROPERTY(QString displayName READ displayName NOTIFY changed)
     Q_PROPERTY(QString rank READ rank NOTIFY changed)
     Q_PROPERTY(bool admin READ admin NOTIFY changed)
+    // Per-staff Pterodactyl panel key (ptlc_…): the server sections 409 until it's connected.
+    Q_PROPERTY(bool panelKeyConnected READ panelKeyConnected NOTIFY changed)
+    Q_PROPERTY(bool panelKeyBusy READ panelKeyBusy NOTIFY changed)
+    Q_PROPERTY(QString panelKeyError READ panelKeyError NOTIFY changed)
 
    public:
     explicit ProctorClient(QObject* parent = nullptr);
@@ -35,9 +39,19 @@ class ProctorClient : public QObject {
     QString displayName() const { return m_displayName; }
     QString rank() const { return m_rank; }
     bool admin() const { return m_admin; }
+    bool panelKeyConnected() const { return m_panelKeyConnected; }
+    bool panelKeyBusy() const { return m_panelKeyBusy; }
+    QString panelKeyError() const { return m_panelKeyError; }
 
     Q_INVOKABLE void signIn(const QString& username, const QString& password);
     Q_INVOKABLE void signOut();
+    Q_INVOKABLE void checkPanelKey();
+    Q_INVOKABLE void connectPanelKey(const QString& key);
+
+    // C++-side accessors for sibling staff models that reuse this broker session.
+    QNetworkAccessManager* network() const { return m_nam; }
+    QString baseUrl() const { return m_baseUrl; }
+    QString token() const { return m_token; }
 
    signals:
     void changed();
@@ -54,6 +68,9 @@ class ProctorClient : public QObject {
     QString m_displayName;
     QString m_rank;
     bool m_admin = false;
+    bool m_panelKeyConnected = false;
+    bool m_panelKeyBusy = false;
+    QString m_panelKeyError;
 };
 
 }  // namespace Jarton

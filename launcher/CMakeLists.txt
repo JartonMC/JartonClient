@@ -1265,6 +1265,8 @@ if(Launcher_STAFF)
         ${LAUNCHER_SOURCES}
         jarton/staff/ProctorClient.h
         jarton/staff/ProctorClient.cpp
+        jarton/staff/ServerListModel.h
+        jarton/staff/ServerListModel.cpp
         jarton/staff/StaffWindow.h
         jarton/staff/StaffWindow.cpp
     )
