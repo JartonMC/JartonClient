@@ -72,8 +72,18 @@ Item {
                     radius: 9
                     color: rowHover.containsMouse ? "#221a0f" : "#16110a"
                     border.color: "#332a14"; border.width: 1
+                    Image {
+                        id: rowHead
+                        anchors.left: parent.left; anchors.leftMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 26; height: 26
+                        source: "https://crafatar.com/avatars/" + uuid + "?size=64&overlay"
+                        sourceSize.width: 64; sourceSize.height: 64
+                        fillMode: Image.PreserveAspectFit
+                        smooth: false
+                    }
                     Text {
-                        anchors.left: parent.left; anchors.leftMargin: 14
+                        anchors.left: rowHead.right; anchors.leftMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
                         text: name; color: "#FFFFFF"; font.pixelSize: 15
                     }
@@ -121,6 +131,14 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: view.selUuid = ""
                     }
+                }
+                Image {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 32; height: 32
+                    source: view.selUuid !== "" ? "https://crafatar.com/avatars/" + view.selUuid + "?size=64&overlay" : ""
+                    sourceSize.width: 64; sourceSize.height: 64
+                    fillMode: Image.PreserveAspectFit
+                    smooth: false
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter

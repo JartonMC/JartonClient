@@ -55,6 +55,36 @@ Rectangle {
             }
         }
 
+        // Home — back to the instance grid (staff builds only; the public client is
+        // always on the grid so it doesn't need this).
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: typeof jartonStaffBuild !== "undefined" && jartonStaffBuild
+            width: 44
+            height: 44
+            radius: 10
+            color: homeHover.containsMouse ? "#2a1f10" : "transparent"
+            border.color: homeHover.containsMouse ? "#8B6F2A" : "transparent"
+            border.width: 1
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on border.color { ColorAnimation { duration: 140 } }
+
+            Text {
+                anchors.centerIn: parent
+                text: "⌂"
+                color: "#FFE082"
+                font.pixelSize: 26
+            }
+
+            MouseArea {
+                id: homeHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: sidebar.tabSelected(0)
+            }
+        }
+
         // Discord — opens invite in system browser.
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
