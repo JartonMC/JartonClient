@@ -115,13 +115,14 @@ Rectangle {
 
         Loader {
             anchors.fill: parent
-            active: ProctorClient.connected && panel.section === "ptero"
-            source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml" : ""
+            active: ProctorClient.connected && (panel.section === "ptero" || panel.section === "staff")
+            source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
+                  : panel.section === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
         }
 
         Text {
             anchors.centerIn: parent
-            visible: panel.section !== "ptero"
+            visible: panel.section !== "ptero" && panel.section !== "staff"
             text: panel.section === "" ? "Select a staff tab from the sidebar."
                                        : panel.sectionTitle(panel.section) + " — coming soon"
             color: "#9a8a66"; font.pixelSize: 16

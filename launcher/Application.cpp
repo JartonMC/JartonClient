@@ -120,6 +120,7 @@
 #ifdef LAUNCHER_STAFF
 #include "jarton/staff/ProctorClient.h"
 #include "jarton/staff/ServerListModel.h"
+#include "jarton/staff/StaffModels.h"
 #endif
 #include "jarton/services/ServerStatusService.h"
 #include "jarton/services/WallpaperService.h"
@@ -1642,6 +1643,8 @@ void Application::initJartonServices()
         auto* proctor = new Jarton::ProctorClient(this);
         registerService("ProctorClient", proctor);
         registerService("ServerListModel", new Jarton::ServerListModel(proctor, this));
+        registerService("PlayerSearchModel", new Jarton::PlayerSearchModel(proctor, this));
+        registerService("PlayerHistoryModel", new Jarton::PlayerHistoryModel(proctor, this));
     }
 #endif
 
