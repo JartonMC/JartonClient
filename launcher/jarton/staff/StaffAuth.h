@@ -29,6 +29,11 @@ class StaffAuth : public QObject {
     Q_PROPERTY(bool canPanel READ canPanel NOTIFY changed)
     Q_PROPERTY(bool canProctor READ canProctor NOTIFY changed)
     Q_PROPERTY(bool canSwifty READ canSwifty NOTIFY changed)
+    // Per-staff Pterodactyl panel key (ptlc_…): /servers 409s until it's connected.
+    // Lives here (not ProctorClient) because /account/panel-key is a cap-auth route.
+    Q_PROPERTY(bool panelKeyConnected READ panelKeyConnected NOTIFY changed)
+    Q_PROPERTY(bool panelKeyBusy READ panelKeyBusy NOTIFY changed)
+    Q_PROPERTY(QString panelKeyError READ panelKeyError NOTIFY changed)
 
    public:
     // tokenPath: file the refresh token is persisted to so the session survives restarts.
@@ -42,11 +47,16 @@ class StaffAuth : public QObject {
     bool canPanel() const { return hasCap(QStringLiteral("servers.view")); }
     bool canProctor() const { return hasCap(QStringLiteral("proctor.access")); }
     bool canSwifty() const { return hasCap(QStringLiteral("swifty.view")); }
+    bool panelKeyConnected() const { return m_panelKeyConnected; }
+    bool panelKeyBusy() const { return m_panelKeyBusy; }
+    QString panelKeyError() const { return m_panelKeyError; }
 
     Q_INVOKABLE void signIn();
     Q_INVOKABLE void signOut();
     // Re-resolve roles/caps from the stored refresh token (called on launch + focus).
     Q_INVOKABLE void refresh();
+    Q_INVOKABLE void checkPanelKey();
+    Q_INVOKABLE void connectPanelKey(const QString& key);
 
     // Cap JWT for sibling models (server list, panel key) that hit requireCap routes.
     QNetworkAccessManager* network() const { return m_nam; }
@@ -78,6 +88,9 @@ class StaffAuth : public QObject {
     bool m_signingIn = false;
     QString m_loginError;
     QString m_displayName;
+    bool m_panelKeyConnected = false;
+    bool m_panelKeyBusy = false;
+    QString m_panelKeyError;
 };
 
 }  // namespace Jarton

@@ -204,6 +204,64 @@ void StaffAuth::applySession(const QJsonObject& obj)
     m_connected = !m_token.isEmpty();
     m_loginError.clear();
     emit changed();
+    if (m_connected && canPanel()) {
+        checkPanelKey();
+    }
+}
+
+void StaffAuth::checkPanelKey()
+{
+    if (!m_connected) {
+        return;
+    }
+    QNetworkRequest req{ QUrl(m_baseUrl + "/account/panel-key") };
+    req.setRawHeader("Authorization", "Bearer " + m_token.toUtf8());
+    req.setRawHeader("User-Agent", "JartonClient/staff");
+    req.setTransferTimeout(15000);
+
+    QNetworkReply* reply = m_nam->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() == QNetworkReply::NoError) {
+            m_panelKeyConnected = QJsonDocument::fromJson(reply->readAll()).object().value("connected").toBool();
+            emit changed();
+        }
+    });
+}
+
+void StaffAuth::connectPanelKey(const QString& key)
+{
+    if (!m_connected || m_panelKeyBusy) {
+        return;
+    }
+    m_panelKeyBusy = true;
+    m_panelKeyError.clear();
+    emit changed();
+
+    QJsonObject body;
+    body.insert("key", key);
+
+    QNetworkRequest req{ QUrl(m_baseUrl + "/account/panel-key") };
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setRawHeader("Authorization", "Bearer " + m_token.toUtf8());
+    req.setRawHeader("User-Agent", "JartonClient/staff");
+    req.setTransferTimeout(20000);
+
+    QNetworkReply* reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        m_panelKeyBusy = false;
+
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (reply->error() != QNetworkReply::NoError || status < 200 || status >= 300) {
+            m_panelKeyError = (status == 422) ? tr("The panel rejected that key.") : tr("Couldn't connect the key.");
+            emit changed();
+            return;
+        }
+        m_panelKeyConnected = QJsonDocument::fromJson(reply->readAll()).object().value("connected").toBool();
+        m_panelKeyError.clear();
+        emit changed();
+    });
 }
 
 void StaffAuth::signOut()

@@ -1,26 +1,30 @@
 import QtQuick
 import Jarton
 
-// Docked staff area. Logged-out: a Proctor login form. Logged-in: whichever section
-// the sidebar selected. The section lives on the ProctorClient singleton
-// (ProctorClient.currentSection) because the sidebar and this panel are separate QML
-// engines — the shared singleton is the only channel both sides see. No internal
-// section menu; the sidebar's Staff / Pterodactyl / Swifty buttons drive it directly.
+// Docked staff area. You reach it already signed into Discord (the sidebar only shows
+// a section's tab once StaffAuth resolves the matching capability), so Pterodactyl and
+// Swifty need no further login. The Staff section is hybrid: it additionally requires
+// the separate Proctor username/password session, so the login form below is scoped to
+// that section only. The active section is ProctorClient.currentSection (a shared
+// singleton property — the sidebar and this panel are separate QML engines).
 Rectangle {
     id: panel
     color: "#0f0a06"
     focus: true
 
+    readonly property string section: ProctorClient.currentSection
+    readonly property bool needsProctorLogin: section === "staff" && !ProctorClient.connected
+
     function sectionTitle(s) {
         return s === "ptero" ? "Pterodactyl" : s === "staff" ? "Staff" : s === "swifty" ? "Swifty" : ""
     }
 
-    // ---- logged-out: login ----
+    // ---- Staff section: Proctor login (hybrid second factor) ----
     Column {
         anchors.centerIn: parent
         width: 300
         spacing: 14
-        visible: !ProctorClient.connected
+        visible: panel.needsProctorLogin
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
@@ -106,29 +110,30 @@ Rectangle {
         ProctorClient.signIn(userInput.text, passInput.text)
     }
 
-    // ---- logged-in: the selected section ----
+    // ---- the selected section ----
     Item {
         anchors.fill: parent
-        visible: ProctorClient.connected
+        visible: !panel.needsProctorLogin
 
         Loader {
             anchors.fill: parent
-            active: ProctorClient.connected && (ProctorClient.currentSection === "ptero" || ProctorClient.currentSection === "staff")
-            source: ProctorClient.currentSection === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
-                  : ProctorClient.currentSection === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
+            active: panel.section === "ptero" || (panel.section === "staff" && ProctorClient.connected)
+            source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
+                  : panel.section === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
         }
 
         Text {
             anchors.centerIn: parent
-            visible: ProctorClient.currentSection !== "ptero" && ProctorClient.currentSection !== "staff"
-            text: ProctorClient.currentSection === "" ? "Select a staff tab from the sidebar."
-                                       : panel.sectionTitle(ProctorClient.currentSection) + " — coming soon"
+            visible: panel.section !== "ptero" && panel.section !== "staff"
+            text: panel.section === "" ? "Select a staff tab from the sidebar."
+                                       : panel.sectionTitle(panel.section) + " — coming soon"
             color: "#9a8a66"; font.pixelSize: 16
         }
 
-        // Minimal sign-out for now; account controls move to Settings later.
+        // Proctor sign-out, only meaningful inside the Staff section.
         Rectangle {
             anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.margins: 12
+            visible: panel.section === "staff" && ProctorClient.connected
             width: 92; height: 28; radius: 8
             color: outArea.containsMouse ? "#2a1414" : "transparent"
             border.color: "#5c3a3a"; border.width: 1

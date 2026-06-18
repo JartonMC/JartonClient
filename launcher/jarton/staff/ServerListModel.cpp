@@ -9,11 +9,11 @@
 #include <QNetworkRequest>
 #include <QUrl>
 
-#include "jarton/staff/ProctorClient.h"
+#include "jarton/staff/StaffAuth.h"
 
 namespace Jarton {
 
-ServerListModel::ServerListModel(ProctorClient* proctor, QObject* parent) : QAbstractListModel(parent), m_proctor(proctor) {}
+ServerListModel::ServerListModel(StaffAuth* auth, QObject* parent) : QAbstractListModel(parent), m_auth(auth) {}
 
 int ServerListModel::rowCount(const QModelIndex& parent) const
 {
@@ -67,19 +67,19 @@ QHash<int, QByteArray> ServerListModel::roleNames() const
 
 void ServerListModel::refresh()
 {
-    if (m_proctor == nullptr || m_proctor->token().isEmpty() || m_loading) {
+    if (m_auth == nullptr || m_auth->token().isEmpty() || m_loading) {
         return;
     }
     m_loading = true;
     m_error.clear();
     emit changed();
 
-    QNetworkRequest req{ QUrl(m_proctor->baseUrl() + "/servers") };
-    req.setRawHeader("Authorization", "Bearer " + m_proctor->token().toUtf8());
+    QNetworkRequest req{ QUrl(m_auth->baseUrl() + "/servers") };
+    req.setRawHeader("Authorization", "Bearer " + m_auth->token().toUtf8());
     req.setRawHeader("User-Agent", "JartonClient/staff");
     req.setTransferTimeout(20000);
 
-    QNetworkReply* reply = m_proctor->network()->get(req);
+    QNetworkReply* reply = m_auth->network()->get(req);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
         m_loading = false;

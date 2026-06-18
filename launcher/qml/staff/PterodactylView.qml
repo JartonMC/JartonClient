@@ -9,18 +9,18 @@ Item {
     property bool loadedOnce: false
 
     Component.onCompleted: {
-        if (ProctorClient.panelKeyConnected) {
+        if (StaffAuth.panelKeyConnected) {
             loadedOnce = true
             ServerListModel.refresh()
         } else {
-            ProctorClient.checkPanelKey()
+            StaffAuth.checkPanelKey()
         }
     }
 
     Connections {
         target: ProctorClient
         function onChanged() {
-            if (ProctorClient.panelKeyConnected && !view.loadedOnce) {
+            if (StaffAuth.panelKeyConnected && !view.loadedOnce) {
                 view.loadedOnce = true
                 ServerListModel.refresh()
             }
@@ -32,7 +32,7 @@ Item {
         anchors.centerIn: parent
         width: 320
         spacing: 12
-        visible: !ProctorClient.panelKeyConnected
+        visible: !StaffAuth.panelKeyConnected
 
         Text {
             width: parent.width
@@ -68,25 +68,25 @@ Item {
 
         Text {
             width: parent.width
-            text: ProctorClient.panelKeyError
+            text: StaffAuth.panelKeyError
             color: "#e06c6c"; font.pixelSize: 13
             wrapMode: Text.WordWrap
-            visible: ProctorClient.panelKeyError.length > 0
+            visible: StaffAuth.panelKeyError.length > 0
         }
 
         Rectangle {
             width: parent.width; height: 44; radius: 9
             color: connectArea.containsMouse ? "#FFC93C" : "#FFB81C"
-            opacity: ProctorClient.panelKeyBusy ? 0.6 : 1.0
+            opacity: StaffAuth.panelKeyBusy ? 0.6 : 1.0
             Text {
                 anchors.centerIn: parent
-                text: ProctorClient.panelKeyBusy ? "Connecting…" : "Connect key"
+                text: StaffAuth.panelKeyBusy ? "Connecting…" : "Connect key"
                 color: "#1a140e"; font.pixelSize: 15; font.bold: true
             }
             MouseArea {
                 id: connectArea
                 anchors.fill: parent; hoverEnabled: true
-                enabled: !ProctorClient.panelKeyBusy
+                enabled: !StaffAuth.panelKeyBusy
                 cursorShape: Qt.PointingHandCursor
                 onClicked: view.doConnect()
             }
@@ -95,7 +95,7 @@ Item {
 
     function doConnect() {
         if (keyInput.text.length > 0)
-            ProctorClient.connectPanelKey(keyInput.text)
+            StaffAuth.connectPanelKey(keyInput.text)
     }
 
     // ---- server list ----
@@ -103,7 +103,7 @@ Item {
         anchors.fill: parent
         anchors.margins: 16
         spacing: 10
-        visible: ProctorClient.panelKeyConnected
+        visible: StaffAuth.panelKeyConnected
 
         Row {
             width: parent.width

@@ -7,7 +7,7 @@
 
 namespace Jarton {
 
-class ProctorClient;
+class StaffAuth;
 
 struct GameServer {
     QString id;
@@ -22,7 +22,8 @@ struct GameServer {
     int playersMax = 0;
 };
 
-// The Pterodactyl server list — GET /servers via the shared ProctorClient session.
+// The Pterodactyl server list — GET /servers via the StaffAuth (Discord cap) session.
+// /servers requires the cap JWT, so this rides StaffAuth, not the proctor session.
 // 409 (no panel key connected) is surfaced as panelKeyMissing so the view can prompt
 // for the key instead of showing an empty/error list.
 class ServerListModel : public QAbstractListModel {
@@ -46,7 +47,7 @@ class ServerListModel : public QAbstractListModel {
         PlayersMaxRole,
     };
 
-    explicit ServerListModel(ProctorClient* proctor, QObject* parent = nullptr);
+    explicit ServerListModel(StaffAuth* auth, QObject* parent = nullptr);
 
     int rowCount(const QModelIndex& parent = QModelIndex{}) const override;
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
@@ -62,7 +63,7 @@ class ServerListModel : public QAbstractListModel {
     void changed();
 
    private:
-    ProctorClient* m_proctor = nullptr;
+    StaffAuth* m_auth = nullptr;
     QVector<GameServer> m_servers;
     bool m_loading = false;
     bool m_panelKeyMissing = false;

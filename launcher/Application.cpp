@@ -1647,7 +1647,7 @@ void Application::initJartonServices()
         auto* staffAuth = new Jarton::StaffAuth(FS::PathCombine(m_dataPath, "jarton-staff-session"), this);
         m_jartonStaffAuth = staffAuth;
         registerService("StaffAuth", staffAuth);
-        registerService("ServerListModel", new Jarton::ServerListModel(proctor, this));
+        registerService("ServerListModel", new Jarton::ServerListModel(staffAuth, this));
         registerService("PlayerSearchModel", new Jarton::PlayerSearchModel(proctor, this));
         registerService("PlayerHistoryModel", new Jarton::PlayerHistoryModel(proctor, this));
     }

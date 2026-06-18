@@ -24,10 +24,6 @@ class ProctorClient : public QObject {
     Q_PROPERTY(QString displayName READ displayName NOTIFY changed)
     Q_PROPERTY(QString rank READ rank NOTIFY changed)
     Q_PROPERTY(bool admin READ admin NOTIFY changed)
-    // Per-staff Pterodactyl panel key (ptlc_…): the server sections 409 until it's connected.
-    Q_PROPERTY(bool panelKeyConnected READ panelKeyConnected NOTIFY changed)
-    Q_PROPERTY(bool panelKeyBusy READ panelKeyBusy NOTIFY changed)
-    Q_PROPERTY(QString panelKeyError READ panelKeyError NOTIFY changed)
     // Which staff section the sidebar picked ("staff" | "ptero" | "swifty" | "").
     // Driven from C++ (the host window) but exposed here because the sidebar and the
     // docked panel run in separate QML engines — the shared singleton is the only
@@ -45,15 +41,10 @@ class ProctorClient : public QObject {
     QString displayName() const { return m_displayName; }
     QString rank() const { return m_rank; }
     bool admin() const { return m_admin; }
-    bool panelKeyConnected() const { return m_panelKeyConnected; }
-    bool panelKeyBusy() const { return m_panelKeyBusy; }
-    QString panelKeyError() const { return m_panelKeyError; }
     QString currentSection() const { return m_currentSection; }
 
     Q_INVOKABLE void signIn(const QString& username, const QString& password);
     Q_INVOKABLE void signOut();
-    Q_INVOKABLE void checkPanelKey();
-    Q_INVOKABLE void connectPanelKey(const QString& key);
     Q_INVOKABLE void setCurrentSection(const QString& section);
 
     // C++-side accessors for sibling staff models that reuse this broker session.
@@ -77,9 +68,6 @@ class ProctorClient : public QObject {
     QString m_displayName;
     QString m_rank;
     bool m_admin = false;
-    bool m_panelKeyConnected = false;
-    bool m_panelKeyBusy = false;
-    QString m_panelKeyError;
     QString m_currentSection;
 };
 
