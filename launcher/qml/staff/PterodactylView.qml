@@ -45,16 +45,17 @@ Item {
         }
 
         Rectangle {
-            width: parent.width; height: 42; radius: 9
-            color: "#1a140e"
-            border.color: keyInput.activeFocus ? "#FFB81C" : "#332a14"
+            width: parent.width; height: 44; radius: 11
+            color: "#15100a"
+            border.color: keyInput.activeFocus ? "#FFB81C" : "#2a2114"
             border.width: 1
+            Behavior on border.color { ColorAnimation { duration: 120 } }
             TextInput {
                 id: keyInput
                 anchors.fill: parent
-                anchors.leftMargin: 12; anchors.rightMargin: 12
+                anchors.leftMargin: 14; anchors.rightMargin: 14
                 verticalAlignment: TextInput.AlignVCenter
-                color: "#FFFFFF"; font.pixelSize: 14
+                color: "#F2E8D0"; font.pixelSize: 14
                 echoMode: TextInput.Password
                 clip: true
                 onAccepted: view.doConnect()
@@ -75,22 +76,11 @@ Item {
             visible: StaffAuth.panelKeyError.length > 0
         }
 
-        Rectangle {
-            width: parent.width; height: 44; radius: 9
-            color: connectArea.containsMouse ? "#FFC93C" : "#FFB81C"
-            opacity: StaffAuth.panelKeyBusy ? 0.6 : 1.0
-            Text {
-                anchors.centerIn: parent
-                text: StaffAuth.panelKeyBusy ? "Connecting…" : "Connect key"
-                color: "#1a140e"; font.pixelSize: 15; font.bold: true
-            }
-            MouseArea {
-                id: connectArea
-                anchors.fill: parent; hoverEnabled: true
-                enabled: !StaffAuth.panelKeyBusy
-                cursorShape: Qt.PointingHandCursor
-                onClicked: view.doConnect()
-            }
+        SButton {
+            width: parent.width; height: 44
+            text: StaffAuth.panelKeyBusy ? "Connecting…" : "Connect key"
+            variant: "primary"; busy: StaffAuth.panelKeyBusy
+            onClicked: view.doConnect()
         }
     }
 
@@ -106,24 +96,17 @@ Item {
         spacing: 10
         visible: StaffAuth.panelKeyConnected && view.detailId === ""
 
-        Row {
-            width: parent.width
+        Item {
+            width: parent.width; height: 36
             Text {
-                text: "Servers"
-                color: "#FFE082"; font.pixelSize: 18; font.bold: true
+                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                text: "Servers"; color: "#F2E8D0"; font.pixelSize: 20; font.bold: true
             }
-            Item { width: parent.width - 120; height: 1 }
-            Rectangle {
-                width: 80; height: 28; radius: 7
-                color: refreshArea.containsMouse ? "#221a0f" : "transparent"
-                border.color: "#8B6F2A"; border.width: 1
-                Text { anchors.centerIn: parent; text: ServerListModel.loading ? "…" : "Refresh"; color: "#FFE082"; font.pixelSize: 12 }
-                MouseArea {
-                    id: refreshArea
-                    anchors.fill: parent; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: ServerListModel.refresh()
-                }
+            SButton {
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                text: ServerListModel.loading ? "Refreshing…" : "Refresh"
+                glyph: "↻"; variant: "secondary"
+                onClicked: ServerListModel.refresh()
             }
         }
 
@@ -142,10 +125,13 @@ Item {
             model: ServerListModel
             delegate: Rectangle {
                 width: ListView.view.width
-                height: 58
-                radius: 10
-                color: rowArea.containsMouse ? "#221a0f" : "#16110a"
-                border.color: "#332a14"; border.width: 1
+                height: 62
+                radius: 12
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: rowArea.containsMouse ? "#241c10" : "#1a140d" }
+                    GradientStop { position: 1.0; color: rowArea.containsMouse ? "#1b150e" : "#140f09" }
+                }
+                border.color: rowArea.containsMouse ? "#3a2f1c" : "#241c12"; border.width: 1
 
                 MouseArea {
                     id: rowArea
@@ -159,29 +145,42 @@ Item {
 
                 Rectangle {
                     id: dot
-                    anchors.left: parent.left; anchors.leftMargin: 14
+                    anchors.left: parent.left; anchors.leftMargin: 16
                     anchors.verticalCenter: parent.verticalCenter
                     width: 10; height: 10; radius: 5
                     // model.state, not state — every QML element has a built-in `state`
                     // property that would otherwise shadow the model role and read empty
                     color: model.state === "running" ? "#5ad17a"
                          : (model.state === "starting" || model.state === "stopping") ? "#FFB81C" : "#e06c6c"
-                }
-                Column {
-                    anchors.left: dot.right; anchors.leftMargin: 12
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 2
-                    Text { text: name; color: "#FFFFFF"; font.pixelSize: 15; font.bold: true }
-                    Text {
-                        text: node + "  ·  " + model.state + "  ·  " + playersOnline + "/" + playersMax + " players"
-                        color: "#9a8a66"; font.pixelSize: 12
+                    Rectangle {
+                        anchors.centerIn: parent; width: 18; height: 18; radius: 9
+                        color: "transparent"; border.width: 2
+                        border.color: parent.color; opacity: 0.25
                     }
                 }
-                Text {
-                    anchors.right: parent.right; anchors.rightMargin: 14
+                Column {
+                    anchors.left: dot.right; anchors.leftMargin: 16
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Math.round(cpu) + "%  ·  " + Math.round(memBytes / 1048576) + "/" + memLimitMb + " MB"
-                    color: "#9a8a66"; font.pixelSize: 12
+                    spacing: 3
+                    Text { text: name; color: "#F2E8D0"; font.pixelSize: 15; font.bold: true }
+                    Text {
+                        text: node + "  ·  " + model.state + "  ·  " + playersOnline + "/" + playersMax + " players"
+                        color: "#8a7a56"; font.pixelSize: 12
+                    }
+                }
+                Row {
+                    anchors.right: parent.right; anchors.rightMargin: 16
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 14
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Math.round(cpu) + "%  ·  " + Math.round(memBytes / 1048576) + "/" + memLimitMb + " MB"
+                        color: "#8a7a56"; font.pixelSize: 12
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "›"; color: "#4a3f24"; font.pixelSize: 18
+                    }
                 }
             }
         }

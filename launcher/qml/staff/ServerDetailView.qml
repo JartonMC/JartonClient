@@ -1,18 +1,17 @@
 import QtQuick
 import Jarton
 
-// One server, desktop-laid-out: power + live stats header, a tab bar, and the active
-// tab (Console = wings console + command input; Files = browser + editor). More tabs
-// (backups, schedules, network, subusers, databases) slot into the same tab bar.
+// One server, desktop-laid-out and modernised (honey theme): power + live stats header,
+// a pill tab bar, and the active tab — Console (terminal-framed wings console + input)
+// or Files (browser + syntax-highlighted editor).
 Item {
     id: view
     signal back()
 
     property string tab: "console"
-    property string filesServer: ""   // which server PteroFiles is currently browsing
+    property string filesServer: ""
     property string lastServer: ""
 
-    // when a different server is opened, snap back to the console tab and drop stale file state
     Connections {
         target: PteroServer
         function onChanged() {
@@ -40,7 +39,7 @@ Item {
         return m + "m"
     }
     function stateColor(s) {
-        return s === "running" ? "#5ad17a" : s === "starting" || s === "stopping" ? "#FFB81C" : "#e06c6c"
+        return s === "running" ? "#5ad17a" : (s === "starting" || s === "stopping") ? "#FFB81C" : "#e06c6c"
     }
     function selectTab(t) {
         tab = t
@@ -50,102 +49,91 @@ Item {
         }
     }
 
-    // ---- fixed header: back + name + state, power, stats, tab bar ----
     Column {
         id: head
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
-        anchors.margins: 16
-        spacing: 12
+        anchors.margins: 18
+        spacing: 16
 
+        // header row
         Row {
             width: parent.width
-            spacing: 10
-            Rectangle {
-                width: 64; height: 30; radius: 8
-                color: backArea.containsMouse ? "#221a0f" : "transparent"
-                border.color: "#8B6F2A"; border.width: 1
-                Text { anchors.centerIn: parent; text: "‹ Back"; color: "#FFE082"; font.pixelSize: 13 }
-                MouseArea {
-                    id: backArea
-                    anchors.fill: parent; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: view.back()
-                }
-            }
+            spacing: 12
+            SButton { text: "Back"; glyph: "‹"; variant: "ghost"; anchors.verticalCenter: parent.verticalCenter; onClicked: view.back() }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: PteroServer.serverName; color: "#FFFFFF"; font.pixelSize: 18; font.bold: true
+                text: PteroServer.serverName; color: "#F2E8D0"; font.pixelSize: 20; font.bold: true
             }
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
-                width: stateTxt.width + 20; height: 24; radius: 12
-                color: Qt.rgba(0, 0, 0, 0.25)
+                width: stRow.width + 22; height: 26; radius: 13
+                color: Qt.rgba(view.stateColor(PteroServer.runState).r, view.stateColor(PteroServer.runState).g, view.stateColor(PteroServer.runState).b, 0.13)
                 Row {
-                    anchors.centerIn: parent; spacing: 6
-                    Rectangle { width: 8; height: 8; radius: 4; color: view.stateColor(PteroServer.runState); anchors.verticalCenter: parent.verticalCenter }
-                    Text { id: stateTxt; text: PteroServer.runState; color: view.stateColor(PteroServer.runState); font.pixelSize: 12; font.bold: true }
-                }
-            }
-        }
-
-        Row {
-            spacing: 8
-            Repeater {
-                model: [
-                    { label: "Start", sig: "start", col: "#1f3a26" },
-                    { label: "Restart", sig: "restart", col: "#3a2f14" },
-                    { label: "Stop", sig: "stop", col: "#3a2414" },
-                    { label: "Kill", sig: "kill", col: "#3a1414" }
-                ]
-                delegate: Rectangle {
-                    width: 84; height: 34; radius: 8
-                    color: pwArea.containsMouse ? Qt.lighter(modelData.col, 1.3) : modelData.col
-                    opacity: PteroServer.powerBusy ? 0.5 : 1.0
-                    border.color: "#5c4a2a"; border.width: 1
-                    Text { anchors.centerIn: parent; text: modelData.label; color: "#FFE082"; font.pixelSize: 13; font.bold: true }
-                    MouseArea {
-                        anchors.fill: parent; hoverEnabled: true
-                        id: pwArea
-                        enabled: !PteroServer.powerBusy
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: PteroServer.power(modelData.sig)
+                    id: stRow
+                    anchors.centerIn: parent; spacing: 7
+                    Rectangle {
+                        width: 8; height: 8; radius: 4; anchors.verticalCenter: parent.verticalCenter
+                        color: view.stateColor(PteroServer.runState)
                     }
+                    Text { text: PteroServer.runState; color: view.stateColor(PteroServer.runState); font.pixelSize: 12; font.bold: true }
                 }
             }
         }
 
+        // power controls
+        Row {
+            spacing: 9
+            SButton { text: "Start"; variant: "primary"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("start") }
+            SButton { text: "Restart"; variant: "secondary"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("restart") }
+            SButton { text: "Stop"; variant: "secondary"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("stop") }
+            SButton { text: "Kill"; variant: "danger"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("kill") }
+        }
+
+        // live stats
         Row {
             width: parent.width
-            spacing: 10
+            spacing: 12
             Repeater {
                 model: [
                     { k: "CPU", v: PteroServer.cpuPercent.toFixed(1) + "%" },
-                    { k: "Memory", v: view.fmtBytes(PteroServer.memoryBytes) + (PteroServer.memoryLimitBytes > 0 ? " / " + view.fmtBytes(PteroServer.memoryLimitBytes) : "") },
-                    { k: "Disk", v: view.fmtBytes(PteroServer.diskBytes) },
-                    { k: "Uptime", v: view.fmtUptime(PteroServer.uptimeMs) }
+                    { k: "MEMORY", v: view.fmtBytes(PteroServer.memoryBytes) + (PteroServer.memoryLimitBytes > 0 ? " / " + view.fmtBytes(PteroServer.memoryLimitBytes) : "") },
+                    { k: "DISK", v: view.fmtBytes(PteroServer.diskBytes) },
+                    { k: "UPTIME", v: view.fmtUptime(PteroServer.uptimeMs) }
                 ]
                 delegate: Rectangle {
-                    width: (view.width - 32 - 30) / 4
-                    height: 48; radius: 9
-                    color: "#16110a"; border.color: "#332a14"; border.width: 1
+                    width: (view.width - 36 - 36) / 4
+                    height: 60; radius: 13
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#1c160d" }
+                        GradientStop { position: 1.0; color: "#15100a" }
+                    }
+                    border.color: "#2a2114"; border.width: 1
                     Column {
-                        anchors.centerIn: parent; spacing: 2
-                        Text { text: modelData.k; color: "#9a8a66"; font.pixelSize: 11; anchors.horizontalCenter: parent.horizontalCenter }
-                        Text { text: modelData.v; color: "#FFFFFF"; font.pixelSize: 14; font.bold: true; anchors.horizontalCenter: parent.horizontalCenter }
+                        anchors.left: parent.left; anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 4
+                        Text { text: modelData.k; color: "#8a7a56"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 0.5 }
+                        Text { text: modelData.v; color: "#F2E8D0"; font.pixelSize: 15; font.bold: true }
                     }
                 }
             }
         }
 
+        // pill tab bar
         Row {
-            spacing: 6
+            spacing: 8
             Repeater {
                 model: [ { id: "console", label: "Console" }, { id: "files", label: "Files" } ]
                 delegate: Rectangle {
-                    width: tabLabel.width + 26; height: 30; radius: 8
-                    color: view.tab === modelData.id ? "#2a1f10" : (tabArea.containsMouse ? "#1a140e" : "transparent")
-                    border.color: view.tab === modelData.id ? "#8B6F2A" : "#332a14"; border.width: 1
-                    Text { id: tabLabel; anchors.centerIn: parent; text: modelData.label; color: view.tab === modelData.id ? "#FFE082" : "#9a8a66"; font.pixelSize: 13 }
+                    width: tabLabel.width + 30; height: 32; radius: 16
+                    color: view.tab === modelData.id ? "#FFB81C" : (tabArea.containsMouse ? "#26200f" : "#1b150e")
+                    border.color: view.tab === modelData.id ? "transparent" : "#2a2114"; border.width: 1
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Text {
+                        id: tabLabel; anchors.centerIn: parent; text: modelData.label
+                        color: view.tab === modelData.id ? "#1a140e" : "#9a8a66"
+                        font.pixelSize: 13; font.bold: view.tab === modelData.id
+                    }
                     MouseArea {
                         id: tabArea
                         anchors.fill: parent; hoverEnabled: true
@@ -157,33 +145,55 @@ Item {
         }
     }
 
-    // ---- content area (fills below the header) ----
+    // content
     Item {
-        anchors.top: head.bottom; anchors.topMargin: 12
+        anchors.top: head.bottom; anchors.topMargin: 14
         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-        anchors.leftMargin: 16; anchors.rightMargin: 16; anchors.bottomMargin: 16
+        anchors.leftMargin: 18; anchors.rightMargin: 18; anchors.bottomMargin: 18
 
         // ===== Console =====
         Column {
             anchors.fill: parent
-            spacing: 10
+            spacing: 12
             visible: view.tab === "console"
 
             Rectangle {
                 width: parent.width
-                height: parent.height - 50
-                radius: 10
-                color: "#0a0805"; border.color: "#332a14"; border.width: 1
+                height: parent.height - 52
+                radius: 13
+                color: "#0a0805"; border.color: "#2a2114"; border.width: 1
+
+                // terminal title bar
+                Rectangle {
+                    id: termBar
+                    anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                    height: 32; radius: 13
+                    color: "#140f09"
+                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 13; color: "#140f09" }  // square off bottom corners
+                    Row {
+                        anchors.left: parent.left; anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                        Rectangle { width: 10; height: 10; radius: 5; color: "#e06c6c" }
+                        Rectangle { width: 10; height: 10; radius: 5; color: "#FFB81C" }
+                        Rectangle { width: 10; height: 10; radius: 5; color: "#5ad17a" }
+                    }
+                    Text {
+                        anchors.centerIn: parent
+                        text: "console" + (PteroServer.consoleState === "live" ? "" : " · " + PteroServer.consoleState)
+                        color: "#6b5d3f"; font.family: "Menlo"; font.pixelSize: 11
+                    }
+                }
+
                 ListView {
                     id: log
-                    anchors.fill: parent; anchors.margins: 10
+                    anchors.top: termBar.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    anchors.margins: 12
                     clip: true
                     model: PteroServer.lines
                     delegate: Text {
                         width: log.width
                         text: modelData; color: "#cfc3a6"
-                        font.family: "Menlo"; font.pixelSize: 12
-                        lineHeight: 1.15
+                        font.family: "Menlo"; font.pixelSize: 12; lineHeight: 1.2
                         wrapMode: Text.WrapAnywhere; textFormat: Text.RichText
                     }
                     onCountChanged: positionViewAtEnd()
@@ -195,22 +205,23 @@ Item {
                     }
                 }
             }
+
             Rectangle {
-                width: parent.width; height: 40; radius: 9
-                color: "#1a140e"
-                border.color: cmdInput.activeFocus ? "#FFB81C" : "#332a14"; border.width: 1
+                width: parent.width; height: 42; radius: 11
+                color: "#15100a"
+                border.color: cmdInput.activeFocus ? "#FFB81C" : "#2a2114"; border.width: 1
                 opacity: PteroServer.consoleState === "live" ? 1.0 : 0.5
+                Behavior on border.color { ColorAnimation { duration: 120 } }
                 Row {
-                    anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12
-                    Text { text: "›"; color: "#FFB81C"; font.pixelSize: 16; anchors.verticalCenter: parent.verticalCenter; rightPadding: 8 }
+                    anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14
+                    Text { text: "›"; color: "#FFB81C"; font.pixelSize: 17; anchors.verticalCenter: parent.verticalCenter; rightPadding: 9 }
                     TextInput {
                         id: cmdInput
-                        width: parent.width - 24
+                        width: parent.width - 26
                         anchors.verticalCenter: parent.verticalCenter
-                        color: "#FFFFFF"; font.family: "Menlo"; font.pixelSize: 13; clip: true
+                        color: "#F2E8D0"; font.family: "Menlo"; font.pixelSize: 13; clip: true
                         enabled: PteroServer.consoleState === "live"
-                        activeFocusOnPress: true
-                        persistentSelection: true
+                        activeFocusOnPress: true; persistentSelection: true
                         cursorVisible: activeFocus
                         cursorDelegate: Rectangle {
                             width: 2; color: "#FFB81C"; visible: cmdInput.cursorVisible
@@ -236,52 +247,45 @@ Item {
             anchors.fill: parent
             visible: view.tab === "files"
 
-            // path bar
             Row {
                 id: pathBar
-                width: parent.width; height: 30; spacing: 8
+                width: parent.width; height: 34; spacing: 10
+                SButton { text: "Up"; glyph: "↑"; variant: "secondary"; onClicked: PteroFiles.up() }
                 Rectangle {
-                    width: 40; height: 28; radius: 7
-                    color: upArea.containsMouse ? "#221a0f" : "transparent"
-                    border.color: "#8B6F2A"; border.width: 1
-                    Text { anchors.centerIn: parent; text: "↑"; color: "#FFE082"; font.pixelSize: 14 }
-                    MouseArea { id: upArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PteroFiles.up() }
+                    width: parent.width - 180; height: 34; radius: 9
+                    color: "#15100a"; border.color: "#2a2114"; border.width: 1
+                    Text {
+                        anchors.left: parent.left; anchors.leftMargin: 12; anchors.right: parent.right; anchors.rightMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: PteroFiles.cwd; color: "#9a8a66"; font.family: "Menlo"; font.pixelSize: 12
+                        elide: Text.ElideMiddle
+                    }
                 }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: PteroFiles.cwd; color: "#9a8a66"; font.family: "Menlo"; font.pixelSize: 12
-                    elide: Text.ElideMiddle; width: parent.width - 110
-                }
-                Rectangle {
-                    width: 50; height: 28; radius: 7
-                    color: refArea.containsMouse ? "#221a0f" : "transparent"
-                    border.color: "#8B6F2A"; border.width: 1
-                    Text { anchors.centerIn: parent; text: PteroFiles.loading ? "…" : "↻"; color: "#FFE082"; font.pixelSize: 13 }
-                    MouseArea { id: refArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PteroFiles.refresh() }
-                }
+                SButton { text: PteroFiles.loading ? "…" : "Refresh"; variant: "secondary"; onClicked: PteroFiles.refresh() }
             }
 
             ListView {
-                anchors.top: pathBar.bottom; anchors.topMargin: 8
+                anchors.top: pathBar.bottom; anchors.topMargin: 10
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                clip: true; spacing: 4
+                clip: true; spacing: 5
                 model: PteroFiles
                 delegate: Rectangle {
-                    width: ListView.view.width; height: 36; radius: 7
+                    width: ListView.view.width; height: 40; radius: 9
                     color: fileArea.containsMouse ? "#221a0f" : "#16110a"
-                    border.color: "#332a14"; border.width: 1
+                    border.color: fileArea.containsMouse ? "#3a2f1c" : "#221a12"; border.width: 1
+                    Behavior on color { ColorAnimation { duration: 100 } }
                     Text {
-                        anchors.left: parent.left; anchors.leftMargin: 12
+                        anchors.left: parent.left; anchors.leftMargin: 14
                         anchors.verticalCenter: parent.verticalCenter
-                        text: isFile ? "📄" : "📁"; font.pixelSize: 13
+                        text: isFile ? "📄" : "📁"; font.pixelSize: 14
                     }
                     Text {
-                        anchors.left: parent.left; anchors.leftMargin: 38
+                        anchors.left: parent.left; anchors.leftMargin: 42
                         anchors.verticalCenter: parent.verticalCenter
-                        text: name; color: "#FFFFFF"; font.pixelSize: 13
+                        text: name; color: "#F2E8D0"; font.pixelSize: 13
                     }
                     Text {
-                        anchors.right: parent.right; anchors.rightMargin: 12
+                        anchors.right: parent.right; anchors.rightMargin: 14
                         anchors.verticalCenter: parent.verticalCenter
                         text: isFile ? view.fmtBytes(size) : ""
                         color: "#6b5d3f"; font.pixelSize: 11
@@ -295,7 +299,7 @@ Item {
                 }
             }
 
-            // ---- file editor overlay ----
+            // editor overlay
             Rectangle {
                 anchors.fill: parent
                 visible: PteroFiles.openPath !== ""
@@ -303,39 +307,33 @@ Item {
 
                 Row {
                     id: edBar
-                    width: parent.width; height: 34; spacing: 8
+                    width: parent.width; height: 36; spacing: 10
+                    SButton { text: "Files"; glyph: "‹"; variant: "ghost"; onClicked: PteroFiles.closeFile() }
                     Rectangle {
-                        width: 64; height: 30; radius: 8
-                        color: edCloseArea.containsMouse ? "#221a0f" : "transparent"
-                        border.color: "#8B6F2A"; border.width: 1
-                        Text { anchors.centerIn: parent; text: "‹ Files"; color: "#FFE082"; font.pixelSize: 13 }
-                        MouseArea { id: edCloseArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PteroFiles.closeFile() }
+                        width: parent.width - 230; height: 34; radius: 9
+                        color: "#15100a"; border.color: "#2a2114"; border.width: 1
+                        Text {
+                            anchors.left: parent.left; anchors.leftMargin: 12; anchors.right: parent.right; anchors.rightMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: PteroFiles.openPath; color: "#9a8a66"; font.family: "Menlo"; font.pixelSize: 12
+                            elide: Text.ElideMiddle
+                        }
                     }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: PteroFiles.openPath; color: "#9a8a66"; font.family: "Menlo"; font.pixelSize: 12
-                        elide: Text.ElideMiddle; width: parent.width - 200
-                    }
-                    Rectangle {
-                        width: 70; height: 30; radius: 8
-                        color: PteroFiles.saving ? "#5c4a2a" : (saveArea.containsMouse ? "#FFC93C" : "#FFB81C")
-                        Text { anchors.centerIn: parent; text: PteroFiles.saving ? "…" : "Save"; color: "#1a140e"; font.pixelSize: 13; font.bold: true }
-                        MouseArea { id: saveArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PteroFiles.save(editor.text) }
-                    }
+                    SButton { text: PteroFiles.saving ? "Saving…" : "Save"; variant: "primary"; busy: PteroFiles.saving; onClicked: PteroFiles.save(editor.text) }
                 }
                 Text {
                     id: edErr
-                    anchors.top: edBar.bottom; anchors.topMargin: 4
+                    anchors.top: edBar.bottom; anchors.topMargin: 6
                     text: PteroFiles.editorError; color: "#e06c6c"; font.pixelSize: 12
                     visible: PteroFiles.editorError.length > 0
                 }
                 Rectangle {
-                    anchors.top: edErr.visible ? edErr.bottom : edBar.bottom; anchors.topMargin: 8
+                    anchors.top: edErr.visible ? edErr.bottom : edBar.bottom; anchors.topMargin: 10
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    radius: 8; color: "#0a0805"; border.color: "#332a14"; border.width: 1
+                    radius: 13; color: "#0a0805"; border.color: "#2a2114"; border.width: 1
                     Flickable {
                         id: flick
-                        anchors.fill: parent; anchors.margins: 10
+                        anchors.fill: parent; anchors.margins: 12
                         clip: true
                         contentWidth: editor.width; contentHeight: editor.height
                         function ensureVisible(r) {
@@ -360,9 +358,7 @@ Item {
                                     NumberAnimation { to: 1; duration: 500 }
                                 }
                             }
-                            // syntax-highlight the document (comments/keys/strings/numbers)
                             Component.onCompleted: SyntaxHelper.attach(editor.textDocument)
-                            // keep the caret in view as you move through a long file
                             onCursorRectangleChanged: flick.ensureVisible(cursorRectangle)
                         }
                     }
