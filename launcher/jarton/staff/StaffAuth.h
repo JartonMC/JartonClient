@@ -44,9 +44,11 @@ class StaffAuth : public QObject {
     bool signingIn() const { return m_signingIn; }
     QString loginError() const { return m_loginError; }
     QString displayName() const { return m_displayName; }
-    bool canPanel() const { return hasCap(QStringLiteral("servers.view")); }
-    bool canProctor() const { return hasCap(QStringLiteral("proctor.access")); }
-    bool canSwifty() const { return hasCap(QStringLiteral("swifty.view")); }
+    // Strict, NO wildcard: a section tab shows only with its exact dedicated capability,
+    // so an owner ("*") still needs the panel/proctor/swifty role to see those tabs.
+    bool canPanel() const { return m_caps.contains(QStringLiteral("section.servers")); }
+    bool canProctor() const { return m_caps.contains(QStringLiteral("proctor.access")); }
+    bool canSwifty() const { return m_caps.contains(QStringLiteral("swifty.view")); }
     bool panelKeyConnected() const { return m_panelKeyConnected; }
     bool panelKeyBusy() const { return m_panelKeyBusy; }
     QString panelKeyError() const { return m_panelKeyError; }
@@ -67,7 +69,6 @@ class StaffAuth : public QObject {
     void changed();
 
    private:
-    bool hasCap(const QString& cap) const { return m_caps.contains(QStringLiteral("*")) || m_caps.contains(cap); }
     void exchangeCode(const QString& code, const QString& verifier);
     void applySession(const class QJsonObject& obj);
     void clearSession();
