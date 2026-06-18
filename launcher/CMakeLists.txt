@@ -1267,6 +1267,8 @@ if(Launcher_STAFF)
         jarton/staff/ProctorClient.cpp
         jarton/staff/StaffAuth.h
         jarton/staff/StaffAuth.cpp
+        jarton/staff/PteroServer.h
+        jarton/staff/PteroServer.cpp
         jarton/staff/ServerListModel.h
         jarton/staff/ServerListModel.cpp
         jarton/staff/StaffModels.h
@@ -1374,6 +1376,7 @@ target_link_libraries(Launcher_logic
     Qt${QT_VERSION_MAJOR}::OpenGL
     Qt${QT_VERSION_MAJOR}::Quick
     Qt${QT_VERSION_MAJOR}::QuickWidgets
+    Qt${QT_VERSION_MAJOR}::WebSockets
     ${Launcher_QT_DBUS}
     ${Launcher_QT_LIBS}
 )

@@ -2,6 +2,7 @@
     <qresource prefix="/jarton/staff">
         <file alias="StaffPanel.qml">../../qml/staff/StaffPanel.qml</file>
         <file alias="PterodactylView.qml">../../qml/staff/PterodactylView.qml</file>
+        <file alias="ServerDetailView.qml">../../qml/staff/ServerDetailView.qml</file>
         <file alias="StaffSectionView.qml">../../qml/staff/StaffSectionView.qml</file>
     </qresource>
 </RCC>

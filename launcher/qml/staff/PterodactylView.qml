@@ -1,12 +1,13 @@
 import QtQuick
 import Jarton
 
-// Pterodactyl section — Phase 1: panel-key connect gate + the server list. Power /
-// console / files / etc. land in later increments off the same ServerListModel pattern.
+// Pterodactyl section: panel-key connect gate -> server list -> server detail
+// (power + live console + stats). Files / backups / schedules etc. land next.
 Item {
     id: view
 
     property bool loadedOnce: false
+    property string detailId: ""   // non-empty -> showing a single server's detail
 
     Component.onCompleted: {
         if (StaffAuth.panelKeyConnected) {
@@ -18,7 +19,7 @@ Item {
     }
 
     Connections {
-        target: ProctorClient
+        target: StaffAuth
         function onChanged() {
             if (StaffAuth.panelKeyConnected && !view.loadedOnce) {
                 view.loadedOnce = true
@@ -32,7 +33,7 @@ Item {
         anchors.centerIn: parent
         width: 320
         spacing: 12
-        visible: !StaffAuth.panelKeyConnected
+        visible: !StaffAuth.panelKeyConnected && view.detailId === ""
 
         Text {
             width: parent.width
@@ -103,7 +104,7 @@ Item {
         anchors.fill: parent
         anchors.margins: 16
         spacing: 10
-        visible: StaffAuth.panelKeyConnected
+        visible: StaffAuth.panelKeyConnected && view.detailId === ""
 
         Row {
             width: parent.width
@@ -143,8 +144,18 @@ Item {
                 width: ListView.view.width
                 height: 58
                 radius: 10
-                color: "#16110a"
+                color: rowArea.containsMouse ? "#221a0f" : "#16110a"
                 border.color: "#332a14"; border.width: 1
+
+                MouseArea {
+                    id: rowArea
+                    anchors.fill: parent; hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        view.detailId = serverId
+                        PteroServer.open(serverId, name)
+                    }
+                }
 
                 Rectangle {
                     id: dot
@@ -170,6 +181,17 @@ Item {
                     color: "#9a8a66"; font.pixelSize: 12
                 }
             }
+        }
+    }
+
+    // ---- single-server detail (power + live console) ----
+    ServerDetailView {
+        anchors.fill: parent
+        visible: view.detailId !== ""
+        onBack: {
+            PteroServer.close()
+            view.detailId = ""
+            ServerListModel.refresh()
         }
     }
 }
