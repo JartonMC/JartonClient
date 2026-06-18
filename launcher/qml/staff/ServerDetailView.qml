@@ -183,7 +183,8 @@ Item {
                         width: log.width
                         text: modelData; color: "#cfc3a6"
                         font.family: "Menlo"; font.pixelSize: 12
-                        wrapMode: Text.WrapAnywhere; textFormat: Text.PlainText
+                        lineHeight: 1.15
+                        wrapMode: Text.WrapAnywhere; textFormat: Text.RichText
                     }
                     onCountChanged: positionViewAtEnd()
                     Text {
@@ -208,6 +209,17 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         color: "#FFFFFF"; font.family: "Menlo"; font.pixelSize: 13; clip: true
                         enabled: PteroServer.consoleState === "live"
+                        activeFocusOnPress: true
+                        persistentSelection: true
+                        cursorVisible: activeFocus
+                        cursorDelegate: Rectangle {
+                            width: 2; color: "#FFB81C"; visible: cmdInput.cursorVisible
+                            SequentialAnimation on opacity {
+                                running: cmdInput.cursorVisible; loops: Animation.Infinite
+                                NumberAnimation { to: 0; duration: 500 }
+                                NumberAnimation { to: 1; duration: 500 }
+                            }
+                        }
                         onAccepted: { if (text.length > 0) { PteroServer.sendCommand(text); text = "" } }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
@@ -326,13 +338,32 @@ Item {
                         anchors.fill: parent; anchors.margins: 10
                         clip: true
                         contentWidth: editor.width; contentHeight: editor.height
+                        function ensureVisible(r) {
+                            if (contentY >= r.y) contentY = r.y
+                            else if (contentY + height <= r.y + r.height) contentY = r.y + r.height - height
+                        }
                         TextEdit {
                             id: editor
                             width: flick.width
                             text: PteroFiles.content
-                            color: "#cfc3a6"; font.family: "Menlo"; font.pixelSize: 12
-                            selectByMouse: true; wrapMode: TextEdit.WrapAnywhere
+                            color: "#e6dcc4"; font.family: "Menlo"; font.pixelSize: 12.5
+                            selectByMouse: true; persistentSelection: true
+                            wrapMode: TextEdit.WrapAnywhere
                             textFormat: TextEdit.PlainText
+                            tabStopDistance: 28
+                            selectionColor: "#5c4a2a"
+                            cursorDelegate: Rectangle {
+                                width: 2; color: "#FFB81C"; visible: editor.cursorVisible
+                                SequentialAnimation on opacity {
+                                    running: editor.cursorVisible; loops: Animation.Infinite
+                                    NumberAnimation { to: 0; duration: 500 }
+                                    NumberAnimation { to: 1; duration: 500 }
+                                }
+                            }
+                            // syntax-highlight the document (comments/keys/strings/numbers)
+                            Component.onCompleted: SyntaxHelper.attach(editor.textDocument)
+                            // keep the caret in view as you move through a long file
+                            onCursorRectangleChanged: flick.ensureVisible(cursorRectangle)
                         }
                     }
                     Text {

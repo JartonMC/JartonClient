@@ -162,7 +162,10 @@ Item {
                     anchors.left: parent.left; anchors.leftMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: 10; height: 10; radius: 5
-                    color: state === "running" ? "#5ad17a" : (state === "starting" ? "#FFB81C" : "#e06c6c")
+                    // model.state, not state — every QML element has a built-in `state`
+                    // property that would otherwise shadow the model role and read empty
+                    color: model.state === "running" ? "#5ad17a"
+                         : (model.state === "starting" || model.state === "stopping") ? "#FFB81C" : "#e06c6c"
                 }
                 Column {
                     anchors.left: dot.right; anchors.leftMargin: 12
@@ -170,7 +173,7 @@ Item {
                     spacing: 2
                     Text { text: name; color: "#FFFFFF"; font.pixelSize: 15; font.bold: true }
                     Text {
-                        text: node + "  ·  " + state + "  ·  " + playersOnline + "/" + playersMax + " players"
+                        text: node + "  ·  " + model.state + "  ·  " + playersOnline + "/" + playersMax + " players"
                         color: "#9a8a66"; font.pixelSize: 12
                     }
                 }

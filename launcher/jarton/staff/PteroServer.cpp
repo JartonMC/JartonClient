@@ -190,16 +190,87 @@ void PteroServer::sendCommand(const QString& command)
     sendFrame(QStringLiteral("send command"), { command });
 }
 
+namespace {
+QString ansiColor(int code)
+{
+    switch (code) {
+        case 30: case 90: return QStringLiteral("#6b6256");
+        case 31: case 91: return QStringLiteral("#ff6b6b");
+        case 32: case 92: return QStringLiteral("#7ee787");
+        case 33: case 93: return QStringLiteral("#ffcf4d");
+        case 34: case 94: return QStringLiteral("#79b8ff");
+        case 35: case 95: return QStringLiteral("#d2a8ff");
+        case 36: case 96: return QStringLiteral("#76e0e8");
+        case 37: case 97: return QStringLiteral("#e6dcc4");
+        default: return QString();
+    }
+}
+QString htmlEscape(const QString& s)
+{
+    QString r = s;
+    r.replace('&', QStringLiteral("&amp;")).replace('<', QStringLiteral("&lt;")).replace('>', QStringLiteral("&gt;"));
+    return r;
+}
+}  // namespace
+
+// Convert a wings console line (ANSI SGR colour codes) to HTML for Text.RichText. Cursor
+// and other non-colour escapes are dropped. Default text colour is the honey console fg.
+QString PteroServer::ansiToHtml(const QString& raw)
+{
+    QString out;
+    QString run;
+    QString color;  // empty = default
+
+    auto flush = [&]() {
+        if (run.isEmpty()) return;
+        if (!color.isEmpty()) {
+            out += "<span style=\"color:" + color + "\">" + htmlEscape(run) + "</span>";
+        } else {
+            out += htmlEscape(run);
+        }
+        run.clear();
+    };
+
+    for (int i = 0; i < raw.size(); ++i) {
+        const QChar c = raw.at(i);
+        if (c.unicode() == 0x1B && i + 1 < raw.size() && raw.at(i + 1) == '[') {
+            // CSI sequence: read params until the final letter
+            int j = i + 2;
+            QString params;
+            while (j < raw.size() && !raw.at(j).isLetter()) {
+                params += raw.at(j);
+                ++j;
+            }
+            const QChar final = j < raw.size() ? raw.at(j) : QChar();
+            if (final == 'm') {
+                flush();
+                if (params.isEmpty() || params == QStringLiteral("0")) {
+                    color.clear();
+                } else {
+                    for (const QString& p : params.split(';')) {
+                        const int code = p.toInt();
+                        if (code == 0) color.clear();
+                        else { const QString col = ansiColor(code); if (!col.isEmpty()) color = col; }
+                    }
+                }
+            }
+            i = j;  // skip the whole escape
+            continue;
+        }
+        if (c.unicode() == 0x1B) { ++i; continue; }  // ESC + single letter
+        run += c;
+    }
+    flush();
+    return out;
+}
+
 void PteroServer::appendLine(const QString& raw)
 {
-    static const QRegularExpression ansi(QStringLiteral("\x1B\\[[0-9;]*[A-Za-z]"));
-    QString line = raw;
-    line.remove(ansi);
-    line = line.trimmed();
-    if (line.isEmpty()) {
+    const QString trimmed = raw.trimmed();
+    if (trimmed.isEmpty()) {
         return;
     }
-    m_lines.append(line);
+    m_lines.append(ansiToHtml(trimmed));
     if (m_lines.size() > 500) {
         m_lines.remove(0, m_lines.size() - 500);
     }

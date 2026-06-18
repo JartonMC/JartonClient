@@ -62,6 +62,7 @@ class PteroServer : public QObject {
     void onTextMessage(const QString& text);
     void sendFrame(const QString& event, const QStringList& args);
     void appendLine(const QString& raw);
+    static QString ansiToHtml(const QString& raw);  // wings ANSI colour codes -> rich text
     void setConsoleState(const QString& s);
 
     StaffAuth* m_auth = nullptr;
