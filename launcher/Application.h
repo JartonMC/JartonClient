@@ -239,6 +239,8 @@ class Application : public QApplication {
     // and declared unconditionally so Application's layout is identical across TUs that
     // do/don't see LAUNCHER_STAFF — invoke setCurrentSection on it via QMetaObject.
     QObject* jartonProctor() const { return m_jartonProctor; }
+    // StaffAuth (Discord cap session) — drives the sidebar's per-capability tabs.
+    QObject* jartonStaffAuth() const { return m_jartonStaffAuth; }
 
    signals:
     void updateAllowedChanged(bool status);
@@ -357,6 +359,7 @@ class Application : public QApplication {
     Jarton::ChangelogService* m_jartonChangelog = nullptr;
     Jarton::DiscordWidgetService* m_jartonDiscord = nullptr;
     QObject* m_jartonProctor = nullptr;
+    QObject* m_jartonStaffAuth = nullptr;
     bool m_jartonServicesInitialized = false;
 
     // log window, if any

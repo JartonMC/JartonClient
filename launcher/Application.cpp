@@ -120,6 +120,7 @@
 #ifdef LAUNCHER_STAFF
 #include "jarton/staff/ProctorClient.h"
 #include "jarton/staff/ServerListModel.h"
+#include "jarton/staff/StaffAuth.h"
 #include "jarton/staff/StaffModels.h"
 #endif
 #include "jarton/services/ServerStatusService.h"
@@ -1643,6 +1644,9 @@ void Application::initJartonServices()
         auto* proctor = new Jarton::ProctorClient(this);
         m_jartonProctor = proctor;
         registerService("ProctorClient", proctor);
+        auto* staffAuth = new Jarton::StaffAuth(FS::PathCombine(m_dataPath, "jarton-staff-session"), this);
+        m_jartonStaffAuth = staffAuth;
+        registerService("StaffAuth", staffAuth);
         registerService("ServerListModel", new Jarton::ServerListModel(proctor, this));
         registerService("PlayerSearchModel", new Jarton::PlayerSearchModel(proctor, this));
         registerService("PlayerHistoryModel", new Jarton::PlayerHistoryModel(proctor, this));

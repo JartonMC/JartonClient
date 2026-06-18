@@ -345,6 +345,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         shell->setResizeMode(QQuickWidget::SizeRootObjectToView);
 #ifdef LAUNCHER_STAFF
         shell->rootContext()->setContextProperty("jartonStaffBuild", true);
+        // The sidebar binds tab visibility to jartonStaff.canPanel/.canProctor/.canSwifty.
+        // Public build leaves it undefined, guarded by `typeof jartonStaff` in QML.
+        shell->rootContext()->setContextProperty("jartonStaff", APPLICATION->jartonStaffAuth());
 #else
         shell->rootContext()->setContextProperty("jartonStaffBuild", false);
 #endif

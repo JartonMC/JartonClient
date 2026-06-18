@@ -6,6 +6,11 @@ Rectangle {
     property int currentTab: 0
     signal tabSelected(int index)
 
+    // Staff build exposes the StaffAuth singleton as `jartonStaff`; public build leaves
+    // it undefined. Tab visibility follows the capabilities the Discord login resolved.
+    readonly property bool staffReady: typeof jartonStaff !== "undefined" && jartonStaff
+    readonly property bool staffConnected: staffReady && jartonStaff.connected
+
     width: 64
     color: "#0f0a06"
 
@@ -118,11 +123,30 @@ Rectangle {
             }
         }
 
-        // Staff edition tabs (staff builds only) — one explicit button per section.
-        // Placeholder glyphs. Staff = 4, Pterodactyl = 5, Swifty = 6.
+        // Staff sign-in (staff builds, signed-out): kicks off Discord OAuth. Once the
+        // session resolves, this hides and the per-capability tabs take its place.
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: typeof jartonStaffBuild !== "undefined" && jartonStaffBuild
+            visible: sidebar.staffReady && !sidebar.staffConnected
+            width: 44; height: 44; radius: 10
+            color: signInHover.containsMouse ? "#2a1f10" : "transparent"
+            border.color: signInHover.containsMouse ? "#8B6F2A" : "transparent"
+            border.width: 1
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Text { anchors.centerIn: parent; text: jartonStaff && jartonStaff.signingIn ? "…" : "＋"; color: "#FFE082"; font.pixelSize: 24 }
+            MouseArea {
+                id: signInHover
+                anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: if (sidebar.staffReady) jartonStaff.signIn()
+            }
+        }
+
+        // Staff edition tabs — one explicit button per section, shown only when the
+        // signed-in member holds the matching capability. Staff = 4, Pterodactyl = 5, Swifty = 6.
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: sidebar.staffConnected && jartonStaff.canProctor
             width: 44; height: 44; radius: 10
             color: staffTabHover.containsMouse ? "#2a1f10" : "transparent"
             border.color: staffTabHover.containsMouse ? "#8B6F2A" : "transparent"
@@ -138,7 +162,7 @@ Rectangle {
         }
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: typeof jartonStaffBuild !== "undefined" && jartonStaffBuild
+            visible: sidebar.staffConnected && jartonStaff.canPanel
             width: 44; height: 44; radius: 10
             color: pteroTabHover.containsMouse ? "#2a1f10" : "transparent"
             border.color: pteroTabHover.containsMouse ? "#8B6F2A" : "transparent"
@@ -154,7 +178,7 @@ Rectangle {
         }
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: typeof jartonStaffBuild !== "undefined" && jartonStaffBuild
+            visible: sidebar.staffConnected && jartonStaff.canSwifty
             width: 44; height: 44; radius: 10
             color: swiftyTabHover.containsMouse ? "#2a1f10" : "transparent"
             border.color: swiftyTabHover.containsMouse ? "#8B6F2A" : "transparent"
