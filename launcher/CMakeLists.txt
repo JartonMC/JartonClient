@@ -1269,6 +1269,8 @@ if(Launcher_STAFF)
         jarton/staff/StaffAuth.cpp
         jarton/staff/PteroServer.h
         jarton/staff/PteroServer.cpp
+        jarton/staff/PteroFiles.h
+        jarton/staff/PteroFiles.cpp
         jarton/staff/ServerListModel.h
         jarton/staff/ServerListModel.cpp
         jarton/staff/StaffModels.h
