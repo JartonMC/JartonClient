@@ -346,7 +346,7 @@ Item {
                             id: editor
                             width: flick.width
                             text: PteroFiles.content
-                            color: "#e6dcc4"; font.family: "Menlo"; font.pixelSize: 12.5
+                            color: "#e6dcc4"; font.family: "Menlo"; font.pixelSize: 13
                             selectByMouse: true; persistentSelection: true
                             wrapMode: TextEdit.WrapAnywhere
                             textFormat: TextEdit.PlainText
