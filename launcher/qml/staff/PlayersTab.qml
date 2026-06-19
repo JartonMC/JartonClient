@@ -8,6 +8,7 @@ Item {
 
     property string selUuid: ""
     property string selName: ""
+    property bool punishing: false
 
     function relTime(ms) {
         if (!ms || ms <= 0) return ""
@@ -117,22 +118,28 @@ Item {
             anchors.margins: 4
             spacing: 12
 
-            Row {
-                width: parent.width
-                spacing: 10
-                SButton { text: "Back"; glyph: "‹"; variant: "ghost"; onClicked: view.selUuid = "" }
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 32; height: 32
-                    source: view.selUuid !== "" ? "https://crafatar.com/avatars/" + view.selUuid + "?size=64&overlay" : ""
-                    sourceSize.width: 64; sourceSize.height: 64
-                    fillMode: Image.PreserveAspectFit
-                    smooth: false
+            Item {
+                width: parent.width; height: 34
+                Row {
+                    anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 10
+                    SButton { text: "Back"; glyph: "‹"; variant: "ghost"; onClicked: view.selUuid = "" }
+                    Image {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 32; height: 32
+                        source: view.selUuid !== "" ? "https://crafatar.com/avatars/" + view.selUuid + "?size=64&overlay" : ""
+                        sourceSize.width: 64; sourceSize.height: 64
+                        fillMode: Image.PreserveAspectFit
+                        smooth: false
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: view.selName
+                        color: "#F2E8D0"; font.pixelSize: 18; font.bold: true
+                    }
                 }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: view.selName
-                    color: "#F2E8D0"; font.pixelSize: 18; font.bold: true
+                SButton {
+                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                    text: "Punish"; glyph: "⚖"; variant: "primary"; onClicked: view.punishing = true
                 }
             }
 
@@ -201,6 +208,14 @@ Item {
                     }
                 }
             }
+        }
+
+        PunishPanel {
+            anchors.fill: parent
+            visible: view.punishing
+            uuid: view.selUuid
+            name: view.selName
+            onClose: { view.punishing = false; PlayerHistoryModel.load(view.selUuid, view.selName) }
         }
     }
 }
