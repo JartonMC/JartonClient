@@ -1275,6 +1275,8 @@ if(Launcher_STAFF)
         jarton/staff/ConfigHighlighter.cpp
         jarton/staff/StaffApi.h
         jarton/staff/StaffApi.cpp
+        jarton/staff/ProctorApi.h
+        jarton/staff/ProctorApi.cpp
         jarton/staff/ServerListModel.h
         jarton/staff/ServerListModel.cpp
         jarton/staff/StaffModels.h

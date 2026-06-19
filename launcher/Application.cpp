@@ -119,6 +119,7 @@
 #include "jarton/services/PackRecord.h"
 #ifdef LAUNCHER_STAFF
 #include "jarton/staff/ConfigHighlighter.h"
+#include "jarton/staff/ProctorApi.h"
 #include "jarton/staff/ProctorClient.h"
 #include "jarton/staff/PteroFiles.h"
 #include "jarton/staff/PteroServer.h"
@@ -1648,6 +1649,7 @@ void Application::initJartonServices()
         auto* proctor = new Jarton::ProctorClient(this);
         m_jartonProctor = proctor;
         registerService("ProctorClient", proctor);
+        registerService("ProctorApi", new Jarton::ProctorApi(proctor, this));
         auto* staffAuth = new Jarton::StaffAuth(FS::PathCombine(m_dataPath, "jarton-staff-session"), this);
         m_jartonStaffAuth = staffAuth;
         registerService("StaffAuth", staffAuth);

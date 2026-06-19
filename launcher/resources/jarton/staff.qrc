@@ -10,5 +10,9 @@
         <file alias="PterodactylView.qml">../../qml/staff/PterodactylView.qml</file>
         <file alias="ServerDetailView.qml">../../qml/staff/ServerDetailView.qml</file>
         <file alias="StaffSectionView.qml">../../qml/staff/StaffSectionView.qml</file>
+        <file alias="PlayersTab.qml">../../qml/staff/PlayersTab.qml</file>
+        <file alias="TicketsTab.qml">../../qml/staff/TicketsTab.qml</file>
+        <file alias="ApplicationsTab.qml">../../qml/staff/ApplicationsTab.qml</file>
+        <file alias="ReportsTab.qml">../../qml/staff/ReportsTab.qml</file>
     </qresource>
 </RCC>
