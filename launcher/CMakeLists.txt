@@ -1273,6 +1273,8 @@ if(Launcher_STAFF)
         jarton/staff/PteroFiles.cpp
         jarton/staff/ConfigHighlighter.h
         jarton/staff/ConfigHighlighter.cpp
+        jarton/staff/StaffApi.h
+        jarton/staff/StaffApi.cpp
         jarton/staff/ServerListModel.h
         jarton/staff/ServerListModel.cpp
         jarton/staff/StaffModels.h

@@ -123,7 +123,7 @@ Item {
         Row {
             spacing: 8
             Repeater {
-                model: [ { id: "console", label: "Console" }, { id: "files", label: "Files" } ]
+                model: [ { id: "console", label: "Console" }, { id: "files", label: "Files" }, { id: "backups", label: "Backups" } ]
                 delegate: Rectangle {
                     width: tabLabel.width + 30; height: 32; radius: 16
                     color: view.tab === modelData.id ? "#FFB81C" : (tabArea.containsMouse ? "#26200f" : "#1b150e")
@@ -369,6 +369,13 @@ Item {
                     }
                 }
             }
+        }
+
+        // ===== Backups =====
+        BackupsTab {
+            anchors.fill: parent
+            visible: view.tab === "backups"
+            serverId: PteroServer.serverId
         }
     }
 }

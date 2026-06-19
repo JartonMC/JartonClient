@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/jarton/staff">
         <file alias="SButton.qml">../../qml/staff/SButton.qml</file>
+        <file alias="BackupsTab.qml">../../qml/staff/BackupsTab.qml</file>
         <file alias="StaffPanel.qml">../../qml/staff/StaffPanel.qml</file>
         <file alias="PterodactylView.qml">../../qml/staff/PterodactylView.qml</file>
         <file alias="ServerDetailView.qml">../../qml/staff/ServerDetailView.qml</file>
