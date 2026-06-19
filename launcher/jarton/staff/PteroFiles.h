@@ -58,6 +58,9 @@ class PteroFiles : public QAbstractListModel {
     Q_INVOKABLE void openFile(const QString& name);
     Q_INVOKABLE void save(const QString& content);
     Q_INVOKABLE void closeFile();
+    Q_INVOKABLE void deleteEntry(const QString& name);          // delete a file/folder in cwd
+    Q_INVOKABLE void renameEntry(const QString& from, const QString& to);
+    Q_INVOKABLE void newFolder(const QString& name);
 
    signals:
     void changed();
@@ -65,6 +68,7 @@ class PteroFiles : public QAbstractListModel {
 
    private:
     QString joinPath(const QString& name) const;
+    void postAction(const QString& path, const class QJsonObject& body);
 
     StaffAuth* m_auth = nullptr;
     QString m_serverId;

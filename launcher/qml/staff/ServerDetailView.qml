@@ -249,28 +249,60 @@ Item {
 
         // ===== Files =====
         Item {
+            id: filesTab
             anchors.fill: parent
             visible: view.tab === "files"
+            property bool creatingFolder: false
+            property string renaming: ""
 
-            Row {
-                id: pathBar
-                width: parent.width; height: 34; spacing: 10
-                SButton { text: "Up"; glyph: "↑"; variant: "secondary"; onClicked: PteroFiles.up() }
+            Column {
+                id: fhead
+                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                spacing: 8
+                Row {
+                    width: parent.width; height: 34; spacing: 10
+                    SButton { text: "Up"; glyph: "↑"; variant: "secondary"; onClicked: PteroFiles.up() }
+                    Rectangle {
+                        width: parent.width - 290; height: 34; radius: 9
+                        color: "#15100a"; border.color: "#2a2114"; border.width: 1
+                        Text {
+                            anchors.left: parent.left; anchors.leftMargin: 12; anchors.right: parent.right; anchors.rightMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: PteroFiles.cwd; color: "#9a8a66"; font.family: "Menlo"; font.pixelSize: 12
+                            elide: Text.ElideMiddle
+                        }
+                    }
+                    SButton { text: "New folder"; glyph: "＋"; variant: "secondary"; onClicked: { filesTab.renaming = ""; filesTab.creatingFolder = !filesTab.creatingFolder } }
+                    SButton { text: PteroFiles.loading ? "…" : "Refresh"; variant: "secondary"; onClicked: PteroFiles.refresh() }
+                }
+                // inline create-folder / rename input
                 Rectangle {
-                    width: parent.width - 180; height: 34; radius: 9
-                    color: "#15100a"; border.color: "#2a2114"; border.width: 1
-                    Text {
-                        anchors.left: parent.left; anchors.leftMargin: 12; anchors.right: parent.right; anchors.rightMargin: 12
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: PteroFiles.cwd; color: "#9a8a66"; font.family: "Menlo"; font.pixelSize: 12
-                        elide: Text.ElideMiddle
+                    width: parent.width; height: 38; radius: 9
+                    visible: filesTab.creatingFolder || filesTab.renaming.length > 0
+                    color: "#15100a"; border.color: "#FFB81C"; border.width: 1
+                    Row {
+                        anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 8; spacing: 8
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: filesTab.renaming.length > 0 ? "Rename to" : "New folder"; color: "#FFE082"; font.pixelSize: 12 }
+                        TextInput {
+                            id: nameIn
+                            width: parent.width - 200; anchors.verticalCenter: parent.verticalCenter
+                            color: "#F2E8D0"; font.pixelSize: 13; clip: true
+                            onAccepted: filesTab.commitInline(text)
+                        }
+                        SButton { anchors.verticalCenter: parent.verticalCenter; text: "OK"; variant: "primary"; onClicked: filesTab.commitInline(nameIn.text) }
+                        SButton { anchors.verticalCenter: parent.verticalCenter; text: "Cancel"; variant: "ghost"; onClicked: { filesTab.creatingFolder = false; filesTab.renaming = ""; nameIn.text = "" } }
                     }
                 }
-                SButton { text: PteroFiles.loading ? "…" : "Refresh"; variant: "secondary"; onClicked: PteroFiles.refresh() }
+            }
+
+            function commitInline(value) {
+                if (renaming.length > 0) PteroFiles.renameEntry(renaming, value)
+                else PteroFiles.newFolder(value)
+                creatingFolder = false; renaming = ""; nameIn.text = ""
             }
 
             ListView {
-                anchors.top: pathBar.bottom; anchors.topMargin: 10
+                anchors.top: fhead.bottom; anchors.topMargin: 10
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                 clip: true; spacing: 5
                 model: PteroFiles
@@ -279,6 +311,12 @@ Item {
                     color: fileArea.containsMouse ? "#221a0f" : "#16110a"
                     border.color: fileArea.containsMouse ? "#3a2f1c" : "#221a12"; border.width: 1
                     Behavior on color { ColorAnimation { duration: 100 } }
+                    MouseArea {
+                        id: fileArea
+                        anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: isFile ? PteroFiles.openFile(name) : PteroFiles.enter(name)
+                    }
                     Text {
                         anchors.left: parent.left; anchors.leftMargin: 14
                         anchors.verticalCenter: parent.verticalCenter
@@ -289,17 +327,17 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: name; color: "#F2E8D0"; font.pixelSize: 13
                     }
-                    Text {
-                        anchors.right: parent.right; anchors.rightMargin: 14
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: isFile ? view.fmtBytes(size) : ""
-                        color: "#6b5d3f"; font.pixelSize: 11
-                    }
-                    MouseArea {
-                        id: fileArea
-                        anchors.fill: parent; hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: isFile ? PteroFiles.openFile(name) : PteroFiles.enter(name)
+                    Row {
+                        anchors.right: parent.right; anchors.rightMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter; spacing: 8
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: isFile ? view.fmtBytes(size) : ""
+                            color: "#6b5d3f"; font.pixelSize: 11
+                            visible: !fileArea.containsMouse
+                        }
+                        SButton { anchors.verticalCenter: parent.verticalCenter; visible: fileArea.containsMouse; text: "Rename"; variant: "ghost"; onClicked: { filesTab.creatingFolder = false; filesTab.renaming = name; nameIn.text = name; nameIn.forceActiveFocus() } }
+                        SButton { anchors.verticalCenter: parent.verticalCenter; visible: fileArea.containsMouse; text: "Delete"; variant: "danger"; onClicked: PteroFiles.deleteEntry(name) }
                     }
                 }
             }

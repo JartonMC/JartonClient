@@ -211,4 +211,53 @@ void PteroFiles::closeFile()
     emit editorChanged();
 }
 
+// fire a files action (delete/rename/folder), then re-list cwd so the view reflects it
+void PteroFiles::postAction(const QString& path, const QJsonObject& body)
+{
+    if (!m_auth || m_serverId.isEmpty()) {
+        return;
+    }
+    QNetworkRequest req{ QUrl(m_auth->baseUrl() + "/servers/" + m_serverId + path) };
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setRawHeader("Authorization", "Bearer " + m_auth->token().toUtf8());
+    req.setRawHeader("User-Agent", "JartonClient/staff");
+    req.setTransferTimeout(20000);
+    QNetworkReply* reply = m_auth->network()->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        refresh();
+    });
+}
+
+void PteroFiles::deleteEntry(const QString& name)
+{
+    QJsonObject body;
+    body.insert("root", m_cwd);
+    body.insert("files", QJsonArray{ name });
+    postAction(QStringLiteral("/files/delete"), body);
+}
+
+void PteroFiles::renameEntry(const QString& from, const QString& to)
+{
+    if (to.trimmed().isEmpty()) {
+        return;
+    }
+    QJsonObject body;
+    body.insert("root", m_cwd);
+    body.insert("from", from);
+    body.insert("to", to);
+    postAction(QStringLiteral("/files/rename"), body);
+}
+
+void PteroFiles::newFolder(const QString& name)
+{
+    if (name.trimmed().isEmpty()) {
+        return;
+    }
+    QJsonObject body;
+    body.insert("root", m_cwd);
+    body.insert("name", name);
+    postAction(QStringLiteral("/files/folder"), body);
+}
+
 }  // namespace Jarton
