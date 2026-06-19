@@ -8,11 +8,13 @@ Item {
     property bool loading: false
     property string error: ""
     property int reqList: -1
+    property var pendingWrites: []
     property bool loadedOnce: false
 
     onVisibleChanged: if (visible && !loadedOnce) { loadedOnce = true; load() }
 
     function load() { loading = true; error = ""; reqList = ProctorApi.send("GET", "/proctor/applications") }
+    function resolve(id) { var p = pendingWrites; p.push(ProctorApi.send("POST", "/proctor/applications/" + id + "/resolve", "")); pendingWrites = p }
     function relTime(s) {
         if (!s) return ""
         var iso = (("" + s).indexOf("T") === -1) ? ("" + s).replace(" ", "T") + "Z" : s
@@ -26,10 +28,14 @@ Item {
     Connections {
         target: ProctorApi
         function onResponse(id, ok, status, body) {
-            if (id !== root.reqList) return
-            root.loading = false
-            if (ok) { try { root.apps = JSON.parse(body).applications || [] } catch (e) { root.apps = [] } }
-            else root.error = "Couldn't load applications."
+            if (id === root.reqList) {
+                root.loading = false
+                if (ok) { try { root.apps = JSON.parse(body).applications || [] } catch (e) { root.apps = [] } }
+                else root.error = "Couldn't load applications."
+                return
+            }
+            var idx = root.pendingWrites.indexOf(id)
+            if (idx !== -1) { root.pendingWrites.splice(idx, 1); root.load() }
         }
     }
 
@@ -60,9 +66,13 @@ Item {
                     Text { text: modelData.userName ? modelData.userName : "Unknown"; color: "#F2E8D0"; font.pixelSize: 14; font.bold: true }
                     Text { text: (modelData.role ? modelData.role : "applicant") + "   ·   " + root.relTime(modelData.submittedAt); color: "#8a7a56"; font.pixelSize: 12 }
                 }
-                Text { anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; text: "open ↗"; color: "#6b5d3f"; font.pixelSize: 12 }
+                Row {
+                    anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 7; z: 2
+                    SButton { text: "Open ↗"; variant: "ghost"; onClicked: if (modelData.deepLink) Qt.openUrlExternally(modelData.deepLink) }
+                    SButton { text: "Resolve"; variant: "primary"; onClicked: root.resolve(modelData.id) }
+                }
                 MouseArea {
-                    id: aArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    id: aArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; z: 1
                     onClicked: if (modelData.deepLink) Qt.openUrlExternally(modelData.deepLink)
                 }
             }

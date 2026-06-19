@@ -25,11 +25,30 @@ Item {
     property int reqServers: -1
     property int reqGuide: -1
     property int reqCounts: -1
+    property int reqNotes: -1
+    property int reqNoteAdd: -1
+    property var notes: []
+    property bool showNotes: false
 
-    Component.onCompleted: { reqServers = ProctorApi.send("GET", "/proctor/servers"); loadGuide() }
+    Component.onCompleted: { reqServers = ProctorApi.send("GET", "/proctor/servers"); loadGuide(); loadNotes() }
 
     function loadGuide() {
         reqGuide = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "guide", args: {} }))
+    }
+    function loadNotes() {
+        reqNotes = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "notes", args: { target: uuid } }))
+    }
+    function addNote(text) {
+        if (!text || !text.length) return
+        reqNoteAdd = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "note-add", args: { target: uuid, text: text } }))
+        banner = "Note added"
+    }
+    function relNote(ms) {
+        if (!ms || ms <= 0) return ""
+        var d = Date.now() - Number(ms)
+        var days = Math.floor(d / 86400000); if (days > 0) return days + "d ago"
+        var h = Math.floor(d / 3600000); if (h > 0) return h + "h ago"
+        return Math.max(1, Math.floor(d / 60000)) + "m ago"
     }
     function allIds() {
         var ids = []
@@ -79,7 +98,7 @@ Item {
         target: ProctorApi
         function onResponse(id, ok, status, body) {
             if (id === panel.reqServers) {
-                if (ok) { try { var s = JSON.parse(body).servers || []; if (s.length && !panel.route.length) { panel.route = s[0]; panel.loadGuide() } } catch (e) {} }
+                if (ok) { try { var s = JSON.parse(body).servers || []; if (s.length && !panel.route.length) { panel.route = s[0]; panel.loadGuide(); panel.loadNotes() } } catch (e) {} }
                 return
             }
             if (id === panel.reqGuide) {
@@ -89,6 +108,14 @@ Item {
             }
             if (id === panel.reqCounts) {
                 if (ok) { try { panel.counts = (JSON.parse(body).data || {}).counts || {} } catch (e) { panel.counts = {} } }
+                return
+            }
+            if (id === panel.reqNotes) {
+                if (ok) { try { panel.notes = (JSON.parse(body).data) || [] } catch (e) { panel.notes = [] } }
+                return
+            }
+            if (id === panel.reqNoteAdd) {
+                if (ok) panel.loadNotes(); else panel.banner = "Note failed (" + status + ")."
                 return
             }
             // a punish/un/offense action came back
@@ -165,17 +192,59 @@ Item {
             }
         }
 
-        // ---- offence ladder ----
+        // ---- offence ladder / notes ----
         Item {
             width: parent.width; height: 30
-            Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Offences"; color: "#F2E8D0"; font.pixelSize: 15; font.bold: true }
-            SButton {
-                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                visible: panel.selected.length > 0; text: "Apply " + panel.selected.length; variant: "primary"; onClicked: panel.applyOffenses()
+            Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: panel.showNotes ? "Notes" : "Offences"; color: "#F2E8D0"; font.pixelSize: 15; font.bold: true }
+            Row {
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 8
+                SButton {
+                    visible: !panel.showNotes && panel.selected.length > 0; text: "Apply " + panel.selected.length; variant: "primary"; onClicked: panel.applyOffenses()
+                }
+                SButton { text: panel.showNotes ? "Offences" : "Notes (" + panel.notes.length + ")"; variant: "secondary"; onClicked: panel.showNotes = !panel.showNotes }
             }
         }
+
+        // notes composer (shown in notes mode)
+        Rectangle {
+            width: parent.width; height: 34; radius: 9; visible: panel.showNotes
+            color: "#0f0a06"; border.color: "#2a2114"; border.width: 1
+            Row {
+                anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 6; spacing: 6
+                TextInput {
+                    id: noteIn; width: parent.width - 70; height: parent.height
+                    verticalAlignment: TextInput.AlignVCenter; color: "#F2E8D0"; font.pixelSize: 12; clip: true
+                    onAccepted: { panel.addNote(text); text = "" }
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: "add a staff note…"; color: "#6b5d3f"; font.pixelSize: 12; visible: noteIn.text.length === 0 }
+                }
+                SButton { anchors.verticalCenter: parent.verticalCenter; text: "Add"; variant: "primary"; onClicked: { panel.addNote(noteIn.text); noteIn.text = "" } }
+            }
+        }
+
         ListView {
-            width: parent.width; height: parent.height - (panel.pendingAction.length > 0 ? 250 : 158)
+            width: parent.width; visible: panel.showNotes
+            height: parent.height - (panel.pendingAction.length > 0 ? 296 : 204)
+            clip: true; spacing: 5
+            model: panel.notes
+            delegate: Rectangle {
+                width: ListView.view.width; height: nCol.height + 16; radius: 9; color: "#16110a"; border.color: "#241c12"; border.width: 1
+                Column {
+                    id: nCol
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.margins: 12; anchors.verticalCenter: parent.verticalCenter; spacing: 3
+                    Row {
+                        spacing: 8
+                        Text { text: modelData.staffName ? modelData.staffName : "staff"; color: "#FFE082"; font.pixelSize: 12; font.bold: true }
+                        Text { text: panel.relNote(modelData.timestamp); color: "#6b5d3f"; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
+                    }
+                    Text { width: parent.width; text: modelData.note ? modelData.note : ""; color: "#cfc3a6"; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                }
+            }
+            Text { anchors.centerIn: parent; visible: panel.notes.length === 0; text: "No notes on record."; color: "#6b5d3f"; font.pixelSize: 13 }
+        }
+
+        ListView {
+            width: parent.width; visible: !panel.showNotes
+            height: parent.height - (panel.pendingAction.length > 0 ? 250 : 158)
             clip: true; spacing: 5
             model: {
                 var out = []
