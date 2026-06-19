@@ -123,7 +123,12 @@ Item {
         Row {
             spacing: 8
             Repeater {
-                model: [ { id: "console", label: "Console" }, { id: "files", label: "Files" }, { id: "backups", label: "Backups" } ]
+                model: [
+                    { id: "console", label: "Console" }, { id: "files", label: "Files" },
+                    { id: "backups", label: "Backups" }, { id: "schedules", label: "Schedules" },
+                    { id: "network", label: "Network" }, { id: "subusers", label: "Subusers" },
+                    { id: "databases", label: "Databases" }
+                ]
                 delegate: Rectangle {
                     width: tabLabel.width + 30; height: 32; radius: 16
                     color: view.tab === modelData.id ? "#FFB81C" : (tabArea.containsMouse ? "#26200f" : "#1b150e")
@@ -371,11 +376,11 @@ Item {
             }
         }
 
-        // ===== Backups =====
-        BackupsTab {
-            anchors.fill: parent
-            visible: view.tab === "backups"
-            serverId: PteroServer.serverId
-        }
+        // ===== Backups / Schedules / Network / Subusers / Databases =====
+        BackupsTab   { anchors.fill: parent; visible: view.tab === "backups";   serverId: PteroServer.serverId }
+        SchedulesTab { anchors.fill: parent; visible: view.tab === "schedules"; serverId: PteroServer.serverId }
+        NetworkTab   { anchors.fill: parent; visible: view.tab === "network";   serverId: PteroServer.serverId }
+        SubusersTab  { anchors.fill: parent; visible: view.tab === "subusers";  serverId: PteroServer.serverId }
+        DatabasesTab { anchors.fill: parent; visible: view.tab === "databases"; serverId: PteroServer.serverId }
     }
 }
