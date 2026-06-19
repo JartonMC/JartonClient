@@ -15,10 +15,15 @@ Item {
         spacing: 8
         height: 34
         Repeater {
-            model: [
-                { id: "players", label: "Players" }, { id: "tickets", label: "Tickets" },
-                { id: "applications", label: "Applications" }, { id: "reports", label: "Reports" }
-            ]
+            model: {
+                var m = [
+                    { id: "players", label: "Players" }, { id: "tickets", label: "Tickets" },
+                    { id: "applications", label: "Applications" }, { id: "reports", label: "Reports" },
+                    { id: "alerts", label: "Alerts" }
+                ]
+                if (ProctorClient.admin) m.push({ id: "staff", label: "Staff" })
+                return m
+            }
             delegate: Rectangle {
                 width: tl.width + 30; height: 32; radius: 16
                 color: section.subtab === modelData.id ? "#FFB81C" : (ta.containsMouse ? "#26200f" : "#1b150e")
@@ -43,5 +48,7 @@ Item {
         TicketsTab      { anchors.fill: parent; visible: section.subtab === "tickets" }
         ApplicationsTab { anchors.fill: parent; visible: section.subtab === "applications" }
         ReportsTab      { anchors.fill: parent; visible: section.subtab === "reports" }
+        AlertsTab       { anchors.fill: parent; visible: section.subtab === "alerts" }
+        StaffAdminTab   { anchors.fill: parent; visible: section.subtab === "staff" }
     }
 }
