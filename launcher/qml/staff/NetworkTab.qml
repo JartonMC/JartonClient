@@ -13,9 +13,16 @@ Item {
 
     onVisibleChanged: if (visible && loadedServer !== serverId && serverId.length) { loadedServer = serverId; load() }
 
+    property int editId: -1
+    property string editVal: ""
+
     function load() {
         loading = true; error = ""
         reqList = StaffApi.send("GET", "/servers/" + serverId + "/network")
+    }
+    function commitNotes() {
+        StaffApi.send("POST", "/servers/" + serverId + "/network/" + editId + "/notes", JSON.stringify({ notes: notesIn.text }))
+        editId = -1
     }
 
     Connections {
@@ -39,8 +46,23 @@ Item {
             SButton { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
         }
         Text { width: parent.width; visible: root.error.length > 0; text: root.error; color: "#e06c6c"; font.pixelSize: 13 }
+        Rectangle {
+            width: parent.width; height: 44; radius: 11; visible: root.editId >= 0
+            color: "#15100a"; border.color: "#FFB81C"; border.width: 1
+            Row {
+                anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 8; spacing: 8
+                Text { anchors.verticalCenter: parent.verticalCenter; text: "Notes"; color: "#FFE082"; font.pixelSize: 12 }
+                Rectangle {
+                    width: parent.width - 200; height: 30; radius: 8; color: "#0f0a06"; border.color: "#2a2114"; border.width: 1; anchors.verticalCenter: parent.verticalCenter
+                    TextInput { id: notesIn; anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10; verticalAlignment: TextInput.AlignVCenter; color: "#F2E8D0"; font.pixelSize: 13; clip: true; text: root.editVal
+                        onAccepted: root.commitNotes() }
+                }
+                SButton { anchors.verticalCenter: parent.verticalCenter; text: "Save"; variant: "primary"; onClicked: root.commitNotes() }
+                SButton { anchors.verticalCenter: parent.verticalCenter; text: "Cancel"; variant: "ghost"; onClicked: root.editId = -1 }
+            }
+        }
         ListView {
-            width: parent.width; height: parent.height - 50; clip: true; spacing: 6
+            width: parent.width; height: parent.height - (root.editId >= 0 ? 106 : 50); clip: true; spacing: 6
             model: root.allocations
             delegate: Rectangle {
                 width: ListView.view.width; height: 56; radius: 11
@@ -61,11 +83,17 @@ Item {
                         color: "#8a7a56"; font.pixelSize: 12; elide: Text.ElideRight; width: root.width - 220
                     }
                 }
-                SButton {
-                    anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter
-                    visible: modelData.isDefault !== true
-                    text: "Make primary"; variant: "secondary"
-                    onClicked: StaffApi.send("POST", "/servers/" + root.serverId + "/network/" + modelData.id + "/primary", "{}")
+                Row {
+                    anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 7
+                    SButton {
+                        text: "Notes"; variant: "ghost"
+                        onClicked: { root.editId = modelData.id; root.editVal = modelData.notes ? modelData.notes : ""; notesIn.text = root.editVal; notesIn.forceActiveFocus() }
+                    }
+                    SButton {
+                        visible: modelData.isDefault !== true
+                        text: "Make primary"; variant: "secondary"
+                        onClicked: StaffApi.send("POST", "/servers/" + root.serverId + "/network/" + modelData.id + "/primary", "{}")
+                    }
                 }
             }
             Text { anchors.centerIn: parent; visible: !root.loading && root.allocations.length === 0; text: "No allocations."; color: "#6b5d3f"; font.pixelSize: 14 }

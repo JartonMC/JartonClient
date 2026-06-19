@@ -10,6 +10,7 @@ Item {
     property string error: ""
     property int reqList: -1
     property string loadedServer: ""
+    property bool creating: false
 
     onVisibleChanged: if (visible && loadedServer !== serverId && serverId.length) { loadedServer = serverId; load() }
 
@@ -45,11 +46,55 @@ Item {
         Item {
             width: parent.width; height: 36
             Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Schedules"; color: "#F2E8D0"; font.pixelSize: 18; font.bold: true }
-            SButton { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
+            Row {
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 8
+                SButton { text: "New schedule"; glyph: "＋"; variant: "primary"; onClicked: root.creating = !root.creating }
+                SButton { text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
+            }
+        }
+        // inline create form (name + cron)
+        Rectangle {
+            width: parent.width; height: 86; radius: 11; visible: root.creating
+            color: "#15100a"; border.color: "#FFB81C"; border.width: 1
+            Column {
+                anchors.fill: parent; anchors.margins: 10; spacing: 8
+                Rectangle {
+                    width: parent.width; height: 30; radius: 8; color: "#0f0a06"; border.color: "#2a2114"; border.width: 1
+                    TextInput { id: schName; anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10; verticalAlignment: TextInput.AlignVCenter; color: "#F2E8D0"; font.pixelSize: 13; clip: true
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "schedule name"; color: "#6b5d3f"; font.pixelSize: 13; visible: schName.text.length === 0 } }
+                }
+                Row {
+                    width: parent.width; height: 30; spacing: 6
+                    component CronField: Rectangle {
+                        id: cfRoot
+                        property alias text: cf.text
+                        property string ph: ""
+                        width: 64; height: 30; radius: 8; color: "#0f0a06"; border.color: "#2a2114"; border.width: 1
+                        TextInput { id: cf; anchors.fill: parent; anchors.margins: 6; verticalAlignment: TextInput.AlignVCenter; horizontalAlignment: TextInput.AlignHCenter; color: "#F2E8D0"; font.family: "Menlo"; font.pixelSize: 13; clip: true; text: "*"
+                            Text { anchors.centerIn: parent; text: cfRoot.ph; color: "#6b5d3f"; font.pixelSize: 10; visible: cf.text.length === 0 } }
+                    }
+                    CronField { id: cMin; ph: "min" }
+                    CronField { id: cHr; ph: "hour" }
+                    CronField { id: cDom; ph: "day" }
+                    CronField { id: cMon; ph: "month" }
+                    CronField { id: cDow; ph: "wkday" }
+                    SButton {
+                        anchors.verticalCenter: parent.verticalCenter; text: "Create"; variant: "primary"
+                        onClicked: {
+                            if (schName.text.length === 0) return
+                            StaffApi.send("POST", "/servers/" + root.serverId + "/schedules", JSON.stringify({
+                                name: schName.text, minute: cMin.text || "*", hour: cHr.text || "*",
+                                dayOfMonth: cDom.text || "*", month: cMon.text || "*", dayOfWeek: cDow.text || "*", onlyWhenOnline: false
+                            }))
+                            root.creating = false; schName.text = ""
+                        }
+                    }
+                }
+            }
         }
         Text { width: parent.width; visible: root.error.length > 0; text: root.error; color: "#e06c6c"; font.pixelSize: 13 }
         ListView {
-            width: parent.width; height: parent.height - 50; clip: true; spacing: 6
+            width: parent.width; height: parent.height - (root.creating ? 148 : 50); clip: true; spacing: 6
             model: root.schedules
             delegate: Rectangle {
                 width: ListView.view.width; height: 56; radius: 11
