@@ -7,6 +7,9 @@ import Jarton
 Item {
     id: section
 
+    property string selBoardId: ""
+    property string selBoardName: ""
+
     // boards load: /orgs/mine -> /workspaces/{org} -> /boards/{workspace}
     property var groups: []          // [{ ws, boards: [] }]
     property bool loading: false
@@ -128,11 +131,22 @@ Item {
                         Behavior on color { ColorAnimation { duration: 100 } }
                         Text { anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: modelData.name; color: "#F2E8D0"; font.pixelSize: 15; font.bold: true }
                         Text { anchors.right: parent.right; anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: "›"; color: "#6b5d3f"; font.pixelSize: 18 }
-                        MouseArea { id: bA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor }
+                        MouseArea {
+                            id: bA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: { section.selBoardName = modelData.name; section.selBoardId = modelData.id }
+                        }
                     }
                 }
             }
             Text { anchors.centerIn: parent; visible: !section.loading && section.groups.length === 0; text: "No boards."; color: "#6b5d3f"; font.pixelSize: 14 }
         }
+    }
+
+    SwiftyBoardView {
+        anchors.fill: parent
+        visible: section.selBoardId !== ""
+        boardId: section.selBoardId
+        boardName: section.selBoardName
+        onBack: section.selBoardId = ""
     }
 }
