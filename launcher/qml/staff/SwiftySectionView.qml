@@ -9,6 +9,7 @@ Item {
 
     property string selBoardId: ""
     property string selBoardName: ""
+    property string mode: "boards"   // "boards" | "inbox"
 
     // boards load: /orgs/mine -> /workspaces/{org} -> /boards/{workspace}
     property var groups: []          // [{ ws, boards: [] }]
@@ -102,12 +103,16 @@ Item {
     // ---- logged-in: boards by workspace ----
     Item {
         anchors.fill: parent; anchors.margins: 16
-        visible: SwiftyClient.connected
+        visible: SwiftyClient.connected && section.mode === "boards"
 
         Item {
             id: sHeader; width: parent.width; height: 34
             Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Boards"; color: "#F2E8D0"; font.pixelSize: 20; font.bold: true }
-            SButton { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: section.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: section.loadBoards() }
+            Row {
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 8
+                SButton { text: "Inbox"; glyph: "✉"; variant: "secondary"; onClicked: section.mode = "inbox" }
+                SButton { text: section.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: section.loadBoards() }
+            }
         }
         Text {
             id: sErr; anchors.top: sHeader.bottom; anchors.topMargin: 8
@@ -139,6 +144,21 @@ Item {
                 }
             }
             Text { anchors.centerIn: parent; visible: !section.loading && section.groups.length === 0; text: "No boards."; color: "#6b5d3f"; font.pixelSize: 14 }
+        }
+    }
+
+    // ---- inbox ----
+    Item {
+        anchors.fill: parent; anchors.margins: 16
+        visible: SwiftyClient.connected && section.mode === "inbox"
+
+        Item {
+            id: ibHeader; width: parent.width; height: 34
+            SButton { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Boards"; glyph: "‹"; variant: "ghost"; onClicked: section.mode = "boards" }
+        }
+        SwiftyInboxView {
+            anchors.top: ibHeader.bottom; anchors.topMargin: 6
+            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
         }
     }
 
