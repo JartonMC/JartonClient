@@ -7,6 +7,7 @@
         <file alias="SubusersTab.qml">../../qml/staff/SubusersTab.qml</file>
         <file alias="DatabasesTab.qml">../../qml/staff/DatabasesTab.qml</file>
         <file alias="StaffPanel.qml">../../qml/staff/StaffPanel.qml</file>
+        <file alias="SwiftySectionView.qml">../../qml/staff/SwiftySectionView.qml</file>
         <file alias="PterodactylView.qml">../../qml/staff/PterodactylView.qml</file>
         <file alias="ServerDetailView.qml">../../qml/staff/ServerDetailView.qml</file>
         <file alias="StaffSectionView.qml">../../qml/staff/StaffSectionView.qml</file>

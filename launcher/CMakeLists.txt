@@ -1277,6 +1277,10 @@ if(Launcher_STAFF)
         jarton/staff/StaffApi.cpp
         jarton/staff/ProctorApi.h
         jarton/staff/ProctorApi.cpp
+        jarton/staff/SwiftyClient.h
+        jarton/staff/SwiftyClient.cpp
+        jarton/staff/SwiftyApi.h
+        jarton/staff/SwiftyApi.cpp
         jarton/staff/ServerListModel.h
         jarton/staff/ServerListModel.cpp
         jarton/staff/StaffModels.h

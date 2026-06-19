@@ -124,6 +124,8 @@
 #include "jarton/staff/PteroFiles.h"
 #include "jarton/staff/PteroServer.h"
 #include "jarton/staff/StaffApi.h"
+#include "jarton/staff/SwiftyApi.h"
+#include "jarton/staff/SwiftyClient.h"
 #include "jarton/staff/ServerListModel.h"
 #include "jarton/staff/StaffAuth.h"
 #include "jarton/staff/StaffModels.h"
@@ -1656,6 +1658,9 @@ void Application::initJartonServices()
         registerService("PteroServer", new Jarton::PteroServer(staffAuth, this));
         registerService("PteroFiles", new Jarton::PteroFiles(staffAuth, this));
         registerService("StaffApi", new Jarton::StaffApi(staffAuth, this));
+        auto* swifty = new Jarton::SwiftyClient(FS::PathCombine(m_dataPath, "jarton-swifty-session"), this);
+        registerService("SwiftyClient", swifty);
+        registerService("SwiftyApi", new Jarton::SwiftyApi(swifty, this));
         registerService("SyntaxHelper", new Jarton::SyntaxHelper(this));
         registerService("ServerListModel", new Jarton::ServerListModel(staffAuth, this));
         registerService("PlayerSearchModel", new Jarton::PlayerSearchModel(proctor, this));
