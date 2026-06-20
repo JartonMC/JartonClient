@@ -120,7 +120,7 @@ Rectangle {
             active: panel.section === "ptero" || panel.section === "swifty"
                   || (panel.section === "staff" && ProctorClient.connected)
             source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
-                  : panel.section === "swifty" ? "qrc:/jarton/staff/SwiftySectionView.qml"
+                  : panel.section === "swifty" ? "qrc:/jarton/staff/SwiftyWebView.qml"
                   : panel.section === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
         }
 

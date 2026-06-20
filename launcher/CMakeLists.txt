@@ -1261,6 +1261,9 @@ endif()
 # Staff code never ships in the public binary; both flavors build off the same tree.
 option(Launcher_STAFF "Build the staff edition (embeds the Companion surfaces)" OFF)
 if(Launcher_STAFF)
+    # Native system webview (WKWebView / WebView2) backs the embedded Swifty board.
+    # Staff-only so the public client never pulls it in.
+    find_package(Qt6 REQUIRED COMPONENTS WebView)
     set(LAUNCHER_SOURCES
         ${LAUNCHER_SOURCES}
         jarton/staff/ProctorClient.h
@@ -1290,7 +1293,7 @@ if(Launcher_STAFF)
     )
     # Scope the LAUNCHER_STAFF guard to just the two integration TUs so toggling the
     # flag doesn't dirty (recompile) the whole target.
-    set_source_files_properties(ui/MainWindow.cpp Application.cpp
+    set_source_files_properties(ui/MainWindow.cpp Application.cpp main.cpp
         PROPERTIES COMPILE_DEFINITIONS LAUNCHER_STAFF)
 endif()
 
@@ -1392,6 +1395,9 @@ target_link_libraries(Launcher_logic
     ${Launcher_QT_DBUS}
     ${Launcher_QT_LIBS}
 )
+if(Launcher_STAFF)
+    target_link_libraries(Launcher_logic Qt${QT_VERSION_MAJOR}::WebView)
+endif()
 target_link_libraries(Launcher_logic
     cmark::cmark
     LocalPeer

@@ -42,6 +42,10 @@
 #include "console/WindowsConsole.h"
 #endif
 
+#ifdef LAUNCHER_STAFF
+#include <QtWebView/QtWebView>
+#endif
+
 int main(int argc, char* argv[])
 {
 #if defined Q_OS_WIN32
@@ -58,6 +62,12 @@ int main(int argc, char* argv[])
     Q_INIT_RESOURCE(jarton);
 
     Application app(argc, argv);
+
+#ifdef LAUNCHER_STAFF
+    // Bring up the native webview backend (WKWebView / WebView2) for the embedded Swifty board.
+    QtWebView::initialize();
+#endif
+
     switch (app.status()) {
         case Application::StartingUp:
         case Application::Initialized: {
