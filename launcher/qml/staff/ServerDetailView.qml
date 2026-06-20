@@ -194,7 +194,22 @@ Item {
                     anchors.top: termBar.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     anchors.margins: 12
                     clip: true
+                    flickDeceleration: 2600
+                    maximumFlickVelocity: 6000
                     model: PteroServer.lines
+                    property real accel: 1
+                    property real lastWheel: 0
+                    WheelHandler {
+                        acceptedDevices: PointerDevice.Mouse
+                        onWheel: function (e) {
+                            var now = Date.now()
+                            log.accel = (now - log.lastWheel < 90) ? Math.min(log.accel + 0.7, 7) : 1.4
+                            log.lastWheel = now
+                            var maxY = Math.max(0, log.contentHeight - log.height)
+                            log.contentY = Math.max(0, Math.min(maxY, log.contentY - (e.angleDelta.y / 120) * 64 * log.accel))
+                            e.accepted = true
+                        }
+                    }
                     delegate: Text {
                         width: log.width
                         text: modelData; color: "#cfc3a6"
@@ -302,10 +317,26 @@ Item {
             }
 
             ListView {
+                id: fileList
                 anchors.top: fhead.bottom; anchors.topMargin: 10
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                 clip: true; spacing: 5
+                flickDeceleration: 2600
+                maximumFlickVelocity: 6000
                 model: PteroFiles
+                property real accel: 1
+                property real lastWheel: 0
+                WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse
+                    onWheel: function (e) {
+                        var now = Date.now()
+                        fileList.accel = (now - fileList.lastWheel < 90) ? Math.min(fileList.accel + 0.7, 7) : 1.4
+                        fileList.lastWheel = now
+                        var maxY = Math.max(0, fileList.contentHeight - fileList.height)
+                        fileList.contentY = Math.max(0, Math.min(maxY, fileList.contentY - (e.angleDelta.y / 120) * 64 * fileList.accel))
+                        e.accepted = true
+                    }
+                }
                 delegate: Rectangle {
                     width: ListView.view.width; height: 40; radius: 9
                     color: fileArea.containsMouse ? "#221a0f" : "#16110a"
@@ -378,7 +409,22 @@ Item {
                         id: flick
                         anchors.fill: parent; anchors.margins: 12
                         clip: true
+                        flickDeceleration: 2600
+                        maximumFlickVelocity: 6000
                         contentWidth: editor.width; contentHeight: editor.height
+                        property real accel: 1
+                        property real lastWheel: 0
+                        WheelHandler {
+                            acceptedDevices: PointerDevice.Mouse
+                            onWheel: function (e) {
+                                var now = Date.now()
+                                flick.accel = (now - flick.lastWheel < 90) ? Math.min(flick.accel + 0.7, 7) : 1.4
+                                flick.lastWheel = now
+                                var maxY = Math.max(0, flick.contentHeight - flick.height)
+                                flick.contentY = Math.max(0, Math.min(maxY, flick.contentY - (e.angleDelta.y / 120) * 64 * flick.accel))
+                                e.accepted = true
+                            }
+                        }
                         function ensureVisible(r) {
                             if (contentY >= r.y) contentY = r.y
                             else if (contentY + height <= r.y + r.height) contentY = r.y + r.height - height
