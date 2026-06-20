@@ -23,6 +23,15 @@ int ServerListModel::rowCount(const QModelIndex& parent) const
     return m_servers.size();
 }
 
+int ServerListModel::totalOnline() const
+{
+    int sum = 0;
+    for (const auto& s : m_servers) {
+        sum += s.playersOnline;
+    }
+    return sum;
+}
+
 QVariant ServerListModel::data(const QModelIndex& index, int role) const
 {
     if (!index.isValid() || index.row() < 0 || index.row() >= m_servers.size()) {

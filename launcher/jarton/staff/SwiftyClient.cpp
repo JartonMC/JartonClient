@@ -54,11 +54,18 @@ void SwiftyClient::signIn(const QString& email, const QString& password)
             return;
         }
         if (reply->error() != QNetworkReply::NoError || status < 200 || status >= 300) {
-            m_loginError = tr("Couldn't reach Swifty. Try again.");
+            m_loginError = status > 0 ? tr("Login failed (HTTP %1).").arg(status)
+                                      : tr("Couldn't reach Swifty: %1").arg(reply->errorString());
             emit changed();
             return;
         }
-        applyTokens(QJsonDocument::fromJson(reply->readAll()).object());
+        const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
+        if (obj.value("accessToken").toString().isEmpty()) {
+            m_loginError = tr("Swifty returned no token. Try again.");
+            emit changed();
+            return;
+        }
+        applyTokens(obj);
     });
 }
 

@@ -48,11 +48,10 @@ Item {
             delegate: Rectangle {
                 width: ListView.view.width; height: 64; radius: 10
                 color: "#16110a"; border.color: "#241c12"; border.width: 1
-                Image {
+                Avatar {
                     id: rHead; anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter
-                    width: 30; height: 30; fillMode: Image.PreserveAspectFit; smooth: false
+                    size: 30; uuid: modelData.targetUuid ? modelData.targetUuid : ""
                     visible: !!modelData.targetUuid
-                    source: modelData.targetUuid ? "https://crafatar.com/avatars/" + modelData.targetUuid + "?size=64&overlay" : ""
                 }
                 Column {
                     anchors.left: parent.left; anchors.leftMargin: modelData.targetUuid ? 54 : 14

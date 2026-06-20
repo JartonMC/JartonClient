@@ -93,14 +93,25 @@ Item {
     Column {
         anchors.fill: parent
         anchors.margins: 16
-        spacing: 10
+        spacing: 12
         visible: StaffAuth.panelKeyConnected && view.detailId === ""
 
         Item {
-            width: parent.width; height: 36
-            Text {
-                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                text: "Servers"; color: "#F2E8D0"; font.pixelSize: 20; font.bold: true
+            width: parent.width; height: 38
+            Row {
+                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 10
+                Text { anchors.verticalCenter: parent.verticalCenter; text: "Servers"; color: "#FFFFFF"; font.pixelSize: 21; font.bold: true }
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: ServerListModel.totalOnline >= 0
+                    width: onlineTxt.width + 18; height: 22; radius: 11
+                    color: Qt.rgba(1, 0.72, 0.2, 0.14)
+                    Text {
+                        id: onlineTxt; anchors.centerIn: parent
+                        text: ServerListModel.totalOnline + " online"
+                        color: "#FFB833"; font.pixelSize: 12; font.bold: true
+                    }
+                }
             }
             SButton {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
@@ -119,19 +130,22 @@ Item {
 
         ListView {
             width: parent.width
-            height: parent.height - 50
+            height: parent.height - 52
             clip: true
-            spacing: 8
+            spacing: 10
             model: ServerListModel
             delegate: Rectangle {
+                id: card
                 width: ListView.view.width
-                height: 62
-                radius: 12
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: rowArea.containsMouse ? "#241c10" : "#1a140d" }
-                    GradientStop { position: 1.0; color: rowArea.containsMouse ? "#1b150e" : "#140f09" }
-                }
-                border.color: rowArea.containsMouse ? "#3a2f1c" : "#241c12"; border.width: 1
+                height: 70
+                radius: 18
+                color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.05)
+                Behavior on color { ColorAnimation { duration: 120 } }
+                border.color: Qt.rgba(1, 1, 1, 0.08); border.width: 1
+
+                readonly property bool isUp: model.state === "running"
+                readonly property bool isTransition: model.state === "starting" || model.state === "stopping"
+                readonly property color stateColor: isUp ? "#5ad17a" : isTransition ? "#FFB833" : "#7a6f63"
 
                 MouseArea {
                     id: rowArea
@@ -143,43 +157,63 @@ Item {
                     }
                 }
 
-                Rectangle {
+                // pulsing status dot
+                Item {
                     id: dot
-                    anchors.left: parent.left; anchors.leftMargin: 16
+                    anchors.left: parent.left; anchors.leftMargin: 18
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 10; height: 10; radius: 5
-                    // model.state, not state — every QML element has a built-in `state`
-                    // property that would otherwise shadow the model role and read empty
-                    color: model.state === "running" ? "#5ad17a"
-                         : (model.state === "starting" || model.state === "stopping") ? "#FFB81C" : "#e06c6c"
+                    width: 12; height: 12
                     Rectangle {
-                        anchors.centerIn: parent; width: 18; height: 18; radius: 9
-                        color: "transparent"; border.width: 2
-                        border.color: parent.color; opacity: 0.25
+                        anchors.centerIn: parent; width: 10; height: 10; radius: 5
+                        color: card.stateColor
+                        layer.enabled: true
+                    }
+                    Rectangle {
+                        id: pulse
+                        anchors.centerIn: parent; width: 10; height: 10; radius: width / 2
+                        color: "transparent"; border.width: 2; border.color: card.stateColor
+                        visible: card.isUp || card.isTransition
+                        SequentialAnimation on opacity {
+                            running: card.isUp || card.isTransition; loops: Animation.Infinite
+                            NumberAnimation { from: 0.55; to: 0.0; duration: 1400; easing.type: Easing.OutQuad }
+                            PauseAnimation { duration: 200 }
+                        }
+                        ParallelAnimation {
+                            running: card.isUp || card.isTransition; loops: Animation.Infinite
+                            NumberAnimation { target: pulse; property: "scale"; from: 1.0; to: 2.6; duration: 1600; easing.type: Easing.OutQuad }
+                        }
                     }
                 }
                 Column {
                     anchors.left: dot.right; anchors.leftMargin: 16
+                    anchors.right: rightRow.left; anchors.rightMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 3
-                    Text { text: name; color: "#F2E8D0"; font.pixelSize: 15; font.bold: true }
+                    spacing: 4
+                    Text { text: name; color: "#FFFFFF"; font.pixelSize: 15; font.bold: true; elide: Text.ElideRight; width: parent.width }
                     Text {
-                        text: node + "  ·  " + model.state + "  ·  " + playersOnline + "/" + playersMax + " players"
-                        color: "#8a7a56"; font.pixelSize: 12
+                        text: node + "   ·   " + Math.round(cpu) + "%   ·   " + Math.round(memBytes / 1048576) + "/" + memLimitMb + " MB"
+                        color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 12; font.family: "Menlo"
+                        elide: Text.ElideRight; width: parent.width
                     }
                 }
                 Row {
-                    anchors.right: parent.right; anchors.rightMargin: 16
+                    id: rightRow
+                    anchors.right: parent.right; anchors.rightMargin: 18
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 14
-                    Text {
+                    spacing: 12
+                    Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: Math.round(cpu) + "%  ·  " + Math.round(memBytes / 1048576) + "/" + memLimitMb + " MB"
-                        color: "#8a7a56"; font.pixelSize: 12
+                        width: pcTxt.width + 18; height: 24; radius: 12
+                        color: Qt.rgba(1, 0.72, 0.2, 0.14)
+                        Text {
+                            id: pcTxt; anchors.centerIn: parent
+                            text: playersOnline + "/" + playersMax
+                            color: "#FFB833"; font.pixelSize: 13; font.bold: true; font.family: "Menlo"
+                        }
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "›"; color: "#4a3f24"; font.pixelSize: 18
+                        text: "›"; color: Qt.rgba(1, 1, 1, 0.25); font.pixelSize: 20
                     }
                 }
             }

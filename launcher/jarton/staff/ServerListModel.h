@@ -32,6 +32,7 @@ class ServerListModel : public QAbstractListModel {
     Q_PROPERTY(bool panelKeyMissing READ panelKeyMissing NOTIFY changed)
     Q_PROPERTY(QString error READ error NOTIFY changed)
     Q_PROPERTY(int count READ rowCount NOTIFY changed)
+    Q_PROPERTY(int totalOnline READ totalOnline NOTIFY changed)
 
    public:
     enum Roles : uint16_t {
@@ -56,6 +57,7 @@ class ServerListModel : public QAbstractListModel {
     bool loading() const { return m_loading; }
     bool panelKeyMissing() const { return m_panelKeyMissing; }
     QString error() const { return m_error; }
+    int totalOnline() const;
 
     Q_INVOKABLE void refresh();
 

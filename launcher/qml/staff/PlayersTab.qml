@@ -73,15 +73,11 @@ Item {
                     color: rowHover.containsMouse ? "#221a0f" : "#16110a"
                     border.color: rowHover.containsMouse ? "#3a2f1c" : "#241c12"; border.width: 1
                     Behavior on color { ColorAnimation { duration: 100 } }
-                    Image {
+                    Avatar {
                         id: rowHead
                         anchors.left: parent.left; anchors.leftMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 28; height: 28
-                        source: "https://crafatar.com/avatars/" + uuid + "?size=64&overlay"
-                        sourceSize.width: 64; sourceSize.height: 64
-                        fillMode: Image.PreserveAspectFit
-                        smooth: false
+                        size: 30; uuid: model.uuid
                     }
                     Text {
                         anchors.left: rowHead.right; anchors.leftMargin: 12
@@ -123,13 +119,9 @@ Item {
                 Row {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 10
                     SButton { text: "Back"; glyph: "‹"; variant: "ghost"; onClicked: view.selUuid = "" }
-                    Image {
+                    Avatar {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 32; height: 32
-                        source: view.selUuid !== "" ? "https://crafatar.com/avatars/" + view.selUuid + "?size=64&overlay" : ""
-                        sourceSize.width: 64; sourceSize.height: 64
-                        fillMode: Image.PreserveAspectFit
-                        smooth: false
+                        size: 34; uuid: view.selUuid
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
