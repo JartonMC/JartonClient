@@ -6,6 +6,7 @@ import QtQuick.Effects
 Item {
     id: root
     property string uuid: ""
+    property string url: ""          // direct image url (e.g. Discord avatar); overrides uuid
     property int size: 32
     property real radiusFactor: 0.22
     width: size
@@ -16,7 +17,8 @@ Item {
     Image {
         id: img
         anchors.fill: parent
-        source: root.uuid.length ? "https://mc-heads.net/avatar/" + root.uuid + "/" + Math.round(root.size * 3) : ""
+        source: root.url.length ? root.url
+              : root.uuid.length ? "https://mc-heads.net/avatar/" + root.uuid + "/" + Math.round(root.size * 3) : ""
         sourceSize.width: Math.round(root.size * 3)
         sourceSize.height: Math.round(root.size * 3)
         fillMode: Image.PreserveAspectCrop

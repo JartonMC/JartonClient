@@ -1,19 +1,28 @@
 import QtQuick
 import Jarton
 
-// Pending staff applications (read) — click to open the application thread in Discord.
+// Staff applications: pending + archived. Tap a row to expand the full submitted answers
+// in-client; resolve from here, or open the Discord thread. Mirrors the app's queue.
 Item {
     id: root
     property var apps: []
+    property var archived: []
+    property bool showArchived: false
     property bool loading: false
     property string error: ""
     property int reqList: -1
+    property int reqArchived: -1
     property var pendingWrites: []
     property bool loadedOnce: false
+    property int openId: -1
 
     onVisibleChanged: if (visible && !loadedOnce) { loadedOnce = true; load() }
 
-    function load() { loading = true; error = ""; reqList = ProctorApi.send("GET", "/proctor/applications") }
+    function load() {
+        loading = true; error = ""
+        reqList = ProctorApi.send("GET", "/proctor/applications")
+        reqArchived = ProctorApi.send("GET", "/proctor/applications/archived")
+    }
     function resolve(id) { var p = pendingWrites; p.push(ProctorApi.send("POST", "/proctor/applications/" + id + "/resolve", "")); pendingWrites = p }
     function relTime(s) {
         if (!s) return ""
@@ -34,6 +43,10 @@ Item {
                 else root.error = "Couldn't load applications."
                 return
             }
+            if (id === root.reqArchived) {
+                if (ok) { try { root.archived = JSON.parse(body).applications || [] } catch (e) { root.archived = [] } }
+                return
+            }
             var idx = root.pendingWrites.indexOf(id)
             if (idx !== -1) { root.pendingWrites.splice(idx, 1); root.load() }
         }
@@ -43,40 +56,81 @@ Item {
         anchors.fill: parent; anchors.margins: 4; spacing: 12
         Item {
             width: parent.width; height: 32
-            Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Applications"; color: "#F2E8D0"; font.pixelSize: 16; font.bold: true }
+            Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Applications"; color: "#FFFFFF"; font.pixelSize: 17; font.bold: true }
             SButton { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
+        }
+        // pending / archived toggle
+        Row {
+            spacing: 8
+            Rectangle {
+                width: pTab.width + 26; height: 28; radius: 14
+                color: !root.showArchived ? Qt.rgba(1, 0.72, 0.2, 0.16) : Qt.rgba(1, 1, 1, 0.05)
+                Text { id: pTab; anchors.centerIn: parent; text: "Pending (" + root.apps.length + ")"; color: !root.showArchived ? "#FFB833" : Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 12; font.bold: true }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.showArchived = false; root.openId = -1 } }
+            }
+            Rectangle {
+                width: aTab.width + 26; height: 28; radius: 14
+                color: root.showArchived ? Qt.rgba(1, 0.72, 0.2, 0.16) : Qt.rgba(1, 1, 1, 0.05)
+                Text { id: aTab; anchors.centerIn: parent; text: "Archived"; color: root.showArchived ? "#FFB833" : Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 12; font.bold: true }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.showArchived = true; root.openId = -1 } }
+            }
         }
         Text { width: parent.width; visible: root.error.length > 0; text: root.error; color: "#e06c6c"; font.pixelSize: 13 }
         ListView {
-            width: parent.width; height: parent.height - 44; clip: true; spacing: 6
-            model: root.apps
+            width: parent.width; height: parent.height - 84; clip: true; spacing: 8
+            model: root.showArchived ? root.archived : root.apps
             delegate: Rectangle {
-                width: ListView.view.width; height: 56; radius: 10
-                color: aArea.containsMouse ? "#221a0f" : "#16110a"
-                border.color: aArea.containsMouse ? "#3a2f1c" : "#241c12"; border.width: 1
-                Image {
-                    id: aHead; anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter
-                    width: 28; height: 28; fillMode: Image.PreserveAspectFit; smooth: false
-                    visible: !!modelData.userAvatar
-                    source: modelData.userAvatar ? modelData.userAvatar : ""
-                }
+                id: card
+                required property var modelData
+                readonly property bool open: root.openId === modelData.id
+                width: ListView.view.width
+                height: col.height + 24
+                radius: 12; color: Qt.rgba(1, 1, 1, 0.04)
+                Behavior on height { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+
                 Column {
-                    anchors.left: parent.left; anchors.leftMargin: modelData.userAvatar ? 52 : 14
-                    anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                    Text { text: modelData.userName ? modelData.userName : "Unknown"; color: "#F2E8D0"; font.pixelSize: 14; font.bold: true }
-                    Text { text: (modelData.role ? modelData.role : "applicant") + "   ·   " + root.relTime(modelData.submittedAt); color: "#8a7a56"; font.pixelSize: 12 }
-                }
-                Row {
-                    anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 7; z: 2
-                    SButton { text: "Open ↗"; variant: "ghost"; onClicked: if (modelData.deepLink) Qt.openUrlExternally(modelData.deepLink) }
-                    SButton { text: "Resolve"; variant: "primary"; onClicked: root.resolve(modelData.id) }
+                    id: col
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                    anchors.margins: 12; spacing: 8
+
+                    Item {
+                        width: parent.width; height: 36
+                        Avatar { id: av; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; size: 34; url: modelData.userAvatar ? modelData.userAvatar : ""; radiusFactor: 0.5 }
+                        Column {
+                            anchors.left: av.right; anchors.leftMargin: 12; anchors.right: chevron.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; spacing: 2
+                            Text { text: modelData.role ? modelData.role : "Applicant"; color: "#FFFFFF"; font.pixelSize: 14; font.bold: true; elide: Text.ElideRight; width: parent.width }
+                            Text { text: "from " + (modelData.userName ? modelData.userName : "Unknown") + "   ·   " + root.relTime(modelData.submittedAt); color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11; elide: Text.ElideRight; width: parent.width }
+                        }
+                        Text { id: chevron; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: card.open ? "▾" : "▸"; color: Qt.rgba(1, 1, 1, 0.3); font.pixelSize: 13 }
+                    }
+
+                    // expanded answers
+                    Column {
+                        width: parent.width; spacing: 7; visible: card.open
+                        Repeater {
+                            model: card.open && modelData.answers ? modelData.answers : []
+                            delegate: Column {
+                                required property var modelData
+                                width: col.width; spacing: 2
+                                Text { visible: modelData[0] && modelData[0].length > 0; text: modelData[0] ? modelData[0] : ""; color: Qt.rgba(1, 0.72, 0.2, 0.85); font.pixelSize: 11; font.bold: true; wrapMode: Text.WordWrap; width: parent.width }
+                                Text { text: modelData[1] ? modelData[1] : ""; color: Qt.rgba(1, 1, 1, 0.8); font.pixelSize: 12; wrapMode: Text.WordWrap; width: parent.width }
+                            }
+                        }
+                        Text { visible: modelData.resolvedBy; text: "resolved by " + (modelData.resolvedBy ? modelData.resolvedBy : "") + "   ·   " + root.relTime(modelData.resolvedAt); color: Qt.rgba(1, 1, 1, 0.4); font.pixelSize: 11 }
+                        Row {
+                            spacing: 10; topPadding: 2
+                            SButton { text: "Open in Discord ↗"; variant: "ghost"; onClicked: if (modelData.deepLink) Qt.openUrlExternally(modelData.deepLink) }
+                            SButton { visible: !root.showArchived; text: "Resolve"; variant: "primary"; onClicked: root.resolve(modelData.id) }
+                        }
+                    }
                 }
                 MouseArea {
-                    id: aArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; z: 1
-                    onClicked: if (modelData.deepLink) Qt.openUrlExternally(modelData.deepLink)
+                    anchors.fill: parent; anchors.bottomMargin: card.open ? card.height - 44 : 0
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.openId = card.open ? -1 : modelData.id
                 }
             }
-            Text { anchors.centerIn: parent; visible: !root.loading && root.apps.length === 0; text: "No pending applications."; color: "#6b5d3f"; font.pixelSize: 14 }
+            Text { anchors.centerIn: parent; visible: !root.loading && (root.showArchived ? root.archived.length === 0 : root.apps.length === 0); text: root.showArchived ? "No archived applications." : "No pending applications."; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 14 }
         }
     }
 }
