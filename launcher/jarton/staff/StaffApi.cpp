@@ -21,6 +21,15 @@ int StaffApi::send(const QString& method, const QString& path, const QString& js
     if (!m_auth || !m_nam || m_auth->token().isEmpty()) {
         return id;
     }
+    dispatch(method, path, jsonBody, id, false);
+    return id;
+}
+
+void StaffApi::dispatch(const QString& method, const QString& path, const QString& jsonBody, int id, bool isRetry)
+{
+    if (!m_auth || !m_nam) {
+        return;
+    }
 
     QNetworkRequest req{ QUrl(m_auth->baseUrl() + path) };
     req.setRawHeader("Authorization", "Bearer " + m_auth->token().toUtf8());
@@ -43,13 +52,20 @@ int StaffApi::send(const QString& method, const QString& path, const QString& js
         reply = m_nam->post(req, body);
     }
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, id]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, id, method, path, jsonBody, isRetry]() {
         reply->deleteLater();
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status == 401 && !isRetry && m_auth != nullptr) {
+            // access token expired mid-session: refresh once, then retry the same request id
+            connect(m_auth, &StaffAuth::tokenRefreshed, this,
+                    [this, method, path, jsonBody, id]() { dispatch(method, path, jsonBody, id, true); },
+                    Qt::SingleShotConnection);
+            m_auth->refresh();
+            return;
+        }
         const bool ok = reply->error() == QNetworkReply::NoError && status >= 200 && status < 300;
         emit response(id, ok, status, QString::fromUtf8(reply->readAll()));
     });
-    return id;
 }
 
 }  // namespace Jarton

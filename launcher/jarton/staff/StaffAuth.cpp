@@ -16,6 +16,7 @@
 #include <QRandomGenerator>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QTimer>
 #include <QUrl>
 #include <QUrlQuery>
 
@@ -43,6 +44,10 @@ QString challengeFor(const QString& verifier)
 StaffAuth::StaffAuth(QString tokenPath, QObject* parent)
     : QObject(parent), m_nam(new QNetworkAccessManager(this)), m_tokenPath(std::move(tokenPath))
 {
+    m_refreshTimer = new QTimer(this);
+    m_refreshTimer->setInterval(10 * 60 * 1000);  // keep the access token alive mid-session
+    connect(m_refreshTimer, &QTimer::timeout, this, [this]() { refresh(); });
+
     loadToken();
     if (!m_refreshToken.isEmpty()) {
         refresh();  // resume the session + pick up any role change since last run
@@ -160,9 +165,10 @@ void StaffAuth::exchangeCode(const QString& code, const QString& verifier)
 
 void StaffAuth::refresh()
 {
-    if (m_refreshToken.isEmpty()) {
-        return;
+    if (m_refreshToken.isEmpty() || m_refreshing) {
+        return;  // coalesce: one in-flight refresh at a time (broker rotates refresh tokens)
     }
+    m_refreshing = true;
     QJsonObject body;
     body.insert("refreshToken", m_refreshToken);
 
@@ -174,6 +180,7 @@ void StaffAuth::refresh()
     QNetworkReply* reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
+        m_refreshing = false;
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         // 401 = token rotated/expired; 403 = every staff role removed since last login
         if (status == 401 || status == 403) {
@@ -184,6 +191,7 @@ void StaffAuth::refresh()
             return;  // transient — keep the session, next focus retries
         }
         applySession(QJsonDocument::fromJson(reply->readAll()).object());
+        emit tokenRefreshed();
     });
 }
 
@@ -204,8 +212,13 @@ void StaffAuth::applySession(const QJsonObject& obj)
     m_connected = !m_token.isEmpty();
     m_loginError.clear();
     emit changed();
-    if (m_connected && canPanel()) {
-        checkPanelKey();
+    if (m_connected) {
+        if (m_refreshTimer && !m_refreshTimer->isActive()) {
+            m_refreshTimer->start();
+        }
+        if (canPanel()) {
+            checkPanelKey();
+        }
     }
 }
 
@@ -278,6 +291,9 @@ void StaffAuth::signOut()
 
 void StaffAuth::clearSession()
 {
+    if (m_refreshTimer) {
+        m_refreshTimer->stop();
+    }
     m_token.clear();
     m_refreshToken.clear();
     m_caps.clear();

@@ -37,7 +37,11 @@ Item {
                 if (!ok) { section.loading = false; section.error = "Couldn't load your orgs."; return }
                 var orgs = []; try { orgs = JSON.parse(body) } catch (e) {}
                 if (!orgs.length) { section.loading = false; return }
-                var w = SwiftyApi.send("GET", "/workspaces/" + orgs[0].id)
+                // /orgs/mine returns MEMBERSHIP records: the real org id is organizationId,
+                // not the membership .id (using .id 403s "not a member").
+                var o = orgs[0]
+                var orgId = o.organizationId || (o.organization && o.organization.id) || o.id
+                var w = SwiftyApi.send("GET", "/workspaces/" + orgId)
                 var m = section.wsReqs; m[w] = true; section.wsReqs = m
                 return
             }

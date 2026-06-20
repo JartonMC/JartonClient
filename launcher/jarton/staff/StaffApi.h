@@ -26,6 +26,8 @@ class StaffApi : public QObject {
     void response(int id, bool ok, int status, const QString& body);
 
    private:
+    void dispatch(const QString& method, const QString& path, const QString& jsonBody, int id, bool isRetry);
+
     StaffAuth* m_auth = nullptr;
     QNetworkAccessManager* m_nam = nullptr;
     int m_nextId = 1;

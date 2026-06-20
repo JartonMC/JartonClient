@@ -7,6 +7,7 @@
 
 class QNetworkAccessManager;
 class QTcpServer;
+class QTimer;
 
 namespace Jarton {
 
@@ -67,6 +68,7 @@ class StaffAuth : public QObject {
 
    signals:
     void changed();
+    void tokenRefreshed();  // fired after the access token is successfully refreshed
 
    private:
     void exchangeCode(const QString& code, const QString& verifier);
@@ -84,6 +86,8 @@ class StaffAuth : public QObject {
 
     QString m_token;         // access JWT (in memory)
     QString m_refreshToken;  // persisted
+    bool m_refreshing = false;          // coalesce concurrent refreshes (broker rotates refresh tokens)
+    QTimer* m_refreshTimer = nullptr;   // periodic keepalive while connected
     QStringList m_caps;
     bool m_connected = false;
     bool m_signingIn = false;

@@ -1,8 +1,9 @@
 import QtQuick
-import QtQuick.Effects
 
-// Player head, matching the app: mc-heads.net at 3x for crisp retina, async + cached so
-// list scrolling never blocks the UI thread, rounded-square (radius = size * 0.22).
+// Player head: mc-heads.net at 2x for crisp retina, async + cached so list scrolling never
+// blocks the UI thread. Deliberately a plain Image (no layer/MultiEffect) — per-delegate
+// GPU layers churn texture memory hard when ListView delegates recycle, so heads render
+// square inside a rounded backing tile, which reads fine for Minecraft faces.
 Item {
     id: root
     property string uuid: ""
@@ -12,34 +13,21 @@ Item {
     width: size
     height: size
 
-    Rectangle { anchors.fill: parent; radius: root.size * root.radiusFactor; color: "#292929" }
-
-    Image {
-        id: img
+    Rectangle {
         anchors.fill: parent
-        source: root.url.length ? root.url
-              : root.uuid.length ? "https://mc-heads.net/avatar/" + root.uuid + "/" + Math.round(root.size * 3) : ""
-        sourceSize.width: Math.round(root.size * 3)
-        sourceSize.height: Math.round(root.size * 3)
-        fillMode: Image.PreserveAspectCrop
-        asynchronous: true
-        cache: true
-        visible: false
-    }
+        radius: root.size * root.radiusFactor
+        color: "#241c12"
+        clip: true
 
-    Item {
-        id: mask
-        anchors.fill: parent
-        layer.enabled: true
-        visible: false
-        Rectangle { anchors.fill: parent; radius: root.size * root.radiusFactor }
-    }
-
-    MultiEffect {
-        anchors.fill: parent
-        source: img
-        maskEnabled: true
-        maskSource: mask
-        visible: img.status === Image.Ready
+        Image {
+            anchors.fill: parent
+            source: root.url.length ? root.url
+                  : root.uuid.length ? "https://mc-heads.net/avatar/" + root.uuid + "/" + Math.round(root.size * 2) : ""
+            sourceSize.width: Math.round(root.size * 2)
+            sourceSize.height: Math.round(root.size * 2)
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: true
+        }
     }
 }

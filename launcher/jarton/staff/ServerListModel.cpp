@@ -99,11 +99,19 @@ void ServerListModel::refresh()
             emit changed();
             return;
         }
+        if (status == 401 && !m_retrying && m_auth != nullptr) {
+            // access token expired mid-session: refresh once, then retry this fetch
+            m_retrying = true;
+            connect(m_auth, &StaffAuth::tokenRefreshed, this, [this]() { refresh(); }, Qt::SingleShotConnection);
+            m_auth->refresh();
+            return;
+        }
         if (reply->error() != QNetworkReply::NoError || status < 200 || status >= 300) {
             m_error = tr("Couldn't load servers.");
             emit changed();
             return;
         }
+        m_retrying = false;
 
         m_panelKeyMissing = false;
         const QJsonArray arr = QJsonDocument::fromJson(reply->readAll()).object().value("servers").toArray();

@@ -69,6 +69,7 @@ class ServerListModel : public QAbstractListModel {
     QVector<GameServer> m_servers;
     bool m_loading = false;
     bool m_panelKeyMissing = false;
+    bool m_retrying = false;  // guards the one-shot refresh-and-retry on a 401
     QString m_error;
 };
 

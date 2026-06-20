@@ -166,7 +166,6 @@ Item {
                     Rectangle {
                         anchors.centerIn: parent; width: 10; height: 10; radius: 5
                         color: card.stateColor
-                        layer.enabled: true
                     }
                     Rectangle {
                         id: pulse
