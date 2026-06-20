@@ -11,6 +11,7 @@ Item {
     property int reqList: -1
     property string loadedServer: ""
     property bool creating: false
+    property var pending: ({})   // ids of writes this tab issued; only these trigger a reload
 
     onVisibleChanged: if (visible && loadedServer !== serverId && serverId.length) { loadedServer = serverId; load() }
 
@@ -18,6 +19,7 @@ Item {
         loading = true; error = ""
         reqList = StaffApi.send("GET", "/servers/" + serverId + "/schedules")
     }
+    function act(method, path, body) { root.pending[StaffApi.send(method, path, body)] = true }
     function relTime(iso) {
         if (!iso) return "—"
         var t = Date.parse(iso); if (isNaN(t)) return "—"
@@ -37,7 +39,7 @@ Item {
                 else root.error = "Couldn't load schedules."
                 return
             }
-            root.load()
+            if (root.pending[id] !== undefined) { delete root.pending[id]; root.load() }
         }
     }
 
@@ -82,7 +84,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter; text: "Create"; variant: "primary"
                         onClicked: {
                             if (schName.text.length === 0) return
-                            StaffApi.send("POST", "/servers/" + root.serverId + "/schedules", JSON.stringify({
+                            root.act("POST", "/servers/" + root.serverId + "/schedules", JSON.stringify({
                                 name: schName.text, minute: cMin.text || "*", hour: cHr.text || "*",
                                 dayOfMonth: cDom.text || "*", month: cMon.text || "*", dayOfWeek: cDow.text || "*", onlyWhenOnline: false
                             }))
@@ -114,8 +116,8 @@ Item {
                 }
                 Row {
                     anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 7
-                    SButton { text: "Run now"; variant: "secondary"; onClicked: StaffApi.send("POST", "/servers/" + root.serverId + "/schedules/" + modelData.id + "/execute", "{}") }
-                    SButton { text: "Delete"; variant: "danger"; onClicked: StaffApi.send("DELETE", "/servers/" + root.serverId + "/schedules/" + modelData.id) }
+                    SButton { text: "Run now"; variant: "secondary"; onClicked: root.act("POST", "/servers/" + root.serverId + "/schedules/" + modelData.id + "/execute", "{}") }
+                    SButton { text: "Delete"; variant: "danger"; onClicked: root.act("DELETE", "/servers/" + root.serverId + "/schedules/" + modelData.id) }
                 }
             }
             Text { anchors.centerIn: parent; visible: !root.loading && root.schedules.length === 0; text: "No schedules."; color: "#6b5d3f"; font.pixelSize: 14 }

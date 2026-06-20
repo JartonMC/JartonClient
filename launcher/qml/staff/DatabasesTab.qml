@@ -11,6 +11,7 @@ Item {
     property int reqList: -1
     property string loadedServer: ""
     property bool creating: false
+    property var pending: ({})   // ids of writes this tab issued; only these trigger a reload
 
     onVisibleChanged: if (visible && loadedServer !== serverId && serverId.length) { loadedServer = serverId; load() }
 
@@ -18,6 +19,7 @@ Item {
         loading = true; error = ""
         reqList = StaffApi.send("GET", "/servers/" + serverId + "/databases")
     }
+    function act(method, path, body) { root.pending[StaffApi.send(method, path, body)] = true }
 
     Connections {
         target: StaffApi
@@ -28,7 +30,7 @@ Item {
                 else root.error = "Couldn't load databases."
                 return
             }
-            root.load()
+            if (root.pending[id] !== undefined) { delete root.pending[id]; root.load() }
         }
     }
 
@@ -63,7 +65,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter; text: "Create"; variant: "primary"
                     onClicked: {
                         if (dbName.text.length === 0) return
-                        StaffApi.send("POST", "/servers/" + root.serverId + "/databases", JSON.stringify({ name: dbName.text, remote: dbRemote.text || "%" }))
+                        root.act("POST", "/servers/" + root.serverId + "/databases", JSON.stringify({ name: dbName.text, remote: dbRemote.text || "%" }))
                         root.creating = false; dbName.text = ""
                     }
                 }
@@ -83,8 +85,8 @@ Item {
                 }
                 Row {
                     anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 7
-                    SButton { text: "Rotate password"; variant: "secondary"; onClicked: StaffApi.send("POST", "/servers/" + root.serverId + "/databases/" + modelData.id + "/rotate-password", "{}") }
-                    SButton { text: "Delete"; variant: "danger"; onClicked: StaffApi.send("DELETE", "/servers/" + root.serverId + "/databases/" + modelData.id) }
+                    SButton { text: "Rotate password"; variant: "secondary"; onClicked: root.act("POST", "/servers/" + root.serverId + "/databases/" + modelData.id + "/rotate-password", "{}") }
+                    SButton { text: "Delete"; variant: "danger"; onClicked: root.act("DELETE", "/servers/" + root.serverId + "/databases/" + modelData.id) }
                 }
             }
             Text { anchors.centerIn: parent; visible: !root.loading && root.databases.length === 0; text: "No databases."; color: "#6b5d3f"; font.pixelSize: 14 }

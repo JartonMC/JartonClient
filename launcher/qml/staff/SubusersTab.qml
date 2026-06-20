@@ -13,6 +13,7 @@ Item {
     property int reqList: -1
     property int reqPerms: -1
     property string loadedServer: ""
+    property var pending: ({})   // ids of writes this tab issued; only these trigger a reload
 
     // editor state: mode "" (closed) | "invite" | "edit"
     property string mode: ""
@@ -26,6 +27,7 @@ Item {
         reqList = StaffApi.send("GET", "/servers/" + serverId + "/users")
         if (groups.length === 0) reqPerms = StaffApi.send("GET", "/servers/permissions")
     }
+    function act(method, path, body) { root.pending[StaffApi.send(method, path, body)] = true }
     function isOn(k) { return selected[k] === true }
     function toggle(k) {
         var s = selected; s[k] = !s[k]; selected = s
@@ -48,10 +50,10 @@ Item {
         var keys = selectedList()
         if (mode === "invite") {
             if (emailIn.text.length === 0 || keys.length === 0) return
-            StaffApi.send("POST", "/servers/" + serverId + "/users", JSON.stringify({ email: emailIn.text, permissions: keys }))
+            act("POST", "/servers/" + serverId + "/users", JSON.stringify({ email: emailIn.text, permissions: keys }))
         } else if (mode === "edit") {
             if (keys.length === 0) return
-            StaffApi.send("POST", "/servers/" + serverId + "/users/" + editUuid, JSON.stringify({ permissions: keys }))
+            act("POST", "/servers/" + serverId + "/users/" + editUuid, JSON.stringify({ permissions: keys }))
         }
         mode = ""
     }
@@ -69,8 +71,8 @@ Item {
                 else root.error = "Couldn't load subusers."
                 return
             }
-            // a write completed — refresh the list
-            root.load()
+            // a write this tab issued completed — refresh the list (ignore foreign ids)
+            if (root.pending[id] !== undefined) { delete root.pending[id]; root.load() }
         }
     }
 
@@ -162,7 +164,7 @@ Item {
                 Row {
                     anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 7
                     SButton { text: "Edit"; variant: "secondary"; onClicked: root.openEdit(modelData) }
-                    SButton { text: "Remove"; variant: "danger"; onClicked: StaffApi.send("DELETE", "/servers/" + root.serverId + "/users/" + modelData.uuid) }
+                    SButton { text: "Remove"; variant: "danger"; onClicked: root.act("DELETE", "/servers/" + root.serverId + "/users/" + modelData.uuid) }
                 }
             }
             Text { anchors.centerIn: parent; visible: !root.loading && root.users.length === 0; text: "No subusers."; color: "#6b5d3f"; font.pixelSize: 14 }

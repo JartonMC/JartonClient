@@ -10,6 +10,7 @@ Item {
     property string error: ""
     property int reqList: -1
     property string loadedServer: ""
+    property var pending: ({})   // ids of writes this tab issued; only these trigger a reload
 
     onVisibleChanged: if (visible && loadedServer !== serverId && serverId.length) { loadedServer = serverId; load() }
 
@@ -20,8 +21,9 @@ Item {
         loading = true; error = ""
         reqList = StaffApi.send("GET", "/servers/" + serverId + "/network")
     }
+    function act(method, path, body) { root.pending[StaffApi.send(method, path, body)] = true }
     function commitNotes() {
-        StaffApi.send("POST", "/servers/" + serverId + "/network/" + editId + "/notes", JSON.stringify({ notes: notesIn.text }))
+        act("POST", "/servers/" + serverId + "/network/" + editId + "/notes", JSON.stringify({ notes: notesIn.text }))
         editId = -1
     }
 
@@ -34,7 +36,7 @@ Item {
                 else root.error = "Couldn't load allocations."
                 return
             }
-            root.load()
+            if (root.pending[id] !== undefined) { delete root.pending[id]; root.load() }
         }
     }
 
@@ -92,7 +94,7 @@ Item {
                     SButton {
                         visible: modelData.isDefault !== true
                         text: "Make primary"; variant: "secondary"
-                        onClicked: StaffApi.send("POST", "/servers/" + root.serverId + "/network/" + modelData.id + "/primary", "{}")
+                        onClicked: root.act("POST", "/servers/" + root.serverId + "/network/" + modelData.id + "/primary", "{}")
                     }
                 }
             }

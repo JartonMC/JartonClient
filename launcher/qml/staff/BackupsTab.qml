@@ -11,6 +11,7 @@ Item {
     property string error: ""
     property int reqList: -1
     property string loadedServer: ""
+    property var pending: ({})   // ids of writes this tab issued; only these trigger a reload
 
     onVisibleChanged: if (visible && loadedServer !== serverId && serverId.length) { loadedServer = serverId; load() }
 
@@ -18,6 +19,7 @@ Item {
         loading = true; error = ""
         reqList = StaffApi.send("GET", "/servers/" + serverId + "/backups")
     }
+    function act(method, path, body) { root.pending[StaffApi.send(method, path, body)] = true }
     function fmtBytes(b) {
         if (!b || b <= 0) return "0 MB"
         var mb = b / 1048576
@@ -42,7 +44,9 @@ Item {
                 else root.error = "Couldn't load backups."
                 return
             }
-            // an action finished — if it handed back a download url, open it; then refresh
+            // an action THIS tab issued finished — open a download url if present, then refresh
+            if (root.pending[id] === undefined) return
+            delete root.pending[id]
             if (ok && body.indexOf("\"url\"") !== -1) {
                 try { Qt.openUrlExternally(JSON.parse(body).url) } catch (e) {}
             }
@@ -65,7 +69,7 @@ Item {
                 SButton { text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
                 SButton {
                     text: root.creating ? "Creating…" : "New backup"; glyph: "＋"; variant: "primary"; busy: root.creating
-                    onClicked: { root.creating = true; StaffApi.send("POST", "/servers/" + root.serverId + "/backups", "{}") }
+                    onClicked: { root.creating = true; root.act("POST", "/servers/" + root.serverId + "/backups", "{}") }
                 }
             }
         }
@@ -109,15 +113,15 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter; spacing: 7
                     SButton {
                         text: "Download"; variant: "secondary"
-                        onClicked: StaffApi.send("GET", "/servers/" + root.serverId + "/backups/" + modelData.uuid + "/download")
+                        onClicked: root.act("GET", "/servers/" + root.serverId + "/backups/" + modelData.uuid + "/download")
                     }
                     SButton {
                         text: "Restore"; variant: "secondary"
-                        onClicked: StaffApi.send("POST", "/servers/" + root.serverId + "/backups/" + modelData.uuid + "/restore", "{}")
+                        onClicked: root.act("POST", "/servers/" + root.serverId + "/backups/" + modelData.uuid + "/restore", "{}")
                     }
                     SButton {
                         text: "Delete"; variant: "danger"
-                        onClicked: StaffApi.send("DELETE", "/servers/" + root.serverId + "/backups/" + modelData.uuid)
+                        onClicked: root.act("DELETE", "/servers/" + root.serverId + "/backups/" + modelData.uuid)
                     }
                 }
             }
