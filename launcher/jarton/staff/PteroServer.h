@@ -11,6 +11,7 @@ class QWebSocket;
 namespace Jarton {
 
 class StaffAuth;
+class ConsoleLogModel;
 
 // Live view of one Pterodactyl server for the desktop Pterodactyl section: the wings
 // console websocket (logs + stats + command input) plus power control. Mirrors the iOS
@@ -27,7 +28,7 @@ class PteroServer : public QObject {
     Q_PROPERTY(qlonglong memoryLimitBytes READ memoryLimitBytes NOTIFY statsChanged)
     Q_PROPERTY(qlonglong diskBytes READ diskBytes NOTIFY statsChanged)
     Q_PROPERTY(qlonglong uptimeMs READ uptimeMs NOTIFY statsChanged)
-    Q_PROPERTY(QStringList lines READ lines NOTIFY linesChanged)
+    Q_PROPERTY(Jarton::ConsoleLogModel* console READ console CONSTANT)
     Q_PROPERTY(bool powerBusy READ powerBusy NOTIFY changed)
 
    public:
@@ -43,7 +44,7 @@ class PteroServer : public QObject {
     qlonglong memoryLimitBytes() const { return m_memLimit; }
     qlonglong diskBytes() const { return m_disk; }
     qlonglong uptimeMs() const { return m_uptime; }
-    QStringList lines() const { return m_lines; }
+    ConsoleLogModel* console() const { return m_console; }
     bool powerBusy() const { return m_powerBusy; }
 
     Q_INVOKABLE void open(const QString& serverId, const QString& serverName);
@@ -54,7 +55,6 @@ class PteroServer : public QObject {
    signals:
     void changed();
     void statsChanged();
-    void linesChanged();
 
    private:
     void fetchConsoleAuth(bool reauthOnly);
@@ -77,7 +77,7 @@ class PteroServer : public QObject {
     qlonglong m_memLimit = 0;
     qlonglong m_disk = 0;
     qlonglong m_uptime = 0;
-    QStringList m_lines;
+    ConsoleLogModel* m_console = nullptr;
     bool m_powerBusy = false;
     bool m_wantOpen = false;  // distinguishes a real close from a dropped socket (reconnect)
 };

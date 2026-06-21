@@ -137,7 +137,7 @@ Item {
             delegate: Rectangle {
                 id: card
                 width: ListView.view.width
-                height: 70
+                height: 84
                 radius: 18
                 color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.05)
                 Behavior on color { ColorAnimation { duration: 120 } }
@@ -187,12 +187,50 @@ Item {
                     anchors.left: dot.right; anchors.leftMargin: 16
                     anchors.right: rightRow.left; anchors.rightMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 4
-                    Text { text: name; color: "#FFFFFF"; font.pixelSize: 15; font.bold: true; elide: Text.ElideRight; width: parent.width }
-                    Text {
-                        text: node + "   ·   " + Math.round(cpu) + "%   ·   " + Math.round(memBytes / 1048576) + "/" + memLimitMb + " MB"
-                        color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 12; font.family: "Menlo"
-                        elide: Text.ElideRight; width: parent.width
+                    spacing: 9
+                    Item {
+                        width: parent.width; height: nameTxt.height
+                        Text {
+                            id: nameTxt
+                            anchors.left: parent.left; anchors.right: nodeTxt.left; anchors.rightMargin: 8
+                            text: name; color: "#FFFFFF"; font.pixelSize: 15; font.bold: true; elide: Text.ElideRight
+                        }
+                        Text {
+                            id: nodeTxt
+                            anchors.right: parent.right; anchors.verticalCenter: nameTxt.verticalCenter
+                            text: node; color: Qt.rgba(1, 1, 1, 0.32); font.pixelSize: 11; font.family: "Menlo"
+                        }
+                    }
+                    Row {
+                        spacing: 18
+                        Row {
+                            spacing: 7
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: "CPU"; color: "#8a7a56"; font.pixelSize: 9; font.bold: true }
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 72; height: 5; radius: 2; color: Qt.rgba(1, 1, 1, 0.09)
+                                Rectangle {
+                                    width: parent.width * Math.max(0, Math.min(1, cpu / 100)); height: parent.height; radius: 2
+                                    color: cpu > 85 ? "#e06c6c" : "#FFB833"
+                                }
+                            }
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: Math.round(cpu) + "%"; color: Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 10; font.family: "Menlo" }
+                        }
+                        Row {
+                            id: ramRow
+                            spacing: 7
+                            readonly property real frac: memLimitMb > 0 ? (memBytes / 1048576) / memLimitMb : 0
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: "RAM"; color: "#8a7a56"; font.pixelSize: 9; font.bold: true }
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 72; height: 5; radius: 2; color: Qt.rgba(1, 1, 1, 0.09)
+                                Rectangle {
+                                    width: parent.width * Math.max(0, Math.min(1, ramRow.frac)); height: parent.height; radius: 2
+                                    color: ramRow.frac > 0.9 ? "#e06c6c" : "#FFB833"
+                                }
+                            }
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: Math.round(memBytes / 1048576) + "/" + memLimitMb + " MB"; color: Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 10; font.family: "Menlo" }
+                        }
                     }
                 }
                 Row {

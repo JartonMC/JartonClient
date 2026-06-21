@@ -12,6 +12,7 @@
 #include <QUrl>
 #include <QWebSocket>
 
+#include "jarton/staff/ConsoleLogModel.h"
 #include "jarton/staff/StaffAuth.h"
 
 namespace Jarton {
@@ -19,6 +20,7 @@ namespace Jarton {
 PteroServer::PteroServer(StaffAuth* auth, QObject* parent)
     : QObject(parent), m_auth(auth), m_nam(auth ? auth->network() : nullptr)
 {
+    m_console = new ConsoleLogModel(this);
 }
 
 PteroServer::~PteroServer()
@@ -36,9 +38,8 @@ void PteroServer::open(const QString& serverId, const QString& serverName)
     close();
     m_serverId = serverId;
     m_serverName = serverName;
-    m_lines.clear();
+    m_console->clear();
     m_wantOpen = true;
-    emit linesChanged();
     emit changed();
     fetchConsoleAuth(false);
 }
@@ -270,11 +271,7 @@ void PteroServer::appendLine(const QString& raw)
     if (trimmed.isEmpty()) {
         return;
     }
-    m_lines.append(ansiToHtml(trimmed));
-    if (m_lines.size() > 500) {
-        m_lines.remove(0, m_lines.size() - 500);
-    }
-    emit linesChanged();
+    m_console->append(ansiToHtml(trimmed));
 }
 
 void PteroServer::power(const QString& signal)

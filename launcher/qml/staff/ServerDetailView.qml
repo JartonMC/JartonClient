@@ -196,7 +196,7 @@ Item {
                     clip: true
                     flickDeceleration: 2600
                     maximumFlickVelocity: 6000
-                    model: PteroServer.lines
+                    model: PteroServer.console
                     property real accel: 1
                     property real lastWheel: 0
                     WheelHandler {
@@ -211,8 +211,9 @@ Item {
                         }
                     }
                     delegate: Text {
+                        required property string line
                         width: log.width
-                        text: modelData; color: "#cfc3a6"
+                        text: line; color: "#cfc3a6"
                         font.family: "Menlo"; font.pixelSize: 12; lineHeight: 1.2
                         wrapMode: Text.WrapAnywhere; textFormat: Text.RichText
                     }
