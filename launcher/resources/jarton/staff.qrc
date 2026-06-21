@@ -18,5 +18,6 @@
         <file alias="ReportsTab.qml">../../qml/staff/ReportsTab.qml</file>
         <file alias="AlertsTab.qml">../../qml/staff/AlertsTab.qml</file>
         <file alias="StaffAdminTab.qml">../../qml/staff/StaffAdminTab.qml</file>
+        <file alias="MoreTab.qml">../../qml/staff/MoreTab.qml</file>
     </qresource>
 </RCC>

@@ -22,6 +22,7 @@ Item {
                     { id: "alerts", label: "Alerts" }
                 ]
                 if (ProctorClient.admin) m.push({ id: "staff", label: "Staff" })
+                m.push({ id: "more", label: "More" })
                 return m
             }
             delegate: Rectangle {
@@ -50,5 +51,6 @@ Item {
         ReportsTab      { anchors.fill: parent; visible: section.subtab === "reports" }
         AlertsTab       { anchors.fill: parent; visible: section.subtab === "alerts" }
         StaffAdminTab   { anchors.fill: parent; visible: section.subtab === "staff" }
+        MoreTab         { anchors.fill: parent; visible: section.subtab === "more" }
     }
 }
