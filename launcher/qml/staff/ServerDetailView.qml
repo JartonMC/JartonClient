@@ -175,13 +175,6 @@ Item {
                     height: 32; radius: 13
                     color: "#140f09"
                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 13; color: "#140f09" }  // square off bottom corners
-                    Row {
-                        anchors.left: parent.left; anchors.leftMargin: 14
-                        anchors.verticalCenter: parent.verticalCenter; spacing: 6
-                        Rectangle { width: 10; height: 10; radius: 5; color: "#e06c6c" }
-                        Rectangle { width: 10; height: 10; radius: 5; color: "#FFB81C" }
-                        Rectangle { width: 10; height: 10; radius: 5; color: "#5ad17a" }
-                    }
                     Text {
                         anchors.centerIn: parent
                         text: "console" + (PteroServer.consoleState === "live" ? "" : " · " + PteroServer.consoleState)
@@ -197,6 +190,9 @@ Item {
                     flickDeceleration: 2600
                     maximumFlickVelocity: 6000
                     model: PteroServer.console
+                    // terminal follow: pinned to the tail until the user scrolls up,
+                    // re-pins when they come back to the bottom
+                    property bool follow: true
                     property real accel: 1
                     property real lastWheel: 0
                     WheelHandler {
@@ -207,6 +203,7 @@ Item {
                             log.lastWheel = now
                             var maxY = Math.max(0, log.contentHeight - log.height)
                             log.contentY = Math.max(0, Math.min(maxY, log.contentY - (e.angleDelta.y / 120) * 64 * log.accel))
+                            log.follow = log.contentY >= maxY - 4
                             e.accepted = true
                         }
                     }
@@ -217,7 +214,12 @@ Item {
                         font.family: "Menlo"; font.pixelSize: 12; lineHeight: 1.2
                         wrapMode: Text.WrapAnywhere; textFormat: Text.RichText
                     }
-                    onCountChanged: positionViewAtEnd()
+                    onMovementEnded: follow = atYEnd
+                    onCountChanged: if (follow) Qt.callLater(log.positionViewAtEnd)
+                    // wrapped RichText rows settle their heights after insertion; keep
+                    // re-pinning as the content grows so the tail stays in view
+                    onContentHeightChanged: if (follow && !moving) positionViewAtEnd()
+                    onVisibleChanged: if (visible) { follow = true; Qt.callLater(log.positionViewAtEnd) }
                     Text {
                         anchors.centerIn: parent
                         visible: log.count === 0

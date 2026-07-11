@@ -23,11 +23,22 @@ AnnouncementDialog::AnnouncementDialog(QWidget* parent) : QFrame(parent), m_qml(
     setAttribute(Qt::WA_TranslucentBackground, true);
     setStyleSheet(
         "#jartonAnnouncementCard {"
-        "  background: #1a140e;"
+        "  background: #14100a;"
         "  border: 1px solid #FFB81C;"
         "  border-radius: 18px;"
         "}");
     hide();
+
+    // dimmed backdrop behind the card; clicking it closes, like any modal
+    if (parent != nullptr) {
+        m_scrim = new QWidget(parent);
+        m_scrim->setObjectName("jartonAnnouncementScrim");
+        m_scrim->setAttribute(Qt::WA_StyledBackground, true);
+        m_scrim->setStyleSheet("#jartonAnnouncementScrim { background: rgba(8, 6, 3, 184); }");
+        m_scrim->hide();
+        m_scrim->installEventFilter(this);
+        parent->installEventFilter(this);
+    }
 
     auto* lay = new QVBoxLayout(this);
     lay->setContentsMargins(0, 0, 0, 0);
@@ -60,6 +71,11 @@ void AnnouncementDialog::showAtIndex(int index)
         const int x = (host->width() - w) / 2;
         const int y = (host->height() - h) / 2;
         setGeometry(x, y, w, h);
+        if (m_scrim != nullptr) {
+            m_scrim->setGeometry(host->rect());
+            m_scrim->show();
+            m_scrim->raise();
+        }
     }
     if (auto* root = m_qml->rootObject()) {
         QMetaObject::invokeMethod(root, "showIndex", Q_ARG(QVariant, index));
@@ -71,6 +87,21 @@ void AnnouncementDialog::showAtIndex(int index)
 void AnnouncementDialog::onCloseRequested()
 {
     hide();
+    if (m_scrim != nullptr) {
+        m_scrim->hide();
+    }
+}
+
+bool AnnouncementDialog::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_scrim && event->type() == QEvent::MouseButtonPress) {
+        onCloseRequested();
+        return true;
+    }
+    if (watched == parentWidget() && event->type() == QEvent::Resize && m_scrim != nullptr && m_scrim->isVisible()) {
+        m_scrim->setGeometry(parentWidget()->rect());
+    }
+    return QFrame::eventFilter(watched, event);
 }
 
 void AnnouncementDialog::resizeEvent(QResizeEvent* event)

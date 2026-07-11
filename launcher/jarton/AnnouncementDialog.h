@@ -18,12 +18,14 @@ class AnnouncementDialog : public QFrame {
 
    protected:
     void resizeEvent(QResizeEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
    private slots:
     void onCloseRequested();
 
    private:
     QQuickWidget* m_qml = nullptr;
+    QWidget* m_scrim = nullptr;
 };
 
 }  // namespace Jarton

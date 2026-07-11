@@ -58,7 +58,7 @@ Item {
                     color: index === NewsService.selectedIndex
                         ? "#33FFB81C"
                         : (entryHover.containsMouse ? "#2a1f10" : "#15100a")
-                    border.color: index === NewsService.selectedIndex ? "#FFB81C" : "#3a2a14"
+                    border.color: index === NewsService.selectedIndex ? "#FFB81C" : "#241c12"
                     border.width: 1
 
                     Column {
@@ -67,7 +67,7 @@ Item {
                         spacing: 2
                         Text {
                             text: title
-                            color: "#E8E8E8"
+                            color: "#F2E8D0"
                             font.pixelSize: 12
                             font.weight: Font.Medium
                             wrapMode: Text.WordWrap
@@ -78,7 +78,7 @@ Item {
                         Text {
                             visible: posted && !isNaN(posted)
                             text: posted ? Qt.formatDate(posted, "MMM d") : ""
-                            color: "#888"
+                            color: "#8a7a56"
                             font.pixelSize: 10
                         }
                     }
@@ -123,7 +123,7 @@ Item {
                     text: NewsService.selectedPosted
                         ? Qt.formatDate(NewsService.selectedPosted, "MMMM d, yyyy")
                         : ""
-                    color: "#888"
+                    color: "#8a7a56"
                     font.pixelSize: 10
                 }
             }
@@ -197,7 +197,7 @@ Item {
                     id: bodyText
                     width: bodyScroller.width - 6
                     text: NewsService.selectedBody
-                    color: "#E8E8E8"
+                    color: "#F2E8D0"
                     font.pixelSize: 14
                     lineHeight: 1.55
                     wrapMode: Text.WordWrap
@@ -212,7 +212,7 @@ Item {
             anchors.right: parent.right
             anchors.margins: 14
             text: "×"
-            color: closeHover.containsMouse ? "#FFE082" : "#888"
+            color: closeHover.containsMouse ? "#FFE082" : "#9a8a66"
             font.pixelSize: 24
             z: 100
             MouseArea {

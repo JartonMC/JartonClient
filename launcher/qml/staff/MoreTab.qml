@@ -143,11 +143,12 @@ Item {
                     NotifToggle { width: parent.width; label: "Reports"; value: root.on("notify_reports", "notifyReports"); onToggled: (v) => root.setNotif("reports", v) }
                     NotifToggle { width: parent.width; label: "Punishments"; value: root.on("notify_punish", "notifyPunish"); onToggled: (v) => root.setNotif("punish", v) }
                     NotifToggle { width: parent.width; label: "Ban evaders"; value: root.on("notify_evader", "notifyEvader"); onToggled: (v) => root.setNotif("evader", v) }
-                    NotifToggle { width: parent.width; label: "Mass disconnects"; value: root.on("notify_massdisc", "notifyMassDisc"); onToggled: (v) => root.setNotif("massDisc", v) }
-                    NotifToggle { width: parent.width; label: "Server crashes"; value: root.on("notify_crash", "notifyCrash"); onToggled: (v) => root.setNotif("crash", v) }
-                    NotifToggle { width: parent.width; label: "Server recovered"; value: root.on("notify_recovered", "notifyRecovered"); onToggled: (v) => root.setNotif("recovered", v) }
-                    NotifToggle { width: parent.width; label: "Bridge offline"; value: root.on("notify_bridge", "notifyBridge"); onToggled: (v) => root.setNotif("bridge", v) }
-                    NotifToggle { width: parent.width; label: "Command abuse"; value: root.on("notify_abuse", "notifyAbuse"); onToggled: (v) => root.setNotif("abuse", v) }
+                    // server alerts are Pterodactyl territory — the toggles only exist for staff with the panel role
+                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Mass disconnects"; value: root.on("notify_massdisc", "notifyMassDisc"); onToggled: (v) => root.setNotif("massDisc", v) }
+                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Server crashes"; value: root.on("notify_crash", "notifyCrash"); onToggled: (v) => root.setNotif("crash", v) }
+                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Server recovered"; value: root.on("notify_recovered", "notifyRecovered"); onToggled: (v) => root.setNotif("recovered", v) }
+                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Bridge offline"; value: root.on("notify_bridge", "notifyBridge"); onToggled: (v) => root.setNotif("bridge", v) }
+                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Command abuse"; value: root.on("notify_abuse", "notifyAbuse"); onToggled: (v) => root.setNotif("abuse", v) }
                 }
             }
             Text {
