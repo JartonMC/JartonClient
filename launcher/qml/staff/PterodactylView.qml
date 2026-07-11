@@ -13,19 +13,61 @@ Item {
         if (StaffAuth.panelKeyConnected) {
             loadedOnce = true
             ServerListModel.refresh()
+            syncStatus()
         } else {
             StaffAuth.checkPanelKey()
         }
     }
 
     // live stats: the broker snapshots /servers for ~3s, so a 10s quiet poll
-    // keeps CPU/RAM/players moving without hammering anything
+    // keeps CPU/RAM/players moving without hammering anything. Runs in the
+    // detail view too — its PLAYERS tile reads from this model.
     readonly property int listRefreshMs: 10000
     Timer {
         interval: view.listRefreshMs; repeat: true
-        running: view.visible && StaffAuth.panelKeyConnected && view.detailId === ""
+        running: view.visible && StaffAuth.panelKeyConnected
         onTriggered: ServerListModel.refresh(true)
     }
+
+    // main→test sync flags (consumed by the 4AM cycle on the box)
+    property bool syncAvailable: false
+    property bool syncPending: false
+    property bool syncForce: false
+    property bool syncConfirming: false
+    property int reqSyncStatus: -1
+    property var pendingSync: ({})
+    readonly property bool syncQueued: syncPending || syncForce
+
+    function syncStatus() { reqSyncStatus = StaffApi.send("GET", "/sync/status") }
+    function syncAct(method, body) { pendingSync[StaffApi.send(method, "/sync/queue", body)] = true }
+    function applySync(body) {
+        try {
+            var s = JSON.parse(body)
+            syncPending = s.pending === true
+            syncForce = s.force === true
+            syncAvailable = true
+        } catch (e) {}
+    }
+    Timer {
+        interval: 30000; repeat: true
+        running: view.visible && view.syncAvailable
+        onTriggered: view.syncStatus()
+    }
+    Connections {
+        target: StaffApi
+        function onResponse(id, ok, status, body) {
+            if (id === view.reqSyncStatus) {
+                if (ok) view.applySync(body)
+                else view.syncAvailable = false   // 403/503: no button for this account/broker
+                return
+            }
+            if (view.pendingSync[id] !== undefined) {
+                delete view.pendingSync[id]
+                if (ok) view.applySync(body)
+            }
+        }
+    }
+    onVisibleChanged: if (visible && StaffAuth.panelKeyConnected) syncStatus()
 
     Connections {
         target: StaffAuth
@@ -122,11 +164,60 @@ Item {
                     }
                 }
             }
-            SButton {
-                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                text: ServerListModel.loading ? "Refreshing…" : "Refresh"
-                icon: "refresh"; variant: "secondary"
-                onClicked: ServerListModel.refresh()
+            Row {
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 8
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: view.syncQueued
+                    width: syncTxt.width + 18; height: 22; radius: 11
+                    color: Qt.rgba(1, 0.72, 0.2, 0.14)
+                    Text {
+                        id: syncTxt; anchors.centerIn: parent
+                        text: view.syncForce ? "force sync queued" : "sync queued"
+                        color: "#FFB833"; font.pixelSize: 12; font.bold: true
+                    }
+                }
+                SButton {
+                    visible: view.syncAvailable
+                    text: view.syncQueued ? "Cancel sync" : "Queue sync"
+                    icon: view.syncQueued ? "x" : "clock"
+                    variant: view.syncQueued ? "danger" : "secondary"
+                    onClicked: {
+                        if (view.syncQueued) view.syncAct("DELETE", "")
+                        else view.syncConfirming = !view.syncConfirming
+                    }
+                }
+                SButton {
+                    text: ServerListModel.loading ? "Refreshing…" : "Refresh"
+                    icon: "refresh"; variant: "secondary"
+                    onClicked: ServerListModel.refresh()
+                }
+            }
+        }
+
+        // inline confirm for queueing the main→test sync
+        Rectangle {
+            width: parent.width; radius: 11; visible: view.syncConfirming && !view.syncQueued
+            height: syncRow.height + 22
+            color: "#15100a"; border.color: "#FFB81C"; border.width: 1
+            Row {
+                id: syncRow
+                anchors.left: parent.left; anchors.leftMargin: 14
+                anchors.verticalCenter: parent.verticalCenter; spacing: 10
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Queue the main → test sync?"
+                    color: "#FFE082"; font.pixelSize: 13
+                }
+                SButton {
+                    text: "Next 4AM cycle"; variant: "primary"; compact: true
+                    onClicked: { view.syncAct("POST", "{}"); view.syncConfirming = false }
+                }
+                SButton {
+                    text: "Force now"; variant: "danger"; compact: true
+                    onClicked: { view.syncAct("POST", JSON.stringify({ force: true })); view.syncConfirming = false }
+                }
+                SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: view.syncConfirming = false }
             }
         }
 

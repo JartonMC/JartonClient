@@ -3,6 +3,8 @@
 
 #include <QAbstractListModel>
 #include <QString>
+#include <QStringList>
+#include <QVariantMap>
 #include <QVector>
 
 namespace Jarton {
@@ -21,6 +23,7 @@ struct GameServer {
     qint64 memoryLimitMb = 0;
     int playersOnline = 0;
     int playersMax = 0;
+    QStringList playerNames;
 };
 
 // The Pterodactyl server list — GET /servers via the StaffAuth (Discord cap) session.
@@ -48,6 +51,7 @@ class ServerListModel : public QAbstractListModel {
         MemLimitMbRole,
         PlayersOnlineRole,
         PlayersMaxRole,
+        PlayerNamesRole,
     };
 
     explicit ServerListModel(StaffAuth* auth, QObject* parent = nullptr);
@@ -62,6 +66,7 @@ class ServerListModel : public QAbstractListModel {
     int totalOnline() const;
 
     Q_INVOKABLE void refresh(bool quiet = false);
+    Q_INVOKABLE QVariantMap playersFor(const QString& id) const;
 
    signals:
     void changed();

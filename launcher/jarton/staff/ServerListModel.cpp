@@ -25,11 +25,26 @@ int ServerListModel::rowCount(const QModelIndex& parent) const
 
 int ServerListModel::totalOnline() const
 {
+    // proxy SLP counts the same players the backends already report, so
+    // summing everything doubles the real number — skip proxy-ish servers
     int sum = 0;
     for (const auto& s : m_servers) {
+        if (s.name.contains(QLatin1String("proxy"), Qt::CaseInsensitive)) {
+            continue;
+        }
         sum += s.playersOnline;
     }
     return sum;
+}
+
+QVariantMap ServerListModel::playersFor(const QString& id) const
+{
+    for (const auto& s : m_servers) {
+        if (s.id == id) {
+            return { { "online", s.playersOnline }, { "max", s.playersMax }, { "names", s.playerNames } };
+        }
+    }
+    return { { "online", 0 }, { "max", 0 }, { "names", QStringList{} } };
 }
 
 QVariant ServerListModel::data(const QModelIndex& index, int role) const
@@ -61,6 +76,8 @@ QVariant ServerListModel::data(const QModelIndex& index, int role) const
             return s.playersOnline;
         case PlayersMaxRole:
             return s.playersMax;
+        case PlayerNamesRole:
+            return s.playerNames;
         default:
             return {};
     }
@@ -74,6 +91,7 @@ QHash<int, QByteArray> ServerListModel::roleNames() const
         { CpuLimitRole, "cpuLimit" },
         { MemBytesRole, "memBytes" }, { MemLimitMbRole, "memLimitMb" },
         { PlayersOnlineRole, "playersOnline" }, { PlayersMaxRole, "playersMax" },
+        { PlayerNamesRole, "playerNames" },
     };
 }
 
@@ -144,6 +162,9 @@ void ServerListModel::refresh(bool quiet)
             const QJsonObject players = o.value("players").toObject();
             g.playersOnline = players.value("online").toInt();
             g.playersMax = players.value("max").toInt();
+            for (const auto& n : players.value("names").toArray()) {
+                g.playerNames.append(n.toString());
+            }
             next.append(g);
         }
 
@@ -161,7 +182,7 @@ void ServerListModel::refresh(bool quiet)
                 const GameServer& b = next.at(i);
                 const bool same = a.state == b.state && a.cpuPercent == b.cpuPercent && a.cpuLimitPct == b.cpuLimitPct &&
                                   a.memoryBytes == b.memoryBytes && a.memoryLimitMb == b.memoryLimitMb &&
-                                  a.playersOnline == b.playersOnline && a.playersMax == b.playersMax && a.name == b.name &&
+                                  a.playersOnline == b.playersOnline && a.playersMax == b.playersMax && a.playerNames == b.playerNames && a.name == b.name &&
                                   a.node == b.node && a.address == b.address;
                 if (!same) {
                     m_servers[i] = b;

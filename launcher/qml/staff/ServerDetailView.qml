@@ -89,31 +89,62 @@ Item {
             SButton { text: "Kill"; icon: "zap"; variant: "danger"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("kill") }
         }
 
-        // live stats
+        // live stats — players data rides the server-list poll, not the wings socket
         Row {
             width: parent.width
-            spacing: 12
+            spacing: 10
+            readonly property var srvPlayers: {
+                var tick = ServerListModel.count + ServerListModel.totalOnline  // rebind when the 10s poll lands
+                return ServerListModel.playersFor(PteroServer.serverId)
+            }
             Repeater {
                 model: [
                     { k: "CPU", v: PteroServer.cpuPercent.toFixed(1) + "%" },
                     { k: "MEMORY", v: view.fmtBytes(PteroServer.memoryBytes) + (PteroServer.memoryLimitBytes > 0 ? " / " + view.fmtBytes(PteroServer.memoryLimitBytes) : "") },
                     { k: "DISK", v: view.fmtBytes(PteroServer.diskBytes) },
-                    { k: "UPTIME", v: view.fmtUptime(PteroServer.uptimeMs) }
+                    { k: "UPTIME", v: view.fmtUptime(PteroServer.uptimeMs) },
+                    { k: "PLAYERS", v: "", players: true }
                 ]
                 delegate: Rectangle {
-                    width: (view.width - 36 - 36) / 4
-                    height: 60; radius: 13
+                    id: tile
+                    readonly property var pl: modelData.players ? parent.srvPlayers : null
+                    readonly property var names: pl ? (pl.names || []) : []
+                    width: (view.width - 36 - 40) / 5
+                    height: 52; radius: 12
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: "#1c160d" }
                         GradientStop { position: 1.0; color: "#15100a" }
                     }
-                    border.color: "#2a2114"; border.width: 1
+                    border.color: tileHover.hovered && tile.names.length > 0 ? "#3a2f14" : "#2a2114"
+                    border.width: 1
                     Column {
-                        anchors.left: parent.left; anchors.leftMargin: 14
+                        anchors.left: parent.left; anchors.leftMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 4
+                        spacing: 3
                         Text { text: modelData.k; color: "#8a7a56"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 0.5 }
-                        Text { text: modelData.v; color: "#F2E8D0"; font.pixelSize: 15; font.bold: true }
+                        Text {
+                            text: modelData.players ? (tile.pl.online + " / " + tile.pl.max) : modelData.v
+                            color: "#F2E8D0"; font.pixelSize: 14; font.bold: true
+                        }
+                    }
+                    HoverHandler { id: tileHover; enabled: modelData.players === true }
+                    // hover popover: who's on this server (SLP sample, ~12 names max)
+                    Rectangle {
+                        visible: tileHover.hovered && tile.names.length > 0
+                        z: 50
+                        anchors.top: parent.bottom; anchors.topMargin: 6
+                        anchors.left: parent.left
+                        width: namesCol.width + 28; height: namesCol.height + 20
+                        radius: 11; color: "#1a140e"; border.color: "#3a2f14"; border.width: 1
+                        Column {
+                            id: namesCol
+                            anchors.centerIn: parent
+                            spacing: 3
+                            Repeater {
+                                model: tile.names
+                                Text { text: modelData; color: "#FFE082"; font.pixelSize: 12 }
+                            }
+                        }
                     }
                 }
             }
