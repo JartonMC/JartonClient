@@ -2,7 +2,6 @@
 #include "jarton/staff/ProctorClient.h"
 
 #include <QClipboard>
-#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -12,27 +11,13 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QTimer>
 #include <QUrl>
-
-namespace {
-constexpr qint64 kPinIdleMs = 3 * 60 * 60 * 1000;
-}
 
 namespace Jarton {
 
 ProctorClient::ProctorClient(const QString& tokenPath, QObject* parent)
-    : QObject(parent), m_nam(new QNetworkAccessManager(this)), m_tokenPath(tokenPath), m_lockTimer(new QTimer(this))
+    : QObject(parent), m_nam(new QNetworkAccessManager(this)), m_tokenPath(tokenPath)
 {
-    m_lockTimer->setInterval(60 * 1000);
-    connect(m_lockTimer, &QTimer::timeout, this, [this]() {
-        if (m_connected && !m_admin && !m_pinLocked && QDateTime::currentMSecsSinceEpoch() - m_lastActivity >= kPinIdleMs) {
-            m_pinLocked = true;
-            emit changed();
-        }
-    });
-    m_lockTimer->start();
-
     loadToken();
     if (!m_token.isEmpty()) {
         restoreSession();
@@ -47,9 +32,6 @@ void ProctorClient::setCurrentSection(const QString& section)
         return;
     }
     m_currentSection = section;
-    if (section == QLatin1String("staff")) {
-        notifyActivity();
-    }
     emit sectionChanged();
 }
 
@@ -115,31 +97,10 @@ void ProctorClient::signOut()
     m_displayName.clear();
     m_rank.clear();
     m_admin = false;
-    m_pinSet = false;
-    m_pinLocked = false;
+    m_allowApplications = true;
     m_loginError.clear();
     QFile::remove(m_tokenPath);
     emit changed();
-}
-
-void ProctorClient::unlock()
-{
-    m_pinLocked = false;
-    m_lastActivity = QDateTime::currentMSecsSinceEpoch();
-    emit changed();
-}
-
-void ProctorClient::pinCreated()
-{
-    m_pinSet = true;
-    unlock();
-}
-
-void ProctorClient::notifyActivity()
-{
-    if (!m_pinLocked) {
-        m_lastActivity = QDateTime::currentMSecsSinceEpoch();
-    }
 }
 
 void ProctorClient::copyToClipboard(const QString& text)
@@ -152,15 +113,12 @@ void ProctorClient::applyStaff(const QJsonObject& staff)
     m_displayName = staff.value("displayName").toString();
     m_rank = staff.value("rank").toString();
     m_admin = staff.value("proctorAdmin").toBool();
-    m_pinSet = staff.value("pinSet").toBool();
+    m_allowApplications = staff.value("allowApplications").toBool(true);
 }
 
 void ProctorClient::onSessionEstablished()
 {
     m_connected = true;
-    // fresh session = locked until the pin gate clears it; admins skip the gate
-    m_pinLocked = !m_admin;
-    m_lastActivity = QDateTime::currentMSecsSinceEpoch();
 }
 
 void ProctorClient::restoreSession()

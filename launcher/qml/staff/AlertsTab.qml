@@ -47,7 +47,7 @@ Item {
             if (id !== root.reqList) return
             root.loading = false
             if (ok) { try { root.alerts = JSON.parse(body).alerts || [] } catch (e) { root.alerts = [] } }
-            else root.error = "Couldn't load alerts."
+            else root.error = status === 403 ? "Admin only." : "Couldn't load alerts."
         }
     }
 

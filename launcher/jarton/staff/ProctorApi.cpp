@@ -21,8 +21,6 @@ int ProctorApi::send(const QString& method, const QString& path, const QString& 
     if (!m_proctor || !m_nam || m_proctor->token().isEmpty()) {
         return id;
     }
-    // proctor traffic only flows from the staff tabs — it feeds the pin idle clock
-    m_proctor->notifyActivity();
 
     QNetworkRequest req{ QUrl(m_proctor->baseUrl() + path) };
     req.setRawHeader("Authorization", "Bearer " + m_proctor->token().toUtf8());

@@ -92,6 +92,7 @@ Item {
                         height: 32; spacing: 8
                         AdminToggle { id: tOp; label: "auto-op" }
                         AdminToggle { id: tAdmin; label: "admin" }
+                        AdminToggle { id: tApps; label: "applications"; on: true }
                     }
                 }
                 Row {
@@ -100,7 +101,7 @@ Item {
                         text: "Create"; variant: "primary"
                         onClicked: {
                             if (fUser.value.length === 0 || fMc.value.length === 0 || fRank.value.length === 0 || fPass.value.length < 8) { root.banner = "Need username, MC name, rank, 8+ char password."; return }
-                            root.createStaff({ username: fUser.value, displayName: fDisplay.value, mcName: fMc.value, rank: fRank.value, password: fPass.value, autoOp: tOp.on, proctorAdmin: tAdmin.on })
+                            root.createStaff({ username: fUser.value, displayName: fDisplay.value, mcName: fMc.value, rank: fRank.value, password: fPass.value, autoOp: tOp.on, proctorAdmin: tAdmin.on, allowApplications: tApps.on })
                             root.adding = false
                             fUser.clear(); fDisplay.clear(); fMc.clear(); fRank.clear(); fPass.clear()
                         }
@@ -156,6 +157,7 @@ Item {
                             spacing: 8
                             SButton { text: modelData.proctorAdmin ? "Revoke admin" : "Make admin"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { proctorAdmin: !modelData.proctorAdmin }) }
                             SButton { text: modelData.autoOp ? "Disable auto-op" : "Enable auto-op"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { autoOp: !modelData.autoOp }) }
+                            SButton { text: modelData.allowApplications === false ? "Allow applications" : "Block applications"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { allowApplications: modelData.allowApplications === false }) }
                             SButton { text: modelData.enabled === false ? "Enable" : "Disable"; variant: modelData.enabled === false ? "primary" : "ghost"; onClicked: root.patchStaff(modelData.id, { enabled: modelData.enabled === false }) }
                         }
                         Row {

@@ -122,11 +122,8 @@ Rectangle {
         Loader {
             anchors.fill: parent
             active: panel.section === "ptero" || (panel.section === "staff" && ProctorClient.connected)
-            // while pin-locked the gate REPLACES the section content — the tabs and
-            // their data unload entirely rather than hiding behind an overlay
             source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
-                  : panel.section === "staff" ? (ProctorClient.pinLocked ? "qrc:/jarton/staff/PinGate.qml"
-                                                                         : "qrc:/jarton/staff/StaffSectionView.qml") : ""
+                  : panel.section === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
         }
 
         Text {

@@ -9,6 +9,18 @@ Item {
     property string subtab: "players"
     onSubtabChanged: ProctorClient.notifyActivity()
 
+    // access can be revoked mid-session (admin edits the account, /proctor/me refresh
+    // lands) — don't leave the view parked on a tab whose chip just disappeared
+    Connections {
+        target: ProctorClient
+        function onChanged() {
+            if ((section.subtab === "applications" && !ProctorClient.allowApplications)
+                || ((section.subtab === "alerts" || section.subtab === "staff") && !ProctorClient.admin)) {
+                section.subtab = "players"
+            }
+        }
+    }
+
     Row {
         id: tabs
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
@@ -18,11 +30,13 @@ Item {
         Repeater {
             model: {
                 var m = [
-                    { id: "players", label: "Players" }, { id: "tickets", label: "Tickets" },
-                    { id: "applications", label: "Applications" }, { id: "reports", label: "Reports" },
-                    { id: "alerts", label: "Alerts" }
+                    { id: "players", label: "Players" }, { id: "tickets", label: "Tickets" }
                 ]
-                if (ProctorClient.admin) m.push({ id: "staff", label: "Staff" })
+                if (ProctorClient.allowApplications) m.push({ id: "applications", label: "Applications" })
+                m.push({ id: "reports", label: "Reports" })
+                // the alerts feed is proctorAdminGuard on the broker — no point showing
+                // a tab that can only ever 403 into an empty list
+                if (ProctorClient.admin) m.push({ id: "alerts", label: "Alerts" }, { id: "staff", label: "Staff" })
                 m.push({ id: "more", label: "More" })
                 return m
             }

@@ -6,7 +6,6 @@
 
 class QNetworkAccessManager;
 class QJsonObject;
-class QTimer;
 
 namespace Jarton {
 
@@ -16,11 +15,6 @@ namespace Jarton {
 // relaunch restores the session via /proctor/me instead of retyping the
 // password. Registered as a QML singleton so the docked panel and any
 // popped-out windows share one session.
-//
-// The Staff section is additionally pin-gated for non-admin accounts: locked
-// on every launch and after 3h without staff-section activity. The pin itself
-// lives on the broker (scrypt hash on proctor_staff); this class only tracks
-// the local locked/unlocked state and the idle clock.
 class ProctorClient : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool connected READ connected NOTIFY changed)
@@ -30,8 +24,7 @@ class ProctorClient : public QObject {
     Q_PROPERTY(QString displayName READ displayName NOTIFY changed)
     Q_PROPERTY(QString rank READ rank NOTIFY changed)
     Q_PROPERTY(bool admin READ admin NOTIFY changed)
-    Q_PROPERTY(bool pinSet READ pinSet NOTIFY changed)
-    Q_PROPERTY(bool pinLocked READ pinLocked NOTIFY changed)
+    Q_PROPERTY(bool allowApplications READ allowApplications NOTIFY changed)
     // Which staff section the sidebar picked ("staff" | "ptero" | "swifty" | "").
     // Driven from C++ (the host window) but exposed here because the sidebar and the
     // docked panel run in separate QML engines — the shared singleton is the only
@@ -50,19 +43,12 @@ class ProctorClient : public QObject {
     QString displayName() const { return m_displayName; }
     QString rank() const { return m_rank; }
     bool admin() const { return m_admin; }
-    bool pinSet() const { return m_pinSet; }
-    bool pinLocked() const { return m_pinLocked; }
+    bool allowApplications() const { return m_allowApplications; }
     QString currentSection() const { return m_currentSection; }
 
     Q_INVOKABLE void signIn(const QString& username, const QString& password);
     Q_INVOKABLE void signOut();
     Q_INVOKABLE void setCurrentSection(const QString& section);
-    // Called by the pin gate after the broker accepted the verify / create.
-    Q_INVOKABLE void unlock();
-    Q_INVOKABLE void pinCreated();
-    // Any staff-section interaction feeds the idle clock (ProctorApi requests,
-    // sub-tab switches, entering the section).
-    Q_INVOKABLE void notifyActivity();
     Q_INVOKABLE void copyToClipboard(const QString& text);
 
     // C++-side accessors for sibling staff models that reuse this broker session.
@@ -85,17 +71,14 @@ class ProctorClient : public QObject {
     QString m_baseUrl = QStringLiteral("https://staff.jarton.me");
     QString m_tokenPath;
     QString m_token;
-    QTimer* m_lockTimer = nullptr;
-    qint64 m_lastActivity = 0;
     bool m_connected = false;
     bool m_signingIn = false;
     bool m_restoring = false;
-    bool m_pinSet = false;
-    bool m_pinLocked = false;
     QString m_loginError;
     QString m_displayName;
     QString m_rank;
     bool m_admin = false;
+    bool m_allowApplications = true;
     QString m_currentSection;
 };
 
