@@ -6,6 +6,7 @@
 
 class QNetworkAccessManager;
 class QJsonObject;
+class QTimer;
 
 namespace Jarton {
 
@@ -25,6 +26,7 @@ class ProctorClient : public QObject {
     Q_PROPERTY(QString rank READ rank NOTIFY changed)
     Q_PROPERTY(bool admin READ admin NOTIFY changed)
     Q_PROPERTY(bool allowApplications READ allowApplications NOTIFY changed)
+    Q_PROPERTY(bool allowJoinInfo READ allowJoinInfo NOTIFY changed)
     // Which staff section the sidebar picked ("staff" | "ptero" | "swifty" | "").
     // Driven from C++ (the host window) but exposed here because the sidebar and the
     // docked panel run in separate QML engines — the shared singleton is the only
@@ -48,6 +50,7 @@ class ProctorClient : public QObject {
     QString rank() const { return m_rank; }
     bool admin() const { return m_admin; }
     bool allowApplications() const { return m_allowApplications; }
+    bool allowJoinInfo() const { return m_allowJoinInfo; }
     QString currentSection() const { return m_currentSection; }
     bool swiftyPopped() const { return m_swiftyPopped; }
     // invokable because the host window reaches it through the QObject* accessor
@@ -76,10 +79,12 @@ class ProctorClient : public QObject {
     void applyStaff(const QJsonObject& staff);
     void onSessionEstablished();
     void restoreSession();
+    void refreshMe();
     void loadToken();
     void saveToken() const;
 
     QNetworkAccessManager* m_nam = nullptr;
+    QTimer* m_refresh = nullptr;  // re-reads /proctor/me so flag/rank edits apply without a re-login
     QString m_baseUrl = QStringLiteral("https://staff.jarton.me");
     QString m_tokenPath;
     QString m_token;
@@ -91,6 +96,7 @@ class ProctorClient : public QObject {
     QString m_rank;
     bool m_admin = false;
     bool m_allowApplications = true;
+    bool m_allowJoinInfo = false;   // locked off by default server-side, granted per account
     QString m_currentSection;
     bool m_swiftyPopped = false;
 };

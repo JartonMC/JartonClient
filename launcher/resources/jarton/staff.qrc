@@ -13,6 +13,7 @@
         <file alias="ServerDetailView.qml">../../qml/staff/ServerDetailView.qml</file>
         <file alias="StaffSectionView.qml">../../qml/staff/StaffSectionView.qml</file>
         <file alias="PlayersTab.qml">../../qml/staff/PlayersTab.qml</file>
+        <file alias="PlayerDetailView.qml">../../qml/staff/PlayerDetailView.qml</file>
         <file alias="TicketsTab.qml">../../qml/staff/TicketsTab.qml</file>
         <file alias="ApplicationsTab.qml">../../qml/staff/ApplicationsTab.qml</file>
         <file alias="ReportsTab.qml">../../qml/staff/ReportsTab.qml</file>
@@ -20,6 +21,9 @@
         <file alias="StaffAdminTab.qml">../../qml/staff/StaffAdminTab.qml</file>
         <file alias="MoreTab.qml">../../qml/staff/MoreTab.qml</file>
         <file alias="STabBar.qml">../../qml/staff/STabBar.qml</file>
+        <file alias="icons/ui/play-dark.svg">icons/ui/play-dark.svg</file>
+        <file alias="icons/ui/square-cream.svg">icons/ui/square-cream.svg</file>
+        <file alias="icons/ui/zap-red.svg">icons/ui/zap-red.svg</file>
         <file alias="icons/ui/archive-active.svg">icons/ui/archive-active.svg</file>
         <file alias="icons/ui/archive-rest.svg">icons/ui/archive-rest.svg</file>
         <file alias="icons/ui/bell-active.svg">icons/ui/bell-active.svg</file>

@@ -11,13 +11,19 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QTimer>
 #include <QUrl>
 
 namespace Jarton {
 
 ProctorClient::ProctorClient(const QString& tokenPath, QObject* parent)
-    : QObject(parent), m_nam(new QNetworkAccessManager(this)), m_tokenPath(tokenPath)
+    : QObject(parent), m_nam(new QNetworkAccessManager(this)), m_refresh(new QTimer(this)), m_tokenPath(tokenPath)
 {
+    // admin edits to flags/rank land within a minute instead of at the next re-login;
+    // a revoked tab disappearing live matters more than the one request per minute
+    m_refresh->setInterval(60'000);
+    connect(m_refresh, &QTimer::timeout, this, &ProctorClient::refreshMe);
+
     loadToken();
     if (!m_token.isEmpty()) {
         restoreSession();
@@ -101,12 +107,14 @@ void ProctorClient::signIn(const QString& username, const QString& password)
 
 void ProctorClient::signOut()
 {
+    m_refresh->stop();
     m_token.clear();
     m_connected = false;
     m_displayName.clear();
     m_rank.clear();
     m_admin = false;
     m_allowApplications = true;
+    m_allowJoinInfo = false;
     m_loginError.clear();
     QFile::remove(m_tokenPath);
     emit changed();
@@ -123,11 +131,42 @@ void ProctorClient::applyStaff(const QJsonObject& staff)
     m_rank = staff.value("rank").toString();
     m_admin = staff.value("proctorAdmin").toBool();
     m_allowApplications = staff.value("allowApplications").toBool(true);
+    m_allowJoinInfo = staff.value("allowJoinInfo").toBool(false) || m_admin;
 }
 
 void ProctorClient::onSessionEstablished()
 {
     m_connected = true;
+    m_refresh->start();
+}
+
+void ProctorClient::refreshMe()
+{
+    if (!m_connected || m_token.isEmpty()) {
+        return;
+    }
+
+    QNetworkRequest req{ QUrl(m_baseUrl + "/proctor/me") };
+    req.setRawHeader("Authorization", "Bearer " + m_token.toUtf8());
+    req.setRawHeader("User-Agent", "JartonClient/staff");
+    req.setTransferTimeout(15000);
+
+    QNetworkReply* reply = m_nam->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status == 401 || status == 403) {
+            // account disabled or token revoked mid-session — drop to the login form
+            signOut();
+            return;
+        }
+        if (reply->error() != QNetworkReply::NoError || status < 200 || status >= 300) {
+            return;  // transient; the next tick retries
+        }
+        applyStaff(QJsonDocument::fromJson(reply->readAll()).object().value("staff").toObject());
+        emit changed();
+    });
 }
 
 void ProctorClient::restoreSession()
