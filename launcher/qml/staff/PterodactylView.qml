@@ -116,7 +116,7 @@ Item {
             SButton {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                 text: ServerListModel.loading ? "Refreshing…" : "Refresh"
-                glyph: "↻"; variant: "secondary"
+                icon: "refresh"; variant: "secondary"
                 onClicked: ServerListModel.refresh()
             }
         }

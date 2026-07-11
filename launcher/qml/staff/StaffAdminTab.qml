@@ -56,8 +56,8 @@ Item {
             Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Staff roster"; color: "#FFFFFF"; font.pixelSize: 17; font.bold: true }
             Row {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 8
-                SButton { text: "Add staff"; glyph: "＋"; variant: "primary"; onClicked: root.adding = !root.adding }
-                SButton { text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
+                SButton { text: "Add staff"; icon: "plus"; variant: "primary"; onClicked: root.adding = !root.adding }
+                SButton { text: root.loading ? "…" : "Refresh"; icon: "refresh"; variant: "secondary"; onClicked: root.load() }
             }
         }
         Text { width: parent.width; visible: root.error.length > 0; text: root.error; color: "#e06c6c"; font.pixelSize: 13 }

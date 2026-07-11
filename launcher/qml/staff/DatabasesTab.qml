@@ -41,8 +41,8 @@ Item {
             Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Databases"; color: "#F2E8D0"; font.pixelSize: 18; font.bold: true }
             Row {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 8
-                SButton { text: "New database"; glyph: "＋"; variant: "primary"; onClicked: root.creating = !root.creating }
-                SButton { text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
+                SButton { text: "New database"; icon: "plus"; variant: "primary"; onClicked: root.creating = !root.creating }
+                SButton { text: root.loading ? "…" : "Refresh"; icon: "refresh"; variant: "secondary"; onClicked: root.load() }
             }
         }
         // inline create form
@@ -85,8 +85,8 @@ Item {
                 }
                 Row {
                     anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 7
-                    SButton { text: "Rotate password"; variant: "secondary"; onClicked: root.act("POST", "/servers/" + root.serverId + "/databases/" + modelData.id + "/rotate-password", "{}") }
-                    SButton { text: "Delete"; variant: "danger"; onClicked: root.act("DELETE", "/servers/" + root.serverId + "/databases/" + modelData.id) }
+                    SButton { text: "Rotate password"; variant: "secondary"; compact: true; onClicked: root.act("POST", "/servers/" + root.serverId + "/databases/" + modelData.id + "/rotate-password", "{}") }
+                    SButton { text: "Delete"; variant: "danger"; compact: true; onClicked: root.act("DELETE", "/servers/" + root.serverId + "/databases/" + modelData.id) }
                 }
             }
             Text { anchors.centerIn: parent; visible: !root.loading && root.databases.length === 0; text: "No databases."; color: "#6b5d3f"; font.pixelSize: 14 }

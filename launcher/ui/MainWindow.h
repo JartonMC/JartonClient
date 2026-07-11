@@ -237,6 +237,8 @@ class MainWindow : public QMainWindow {
 
     void onAnnouncementPopupOpen();
     void repositionFloatingOverlays();
+    // QML-initiated pop-out/pop-in of the Swifty window (no-op in the public build).
+    void onSwiftyPopRequested(bool popped);
 
    private:
     void retranslateUi();
@@ -255,8 +257,16 @@ class MainWindow : public QMainWindow {
     // renders its scene offscreen. So the Swifty QML gets its own QQuickView, wrapped in
     // a window container stacked over the panel while the Swifty section is active.
     // Lazy-created on first use in showStaffSection() (null in the public build).
+    // The same view can pop out into a framed top-level window (multi-monitor); the
+    // container is destroyed on pop-out and recreated on pop-in — containers don't
+    // survive their window being released.
     QQuickView* m_swiftyView = nullptr;
     QWidget* m_swiftyContainer = nullptr;
+    bool m_swiftyPoppedOut = false;
+    bool m_swiftyFilterInstalled = false;
+    void popOutSwifty();
+    void popInSwifty();
+    void saveSwiftyWindowGeometry();
     QAction* m_actionCreateJartonInstance = nullptr;
     // Sticky preference. Set true when the user explicitly hides the changelog
     // and cleared when they explicitly show it; window-maximize transitions

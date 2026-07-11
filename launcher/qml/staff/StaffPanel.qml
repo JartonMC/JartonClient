@@ -118,12 +118,34 @@ Rectangle {
         // Swifty is NOT loaded here: QtWebView's native view can't attach to this
         // QQuickWidget's offscreen scene. MainWindow hosts SwiftyWebView.qml in its
         // own QQuickView window container over this panel; the swifty section just
-        // shows the panel backdrop underneath it.
+        // shows the panel backdrop underneath it — or this card while it's popped
+        // out into its own window.
         Loader {
             anchors.fill: parent
             active: panel.section === "ptero" || (panel.section === "staff" && ProctorClient.connected)
             source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
                   : panel.section === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
+        }
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 14
+            visible: panel.section === "swifty" && ProctorClient.swiftyPopped
+            Image {
+                anchors.horizontalCenter: parent.horizontalCenter
+                source: "qrc:/jarton/staff/icons/ui/external-link-rest.svg"
+                width: 28; height: 28; sourceSize: Qt.size(56, 56)
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "Swifty is open in its own window"
+                color: "#FFE082"; font.pixelSize: 16; font.bold: true
+            }
+            SButton {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "Bring back"; icon: "corner-down-left"; variant: "secondary"
+                onClicked: ProctorClient.requestSwiftyPop(false)
+            }
         }
 
         Text {

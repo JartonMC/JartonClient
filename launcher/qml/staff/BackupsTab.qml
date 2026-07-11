@@ -75,9 +75,9 @@ Item {
             }
             Row {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 8
-                SButton { text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
+                SButton { text: root.loading ? "…" : "Refresh"; icon: "refresh"; variant: "secondary"; onClicked: root.load() }
                 SButton {
-                    text: root.creating ? "Creating…" : "New backup"; glyph: "＋"; variant: "primary"; busy: root.creating
+                    text: root.creating ? "Creating…" : "New backup"; icon: "plus"; variant: "primary"; busy: root.creating
                     onClicked: { root.creating = true; root.act("POST", "/servers/" + root.serverId + "/backups", "{}") }
                 }
             }
@@ -121,15 +121,15 @@ Item {
                     anchors.right: parent.right; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter; spacing: 7
                     SButton {
-                        text: "Download"; variant: "secondary"
+                        text: "Download"; variant: "secondary"; compact: true
                         onClicked: root.act("GET", "/servers/" + root.serverId + "/backups/" + modelData.uuid + "/download")
                     }
                     SButton {
-                        text: "Restore"; variant: "secondary"
+                        text: "Restore"; variant: "secondary"; compact: true
                         onClicked: root.act("POST", "/servers/" + root.serverId + "/backups/" + modelData.uuid + "/restore", "{}")
                     }
                     SButton {
-                        text: "Delete"; variant: "danger"
+                        text: "Delete"; variant: "danger"; compact: true
                         onClicked: root.act("DELETE", "/servers/" + root.serverId + "/backups/" + modelData.uuid)
                     }
                 }

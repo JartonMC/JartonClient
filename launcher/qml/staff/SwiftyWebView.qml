@@ -40,11 +40,35 @@ Item {
         color: reloadArea.containsMouse ? "#26200f" : "#1b150e"
         border.color: "#2a2114"; border.width: 1
         opacity: 0.85
-        Text { anchors.centerIn: parent; text: "↻"; color: "#9a8a66"; font.pixelSize: 15 }
+        Image {
+            anchors.centerIn: parent
+            source: "qrc:/jarton/staff/icons/ui/refresh-cream.svg"
+            width: 14; height: 14; sourceSize: Qt.size(28, 28)
+        }
         MouseArea {
             id: reloadArea
             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
             onClicked: { root.failed = false; web.reload() }
+        }
+    }
+
+    // pop this view out into its own window (or dock it back) — top-right, above the page
+    Rectangle {
+        anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12
+        width: 30; height: 30; radius: 15
+        color: popArea.containsMouse ? "#26200f" : "#1b150e"
+        border.color: "#2a2114"; border.width: 1
+        opacity: 0.85
+        Image {
+            anchors.centerIn: parent
+            source: ProctorClient.swiftyPopped ? "qrc:/jarton/staff/icons/ui/corner-down-left-cream.svg"
+                                               : "qrc:/jarton/staff/icons/ui/external-link-cream.svg"
+            width: 14; height: 14; sourceSize: Qt.size(28, 28)
+        }
+        MouseArea {
+            id: popArea
+            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+            onClicked: ProctorClient.requestSwiftyPop(!ProctorClient.swiftyPopped)
         }
     }
 

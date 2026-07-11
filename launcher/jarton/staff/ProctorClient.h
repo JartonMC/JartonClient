@@ -31,6 +31,10 @@ class ProctorClient : public QObject {
     // channel both sides see. NOTIFY makes the panel's Loader react, which a plain
     // setProperty on a QML-declared property did not.
     Q_PROPERTY(QString currentSection READ currentSection NOTIFY sectionChanged)
+    // Whether the Swifty view is popped out into its own window. Same cross-engine
+    // rationale as currentSection: the docked panel's placeholder and the popped
+    // window's own chrome both bind here; MainWindow owns the actual window juggling.
+    Q_PROPERTY(bool swiftyPopped READ swiftyPopped NOTIFY swiftyPoppedChanged)
 
    public:
     explicit ProctorClient(const QString& tokenPath, QObject* parent = nullptr);
@@ -45,11 +49,17 @@ class ProctorClient : public QObject {
     bool admin() const { return m_admin; }
     bool allowApplications() const { return m_allowApplications; }
     QString currentSection() const { return m_currentSection; }
+    bool swiftyPopped() const { return m_swiftyPopped; }
+    // invokable because the host window reaches it through the QObject* accessor
+    Q_INVOKABLE void setSwiftyPopped(bool popped);
 
     Q_INVOKABLE void signIn(const QString& username, const QString& password);
     Q_INVOKABLE void signOut();
     Q_INVOKABLE void setCurrentSection(const QString& section);
     Q_INVOKABLE void copyToClipboard(const QString& text);
+    // QML asks; the host window answers by actually re-parenting the view and then
+    // confirming through setSwiftyPopped().
+    Q_INVOKABLE void requestSwiftyPop(bool popped) { emit swiftyPopRequested(popped); }
 
     // C++-side accessors for sibling staff models that reuse this broker session.
     QNetworkAccessManager* network() const { return m_nam; }
@@ -59,6 +69,8 @@ class ProctorClient : public QObject {
    signals:
     void changed();
     void sectionChanged();
+    void swiftyPoppedChanged();
+    void swiftyPopRequested(bool popped);
 
    private:
     void applyStaff(const QJsonObject& staff);
@@ -80,6 +92,7 @@ class ProctorClient : public QObject {
     bool m_admin = false;
     bool m_allowApplications = true;
     QString m_currentSection;
+    bool m_swiftyPopped = false;
 };
 
 }  // namespace Jarton

@@ -45,7 +45,7 @@ Item {
         Item {
             width: parent.width; height: 36
             Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Network"; color: "#F2E8D0"; font.pixelSize: 18; font.bold: true }
-            SButton { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
+            SButton { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: root.loading ? "…" : "Refresh"; icon: "refresh"; variant: "secondary"; onClicked: root.load() }
         }
         Text { width: parent.width; visible: root.error.length > 0; text: root.error; color: "#e06c6c"; font.pixelSize: 13 }
         Rectangle {

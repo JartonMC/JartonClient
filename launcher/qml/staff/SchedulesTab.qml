@@ -50,8 +50,8 @@ Item {
             Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Schedules"; color: "#F2E8D0"; font.pixelSize: 18; font.bold: true }
             Row {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 8
-                SButton { text: "New schedule"; glyph: "＋"; variant: "primary"; onClicked: root.creating = !root.creating }
-                SButton { text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
+                SButton { text: "New schedule"; icon: "plus"; variant: "primary"; onClicked: root.creating = !root.creating }
+                SButton { text: root.loading ? "…" : "Refresh"; icon: "refresh"; variant: "secondary"; onClicked: root.load() }
             }
         }
         // inline create form (name + cron)
@@ -116,8 +116,8 @@ Item {
                 }
                 Row {
                     anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 7
-                    SButton { text: "Run now"; variant: "secondary"; onClicked: root.act("POST", "/servers/" + root.serverId + "/schedules/" + modelData.id + "/execute", "{}") }
-                    SButton { text: "Delete"; variant: "danger"; onClicked: root.act("DELETE", "/servers/" + root.serverId + "/schedules/" + modelData.id) }
+                    SButton { text: "Run now"; variant: "secondary"; compact: true; onClicked: root.act("POST", "/servers/" + root.serverId + "/schedules/" + modelData.id + "/execute", "{}") }
+                    SButton { text: "Delete"; variant: "danger"; compact: true; onClicked: root.act("DELETE", "/servers/" + root.serverId + "/schedules/" + modelData.id) }
                 }
             }
             Text { anchors.centerIn: parent; visible: !root.loading && root.schedules.length === 0; text: "No schedules."; color: "#6b5d3f"; font.pixelSize: 14 }

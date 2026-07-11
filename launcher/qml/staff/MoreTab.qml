@@ -200,7 +200,7 @@ Item {
                         }
                         SButton {
                             visible: root.loginCode.length > 0 && root.codeLeft > 0
-                            text: "Copy"; variant: "ghost"
+                            text: "Copy"; icon: "copy"; variant: "ghost"
                             onClicked: ProctorClient.copyToClipboard(root.loginCode)
                         }
                     }
@@ -211,7 +211,7 @@ Item {
             Text { text: "ACCOUNT"; color: "#8a7a56"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 0.5 }
             Row {
                 spacing: 10
-                SButton { visible: ProctorClient.admin; text: "Send test push"; glyph: "🔔"; variant: "secondary"; onClicked: root.testPush() }
+                SButton { visible: ProctorClient.admin; text: "Send test push"; icon: "bell"; variant: "secondary"; onClicked: root.testPush() }
                 SButton { text: "Sign out"; variant: "danger"; onClicked: ProctorClient.signOut() }
             }
             Item { width: 1; height: 8 }  // bottom breathing room for the flick

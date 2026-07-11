@@ -59,7 +59,7 @@ Item {
         Row {
             width: parent.width
             spacing: 12
-            SButton { text: "Back"; glyph: "‹"; variant: "ghost"; anchors.verticalCenter: parent.verticalCenter; onClicked: view.back() }
+            SButton { text: "Back"; icon: "chevron-left"; variant: "ghost"; anchors.verticalCenter: parent.verticalCenter; onClicked: view.back() }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: PteroServer.serverName; color: "#F2E8D0"; font.pixelSize: 20; font.bold: true
@@ -119,34 +119,20 @@ Item {
             }
         }
 
-        // pill tab bar
-        Row {
-            spacing: 8
-            Repeater {
-                model: [
-                    { id: "console", label: "Console" }, { id: "files", label: "Files" },
-                    { id: "backups", label: "Backups" }, { id: "schedules", label: "Schedules" },
-                    { id: "network", label: "Network" }, { id: "subusers", label: "Subusers" },
-                    { id: "databases", label: "Databases" }
-                ]
-                delegate: Rectangle {
-                    width: tabLabel.width + 30; height: 32; radius: 16
-                    color: view.tab === modelData.id ? "#FFB81C" : (tabArea.containsMouse ? "#26200f" : "#1b150e")
-                    border.color: view.tab === modelData.id ? "transparent" : "#2a2114"; border.width: 1
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                    Text {
-                        id: tabLabel; anchors.centerIn: parent; text: modelData.label
-                        color: view.tab === modelData.id ? "#1a140e" : "#9a8a66"
-                        font.pixelSize: 13; font.bold: view.tab === modelData.id
-                    }
-                    MouseArea {
-                        id: tabArea
-                        anchors.fill: parent; hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: view.selectTab(modelData.id)
-                    }
-                }
-            }
+        // sub-tab bar
+        STabBar {
+            width: parent.width
+            current: view.tab
+            onSelected: (id) => view.selectTab(id)
+            model: [
+                { id: "console", label: "Console", icon: "terminal" },
+                { id: "files", label: "Files", icon: "folder" },
+                { id: "backups", label: "Backups", icon: "archive" },
+                { id: "schedules", label: "Schedules", icon: "clock" },
+                { id: "network", label: "Network", icon: "network" },
+                { id: "subusers", label: "Subusers", icon: "users" },
+                { id: "databases", label: "Databases", icon: "database" }
+            ]
         }
     }
 
@@ -279,7 +265,7 @@ Item {
                 spacing: 8
                 Row {
                     width: parent.width; height: 34; spacing: 10
-                    SButton { text: "Up"; glyph: "↑"; variant: "secondary"; onClicked: PteroFiles.up() }
+                    SButton { text: "Up"; icon: "chevron-up"; variant: "secondary"; onClicked: PteroFiles.up() }
                     Rectangle {
                         width: parent.width - 290; height: 34; radius: 9
                         color: "#15100a"; border.color: "#2a2114"; border.width: 1
@@ -290,7 +276,7 @@ Item {
                             elide: Text.ElideMiddle
                         }
                     }
-                    SButton { text: "New folder"; glyph: "＋"; variant: "secondary"; onClicked: { filesTab.renaming = ""; filesTab.creatingFolder = !filesTab.creatingFolder } }
+                    SButton { text: "New folder"; icon: "plus"; variant: "secondary"; onClicked: { filesTab.renaming = ""; filesTab.creatingFolder = !filesTab.creatingFolder } }
                     SButton { text: PteroFiles.loading ? "…" : "Refresh"; variant: "secondary"; onClicked: PteroFiles.refresh() }
                 }
                 // inline create-folder / rename input
@@ -385,7 +371,7 @@ Item {
                 Row {
                     id: edBar
                     width: parent.width; height: 36; spacing: 10
-                    SButton { text: "Files"; glyph: "‹"; variant: "ghost"; onClicked: PteroFiles.closeFile() }
+                    SButton { text: "Files"; icon: "chevron-left"; variant: "ghost"; onClicked: PteroFiles.closeFile() }
                     Rectangle {
                         width: parent.width - 230; height: 34; radius: 9
                         color: "#15100a"; border.color: "#2a2114"; border.width: 1

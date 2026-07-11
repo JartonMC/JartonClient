@@ -93,8 +93,8 @@ Item {
             Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Subusers"; color: "#F2E8D0"; font.pixelSize: 18; font.bold: true }
             Row {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 8
-                SButton { text: "Invite subuser"; glyph: "＋"; variant: "primary"; onClicked: root.openInvite() }
-                SButton { text: root.loading ? "…" : "Refresh"; glyph: "↻"; variant: "secondary"; onClicked: root.load() }
+                SButton { text: "Invite subuser"; icon: "plus"; variant: "primary"; onClicked: root.openInvite() }
+                SButton { text: root.loading ? "…" : "Refresh"; icon: "refresh"; variant: "secondary"; onClicked: root.load() }
             }
         }
         Text { width: parent.width; visible: root.error.length > 0; text: root.error; color: "#e06c6c"; font.pixelSize: 13 }
@@ -219,8 +219,8 @@ Item {
                 }
                 Row {
                     anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 7
-                    SButton { text: "Edit"; variant: "secondary"; onClicked: root.openEdit(modelData) }
-                    SButton { text: "Remove"; variant: "danger"; onClicked: root.act("DELETE", "/servers/" + root.serverId + "/users/" + modelData.uuid) }
+                    SButton { text: "Edit"; variant: "secondary"; compact: true; onClicked: root.openEdit(modelData) }
+                    SButton { text: "Remove"; variant: "danger"; compact: true; onClicked: root.act("DELETE", "/servers/" + root.serverId + "/users/" + modelData.uuid) }
                 }
             }
             Text { anchors.centerIn: parent; visible: !root.loading && root.users.length === 0; text: "No subusers."; color: "#6b5d3f"; font.pixelSize: 14 }

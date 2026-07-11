@@ -368,7 +368,7 @@ Item {
                 width: parent.width; height: 44
                 Row {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 12
-                    SButton { anchors.verticalCenter: parent.verticalCenter; text: "Back"; glyph: "‹"; variant: "ghost"; onClicked: { view.selUuid = ""; view.resetBrowse() } }
+                    SButton { anchors.verticalCenter: parent.verticalCenter; text: "Back"; icon: "chevron-left"; variant: "ghost"; onClicked: { view.selUuid = ""; view.resetBrowse() } }
                     Avatar { anchors.verticalCenter: parent.verticalCenter; size: 40; uuid: view.selUuid }
                     Column {
                         anchors.verticalCenter: parent.verticalCenter; spacing: 3

@@ -54,6 +54,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QScreen>
 #include <QButtonGroup>
 #include <QFileDialog>
 #include <QHBoxLayout>
@@ -500,6 +501,12 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         m_staffPanel->setResizeMode(QQuickWidget::SizeRootObjectToView);
         m_staffPanel->setSource(QUrl(QStringLiteral("qrc:/jarton/staff/StaffPanel.qml")));
         m_staffPanel->hide();
+
+        // Pop-out requests come from QML (the Swifty header chip / the docked
+        // placeholder) through the shared ProctorClient singleton.
+        if (auto* proctor = APPLICATION->jartonProctor()) {
+            connect(proctor, SIGNAL(swiftyPopRequested(bool)), this, SLOT(onSwiftyPopRequested(bool)));
+        }
 #endif
     }
     // The cat background
@@ -938,6 +945,14 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
     if ((obj == m_centralBg || obj == this) && ev->type() == QEvent::Resize) {
         repositionFloatingOverlays();
     }
+#ifdef LAUNCHER_STAFF
+    // Closing the popped-out Swifty window docks it back instead of destroying it —
+    // the WKWebView/WebView2 must survive, it carries the live session.
+    if (obj == m_swiftyView && ev->type() == QEvent::Close && m_swiftyPoppedOut) {
+        popInSwifty();
+        return true;
+    }
+#endif
     if (obj == view) {
         if (ev->type() == QEvent::KeyPress) {
             secretEventFilter->input(ev);
@@ -1796,24 +1811,142 @@ void MainWindow::showStaffSection(const QString& section)
 #ifdef LAUNCHER_STAFF
     // Swifty is a native webview (see m_swiftyView in the header) — swap its window
     // container in over the panel for the Swifty section, keep it hidden elsewhere.
+    // While popped out, the docked panel shows StaffPanel.qml's placeholder instead;
+    // picking the section just brings the floating window forward.
     if (section == QLatin1String("swifty")) {
-        if (m_swiftyContainer == nullptr && m_centralBg != nullptr) {
-            m_swiftyView = new QQuickView();
-            m_swiftyView->setResizeMode(QQuickView::SizeRootObjectToView);
-            m_swiftyView->setColor(QColor(0x0f, 0x0a, 0x06));
-            m_swiftyView->setSource(QUrl(QStringLiteral("qrc:/jarton/staff/SwiftyWebView.qml")));
-            m_swiftyContainer = QWidget::createWindowContainer(m_swiftyView, m_centralBg);
-        }
-        if (m_swiftyContainer != nullptr) {
-            m_swiftyContainer->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
-            m_swiftyContainer->show();
-            m_swiftyContainer->raise();
+        if (m_swiftyPoppedOut) {
+            if (m_swiftyView != nullptr) {
+                m_swiftyView->raise();
+                m_swiftyView->requestActivate();
+            }
+        } else {
+            if (m_swiftyContainer == nullptr && m_centralBg != nullptr) {
+                if (m_swiftyView == nullptr) {
+                    m_swiftyView = new QQuickView();
+                    m_swiftyView->setResizeMode(QQuickView::SizeRootObjectToView);
+                    m_swiftyView->setColor(QColor(0x0f, 0x0a, 0x06));
+                    m_swiftyView->setSource(QUrl(QStringLiteral("qrc:/jarton/staff/SwiftyWebView.qml")));
+                }
+                m_swiftyContainer = QWidget::createWindowContainer(m_swiftyView, m_centralBg);
+            }
+            if (m_swiftyContainer != nullptr) {
+                m_swiftyContainer->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
+                m_swiftyContainer->show();
+                m_swiftyContainer->raise();
+            }
         }
     } else if (m_swiftyContainer != nullptr) {
         m_swiftyContainer->hide();
     }
 #endif
 }
+
+#ifdef LAUNCHER_STAFF
+void MainWindow::onSwiftyPopRequested(bool popped)
+{
+    if (popped) {
+        popOutSwifty();
+    } else {
+        popInSwifty();
+    }
+}
+
+void MainWindow::popOutSwifty()
+{
+    if (m_swiftyView == nullptr || m_swiftyPoppedOut) {
+        return;
+    }
+    // Release the window from its container BEFORE the container dies — the container
+    // owns the window and would take it down otherwise. Containers can't be reused
+    // after their window leaves, so it's recreated on pop-in.
+    m_swiftyView->setParent(nullptr);
+    if (m_swiftyContainer != nullptr) {
+        m_swiftyContainer->hide();
+        m_swiftyContainer->deleteLater();
+        m_swiftyContainer = nullptr;
+    }
+    m_swiftyView->setFlags(Qt::Window);
+    m_swiftyView->setTitle(tr("Swifty — Jarton Client"));
+
+    QRect r;
+    const QStringList parts = APPLICATION->settings()->get("SwiftyWindowGeometry").toString().split(',');
+    if (parts.size() == 4) {
+        r = QRect(parts[0].toInt(), parts[1].toInt(), parts[2].toInt(), parts[3].toInt());
+    }
+    if (r.width() < 400 || r.height() < 300) {
+        r = QRect(0, 0, 1100, 720);
+        r.moveCenter(geometry().center());
+    }
+    // a remembered position on a since-unplugged monitor gets pulled back on-screen
+    QScreen* screen = QGuiApplication::screenAt(r.center());
+    if (screen == nullptr) {
+        screen = windowHandle() != nullptr && windowHandle()->screen() != nullptr ? windowHandle()->screen()
+                                                                                  : QGuiApplication::primaryScreen();
+        r.moveCenter(screen->availableGeometry().center());
+    }
+    m_swiftyView->setGeometry(r);
+
+    if (!m_swiftyFilterInstalled) {
+        m_swiftyView->installEventFilter(this);
+        m_swiftyFilterInstalled = true;
+    }
+    m_swiftyPoppedOut = true;
+    m_swiftyView->show();
+    m_swiftyView->requestActivate();
+    if (auto* proctor = APPLICATION->jartonProctor()) {
+        QMetaObject::invokeMethod(proctor, "setSwiftyPopped", Q_ARG(bool, true));
+    }
+}
+
+void MainWindow::popInSwifty()
+{
+    if (!m_swiftyPoppedOut || m_swiftyView == nullptr) {
+        return;
+    }
+    saveSwiftyWindowGeometry();
+    m_swiftyView->hide();
+    m_swiftyPoppedOut = false;
+    if (m_centralBg != nullptr) {
+        // Fresh container each time (see popOutSwifty). If the platform view ever comes
+        // back blank after re-wrapping, the fallback is recreating the QQuickView here —
+        // Swifty's session lives in localStorage, so it lands back on the boards.
+        m_swiftyContainer = QWidget::createWindowContainer(m_swiftyView, m_centralBg);
+        auto* proctor = APPLICATION->jartonProctor();
+        const bool onSwifty = proctor != nullptr && proctor->property("currentSection").toString() == QLatin1String("swifty");
+        if (onSwifty) {
+            m_swiftyContainer->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
+            m_swiftyContainer->show();
+            m_swiftyContainer->raise();
+        }
+    }
+    if (auto* proctor = APPLICATION->jartonProctor()) {
+        QMetaObject::invokeMethod(proctor, "setSwiftyPopped", Q_ARG(bool, false));
+    }
+}
+
+void MainWindow::saveSwiftyWindowGeometry()
+{
+    if (m_swiftyView == nullptr || !m_swiftyPoppedOut) {
+        return;
+    }
+    const QRect r = m_swiftyView->geometry();
+    APPLICATION->settings()->set("SwiftyWindowGeometry",
+                                 QString("%1,%2,%3,%4").arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height()));
+}
+#else
+void MainWindow::onSwiftyPopRequested(bool)
+{
+}
+void MainWindow::popOutSwifty()
+{
+}
+void MainWindow::popInSwifty()
+{
+}
+void MainWindow::saveSwiftyWindowGeometry()
+{
+}
+#endif
 
 void MainWindow::on_actionDeleteInstance_triggered()
 {
@@ -1912,6 +2045,15 @@ void MainWindow::on_actionViewSelectedInstFolder_triggered()
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
+#ifdef LAUNCHER_STAFF
+    // Take the popped-out Swifty window down with us (it would otherwise keep the
+    // app alive). Geometry saved first so the next pop-out lands where it was.
+    if (m_swiftyPoppedOut && m_swiftyView != nullptr) {
+        saveSwiftyWindowGeometry();
+        m_swiftyView->removeEventFilter(this);
+        m_swiftyView->close();
+    }
+#endif
     // Save the window state and geometry.
     APPLICATION->settings()->set("MainWindowState", QString::fromUtf8(saveState().toBase64()));
     APPLICATION->settings()->set("MainWindowGeometry", QString::fromUtf8(saveGeometry().toBase64()));
