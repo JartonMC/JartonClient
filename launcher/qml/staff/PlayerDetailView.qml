@@ -125,6 +125,10 @@ Item {
         reqNoteAdd = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "note-add", args: { target: uuid, text: text } }))
         banner = "Note added"
     }
+    function removeNote(noteId) {
+        reqNoteAdd = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "note-remove", args: { target: uuid, noteId: noteId } }))
+        banner = "Note removed"
+    }
     function allIds() {
         var ids = []
         for (var i = 0; i < sections.length; i++) for (var j = 0; j < sections[i].offenses.length; j++) ids.push(sections[i].offenses[j].id)
@@ -421,13 +425,14 @@ Item {
                         model: root.offencesOpen ? root.flatOffences() : []
                         delegate: Rectangle {
                             required property var modelData
-                            width: detailCol.width; height: 48; radius: 10
+                            width: detailCol.width; height: Math.max(48, oCol.height + 18); radius: 10
                             color: root.selected.indexOf(modelData.id) !== -1 ? Qt.rgba(1, 0.72, 0.2, 0.12) : (oa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.04))
                             border.color: root.selected.indexOf(modelData.id) !== -1 ? "#FFB833" : "transparent"; border.width: 1
                             Column {
+                                id: oCol
                                 anchors.left: parent.left; anchors.leftMargin: 14; anchors.right: chk.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; spacing: 2
                                 Text { text: modelData.display; color: "#FFFFFF"; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight; width: parent.width }
-                                Text { text: root.rungLabel(modelData); color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11; visible: text.length > 0 }
+                                Text { text: root.rungLabel(modelData); color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11; visible: text.length > 0; width: parent.width; wrapMode: Text.WordWrap }
                             }
                             Text { id: chk; anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; text: root.selected.indexOf(modelData.id) !== -1 ? "✓" : ""; color: "#FFB833"; font.pixelSize: 16; font.bold: true }
                             MouseArea { id: oa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggle(modelData.id) }
@@ -734,12 +739,20 @@ Item {
                         width: detailCol.width; height: nc.height + 18; radius: 11; color: Qt.rgba(1, 1, 1, 0.04)
                         Column {
                             id: nc
-                            anchors.left: parent.left; anchors.leftMargin: 14; anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 3
+                            anchors.left: parent.left; anchors.leftMargin: 14; anchors.right: noteX.left; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; spacing: 3
                             Row { spacing: 8
                                 Text { text: modelData.staffName ? modelData.staffName : "staff"; color: "#FFE082"; font.pixelSize: 12; font.bold: true }
                                 Text { text: root.relTime(modelData.timestamp); color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
                             }
                             Text { width: parent.width; text: modelData.note ? modelData.note : ""; color: Qt.rgba(1, 1, 1, 0.8); font.pixelSize: 12; wrapMode: Text.WordWrap }
+                        }
+                        Image {
+                            id: noteX
+                            anchors.right: parent.right; anchors.rightMargin: 12; anchors.top: parent.top; anchors.topMargin: 12
+                            source: "qrc:/jarton/staff/icons/ui/x-cream.svg"
+                            width: 11; height: 11; sourceSize: Qt.size(22, 22)
+                            opacity: xHover.containsMouse ? 0.9 : 0.35
+                            MouseArea { id: xHover; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.removeNote(modelData.id) }
                         }
                     }
                 }

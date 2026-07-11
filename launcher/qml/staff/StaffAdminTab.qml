@@ -20,20 +20,45 @@ Item {
 
     onVisibleChanged: if (visible && !loadedOnce) { loadedOnce = true; load(); reqRanks = ProctorApi.send("GET", "/proctor/ranks") }
 
+    // success banners clear themselves; errors stay until the next action
+    Timer { id: bannerTimer; interval: 4000; onTriggered: root.banner = "" }
+
+    function say(msg) { bannerError = false; banner = msg; bannerTimer.stop() }
     function load() { loading = true; error = ""; reqList = ProctorApi.send("GET", "/proctor/staff") }
+
+    // background roster refresh: silent + change-gated, and paused whenever a
+    // card is expanded or the add form is open so edits never get clobbered
+    readonly property int autoRefreshMs: 30000
+    property int quietReq: -1
+    property string lastPayload: ""
+    function quietLoad() {
+        if (loading || quietReq !== -1 || adding || openId !== -1 || pendingWrites.length > 0) return
+        quietReq = ProctorApi.send("GET", "/proctor/staff")
+    }
+    Timer { interval: root.autoRefreshMs; repeat: true; running: root.visible; onTriggered: root.quietLoad() }
     function track(reqId) { var p = pendingWrites; p.push(reqId); pendingWrites = p }
-    function createStaff(body) { track(ProctorApi.send("POST", "/proctor/staff", JSON.stringify(body))); bannerError = false; banner = "Adding " + body.username + "…" }
-    function patchStaff(id, body) { track(ProctorApi.send("PATCH", "/proctor/staff/" + id, JSON.stringify(body))) }
-    function removeStaff(id) { track(ProctorApi.send("DELETE", "/proctor/staff/" + id)); bannerError = false; banner = "Removed staff." }
-    function resetPw(id, pw) { track(ProctorApi.send("POST", "/proctor/staff/" + id + "/password", JSON.stringify({ password: pw }))); bannerError = false; banner = "Password reset." }
+    function createStaff(body) { track(ProctorApi.send("POST", "/proctor/staff", JSON.stringify(body))); say("Adding " + body.username + "…") }
+    function patchStaff(id, body) { track(ProctorApi.send("PATCH", "/proctor/staff/" + id, JSON.stringify(body))); say("Saving…") }
+    function removeStaff(id) { track(ProctorApi.send("DELETE", "/proctor/staff/" + id)); say("Removing…") }
+    function resetPw(id, pw) { track(ProctorApi.send("POST", "/proctor/staff/" + id + "/password", JSON.stringify({ password: pw }))); say("Resetting password…") }
 
     Connections {
         target: ProctorApi
         function onResponse(id, ok, status, body) {
+            if (id === root.quietReq) {
+                root.quietReq = -1
+                // an edit may have opened while the poll was in flight — drop the result
+                if (!ok || body === root.lastPayload || root.adding || root.openId !== -1) return
+                root.lastPayload = body
+                try { root.staff = JSON.parse(body).staff || [] } catch (e) {}
+                return
+            }
             if (id === root.reqList) {
                 root.loading = false
-                if (ok) { try { root.staff = JSON.parse(body).staff || [] } catch (e) { root.staff = [] } }
-                else root.error = "Couldn't load staff (admin only)."
+                if (ok) {
+                    root.lastPayload = body
+                    try { root.staff = JSON.parse(body).staff || [] } catch (e) { root.staff = [] }
+                } else root.error = "Couldn't load staff (admin only)."
                 return
             }
             if (id === root.reqRanks) {
@@ -51,8 +76,11 @@ Item {
                     try { msg = JSON.parse(body).error || "" } catch (e) {}
                     root.banner = msg.length ? msg : "Action failed (" + status + ")."
                     root.bannerError = true
+                    bannerTimer.stop()
                 } else {
                     root.bannerError = false
+                    root.banner = "Done."
+                    bannerTimer.restart()
                 }
                 root.load()
             }
@@ -83,7 +111,7 @@ Item {
         // ---- add form ----
         Rectangle {
             id: addForm
-            width: parent.width; height: addFormCol.height + 24; radius: 12; visible: root.adding; color: Qt.rgba(1, 1, 1, 0.05); border.color: "#FFB833"; border.width: 1
+            width: parent.width; height: addFormCol.height + 24; radius: 12; visible: root.adding; color: "#15100a"; border.color: "#FFB81C"; border.width: 1
             Column {
                 id: addFormCol
                 anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 12; spacing: 8
@@ -133,7 +161,8 @@ Item {
                 required property var modelData
                 readonly property bool open: root.openId === modelData.id
                 width: ListView.view.width; height: sCol.height + 22; radius: 12
-                color: Qt.rgba(1, 1, 1, 0.04); opacity: modelData.enabled === false ? 0.55 : 1.0
+                color: "#16110a"; border.color: sCard.open ? "#3a2f14" : "#241c12"; border.width: 1
+                opacity: modelData.enabled === false ? 0.55 : 1.0
                 Behavior on height { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
 
                 Column {
@@ -144,8 +173,22 @@ Item {
                         Avatar { id: sh; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; size: 30; uuid: modelData.mcUuid ? modelData.mcUuid : "" }
                         Column {
                             anchors.left: sh.right; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                            Text { text: modelData.displayName ? modelData.displayName : modelData.username; color: "#FFFFFF"; font.pixelSize: 14; font.bold: true }
-                            Text { text: (modelData.mcName ? modelData.mcName : modelData.username) + "   ·   @" + modelData.username; color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11 }
+                            Text { text: modelData.displayName ? modelData.displayName : modelData.username; color: "#F2E8D0"; font.pixelSize: 14; font.bold: true }
+                            Row {
+                                spacing: 6
+                                Text { text: (modelData.mcName ? modelData.mcName : modelData.username) + "   ·   @" + modelData.username; color: "#9a8a66"; font.pixelSize: 11 }
+                                Rectangle {
+                                    visible: !!modelData.discord
+                                    width: dcT.width + 12; height: 16; radius: 8; color: Qt.rgba(0.45, 0.5, 0.9, 0.18)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    Text { id: dcT; anchors.centerIn: parent; text: "@" + (modelData.discord || ""); color: "#9aa4ff"; font.pixelSize: 10; font.bold: true }
+                                    MouseArea {
+                                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                        // copyable, same as the player profile's linked-Discord badge
+                                        onClicked: { ProctorClient.copyToClipboard("@" + modelData.discord); root.say("Copied @" + modelData.discord) }
+                                    }
+                                }
+                            }
                         }
                         Row {
                             anchors.right: chev.left; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; spacing: 6
@@ -155,7 +198,15 @@ Item {
                                 Text { id: adT; anchors.centerIn: parent; text: "admin"; color: "#5ad17a"; font.pixelSize: 10; font.bold: true } }
                             Rectangle { visible: modelData.active === true; width: 8; height: 8; radius: 4; color: "#5ad17a"; anchors.verticalCenter: parent.verticalCenter }
                         }
-                        Text { id: chev; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: sCard.open ? "▾" : "▸"; color: Qt.rgba(1, 1, 1, 0.3); font.pixelSize: 13 }
+                        Image {
+                            id: chev
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            source: "qrc:/jarton/staff/icons/ui/chevron-up-cream.svg"
+                            width: 12; height: 12; sourceSize: Qt.size(24, 24)
+                            opacity: 0.45
+                            rotation: sCard.open ? 180 : 90
+                            Behavior on rotation { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+                        }
                     }
 
                     // expanded controls
@@ -168,17 +219,17 @@ Item {
                             SButton { anchors.top: parent.top; anchors.topMargin: 0; height: 32; text: "Save rank"; variant: "secondary"; onClicked: if (erank.value.length) root.patchStaff(modelData.id, { rank: erank.value }) }
                         }
                         Row {
-                            spacing: 8
-                            SButton { text: modelData.proctorAdmin ? "Revoke admin" : "Make admin"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { proctorAdmin: !modelData.proctorAdmin }) }
-                            SButton { text: modelData.autoOp ? "Disable auto-op" : "Enable auto-op"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { autoOp: !modelData.autoOp }) }
-                            SButton { text: modelData.allowApplications === false ? "Allow applications" : "Block applications"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { allowApplications: modelData.allowApplications === false }) }
-                            SButton { text: modelData.enabled === false ? "Enable" : "Disable"; variant: modelData.enabled === false ? "primary" : "ghost"; onClicked: root.patchStaff(modelData.id, { enabled: modelData.enabled === false }) }
+                            spacing: 7
+                            SButton { compact: true; text: modelData.proctorAdmin ? "Revoke admin" : "Make admin"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { proctorAdmin: !modelData.proctorAdmin }) }
+                            SButton { compact: true; text: modelData.autoOp ? "Disable auto-op" : "Enable auto-op"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { autoOp: !modelData.autoOp }) }
+                            SButton { compact: true; text: modelData.allowApplications === false ? "Allow applications" : "Block applications"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { allowApplications: modelData.allowApplications === false }) }
+                            SButton { compact: true; text: modelData.enabled === false ? "Enable" : "Disable"; variant: modelData.enabled === false ? "primary" : "ghost"; onClicked: root.patchStaff(modelData.id, { enabled: modelData.enabled === false }) }
                         }
                         Row {
-                            width: parent.width; spacing: 8
+                            width: parent.width; spacing: 7
                             StaffField { id: epw; ph: "new password (min 8)"; pw: true; w: (parent.width - 8) / 2 }
-                            SButton { anchors.verticalCenter: parent.verticalCenter; text: "Reset password"; variant: "secondary"; onClicked: if (epw.value.length >= 8) { root.resetPw(modelData.id, epw.value); epw.clear() } }
-                            SButton { anchors.verticalCenter: parent.verticalCenter; text: "Remove"; variant: "danger"; onClicked: root.removeStaff(modelData.id) }
+                            SButton { compact: true; anchors.verticalCenter: parent.verticalCenter; text: "Reset password"; variant: "secondary"; onClicked: if (epw.value.length >= 8) { root.resetPw(modelData.id, epw.value); epw.clear() } }
+                            SButton { compact: true; anchors.verticalCenter: parent.verticalCenter; text: "Remove"; variant: "danger"; onClicked: root.removeStaff(modelData.id) }
                         }
                     }
                 }
@@ -201,14 +252,14 @@ Item {
         property string preset: ""
         property alias value: ti.text
         function clear() { ti.text = "" }
-        width: w; height: 32; radius: 8; color: Qt.rgba(1, 1, 1, 0.06)
-        border.color: ti.activeFocus ? "#FFB833" : "transparent"; border.width: 1
+        width: w; height: 32; radius: 8; color: "#0f0a06"
+        border.color: ti.activeFocus ? "#FFB81C" : "#2a2114"; border.width: 1
         Component.onCompleted: if (preset.length) ti.text = preset
         TextInput {
             id: ti; anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
-            verticalAlignment: TextInput.AlignVCenter; color: "#FFFFFF"; font.pixelSize: 12; clip: true
+            verticalAlignment: TextInput.AlignVCenter; color: "#F2E8D0"; font.pixelSize: 12; clip: true
             echoMode: fld.pw ? TextInput.Password : TextInput.Normal
-            Text { anchors.verticalCenter: parent.verticalCenter; text: fld.ph; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 12; visible: ti.text.length === 0 }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: fld.ph; color: "#6b5d3f"; font.pixelSize: 12; visible: ti.text.length === 0 }
         }
     }
     // rank picker fed by /proctor/ranks; expands in place (no overlay popup — the
@@ -224,8 +275,8 @@ Item {
         readonly property string value: dd ? picked : rti.text
         function clear() { picked = ""; rti.text = ""; open = false }
         width: w; height: 32 + (dd && open ? optFlick.height + 6 : 0)
-        radius: 8; color: Qt.rgba(1, 1, 1, 0.06)
-        border.color: (dd ? open : rti.activeFocus) ? "#FFB833" : "transparent"; border.width: 1
+        radius: 8; color: "#0f0a06"
+        border.color: (dd ? open : rti.activeFocus) ? "#FFB81C" : "#2a2114"; border.width: 1
         Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
         Component.onCompleted: if (preset.length) { picked = preset; rti.text = preset }
 
@@ -234,7 +285,7 @@ Item {
             Text {
                 anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
                 text: rf.picked.length ? rf.picked : "rank"
-                color: rf.picked.length ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 12
+                color: rf.picked.length ? "#F2E8D0" : "#6b5d3f"; font.pixelSize: 12
             }
             Text {
                 anchors.right: parent.right; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter
@@ -273,8 +324,8 @@ Item {
             id: rti; visible: !rf.dd
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
             anchors.leftMargin: 10; anchors.rightMargin: 10; height: 32
-            verticalAlignment: TextInput.AlignVCenter; color: "#FFFFFF"; font.pixelSize: 12; clip: true
-            Text { anchors.verticalCenter: parent.verticalCenter; text: "rank"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 12; visible: rti.text.length === 0 }
+            verticalAlignment: TextInput.AlignVCenter; color: "#F2E8D0"; font.pixelSize: 12; clip: true
+            Text { anchors.verticalCenter: parent.verticalCenter; text: "rank"; color: "#6b5d3f"; font.pixelSize: 12; visible: rti.text.length === 0 }
         }
     }
     component AdminToggle: Rectangle {
@@ -282,9 +333,9 @@ Item {
         property string label: ""
         property bool on: false
         height: 32; width: tgl.width + 22; radius: 8
-        color: on ? Qt.rgba(1, 0.72, 0.2, 0.18) : Qt.rgba(1, 1, 1, 0.06)
-        border.color: on ? "#FFB833" : "transparent"; border.width: 1
-        Text { id: tgl; anchors.centerIn: parent; text: tg.label; color: tg.on ? "#FFB833" : Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 12; font.bold: tg.on }
+        color: on ? "#3a2f14" : "#0f0a06"
+        border.color: on ? "#FFB81C" : "#2a2114"; border.width: 1
+        Text { id: tgl; anchors.centerIn: parent; text: tg.label; color: tg.on ? "#FFE082" : "#8a7a56"; font.pixelSize: 12; font.bold: tg.on }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tg.on = !tg.on }
     }
 }

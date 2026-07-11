@@ -2,15 +2,14 @@ import QtQuick
 import Jarton
 
 // Staff "More": profile, per-staff notification toggles (the same set the Companion edits,
-// PATCH /proctor/me/notifications), a test push, and sign-out. Read state from /proctor/me;
-// each toggle PATCHes one field and the response echoes the full staff row back into `staff`.
+// PATCH /proctor/me/notifications), the in-game login code, and sign-out. Read state from
+// /proctor/me; each toggle PATCHes one field and the response echoes the staff row back.
 Item {
     id: root
     property var staff: ({})
     property bool loaded: false
     property int reqMe: -1
     property var pending: ({})       // proctor write ids
-    property var pendingPush: ({})   // cap-API test-push ids
     property var pendingCode: ({})   // staff-login-code request ids
     property string banner: ""
 
@@ -29,10 +28,6 @@ Item {
     function setNotif(key, value) {
         var body = {}; body[key] = value
         root.pending[ProctorApi.send("PATCH", "/proctor/me/notifications", JSON.stringify(body))] = true
-    }
-    function testPush() {
-        root.banner = "Sending test push…"
-        root.pendingPush[StaffApi.send("POST", "/notify/test", "{}")] = true
     }
     function requestCode() {
         root.pendingCode[ProctorApi.send("POST", "/proctor/codes", JSON.stringify({ deviceName: "Jarton Client" }))] = true
@@ -73,23 +68,21 @@ Item {
         running: root.loginCode.length > 0 && root.codeLeft > 0
         onTriggered: root.codeLeft = Math.max(0, Math.round((root.codeExpiry - Date.now()) / 1000))
     }
-    Connections {
-        target: StaffApi
-        function onResponse(id, ok, status, body) {
-            if (root.pendingPush[id] === undefined) return
-            delete root.pendingPush[id]
-            if (ok) { try { root.banner = "Test push sent to " + (JSON.parse(body).devices || 0) + " device(s)." } catch (e) { root.banner = "Test push sent." } }
-            else root.banner = "Test push failed (" + status + ")."
-        }
-    }
-
     component NotifToggle: Item {
         id: t
         property string label: ""
+        property string icon: ""
         property bool value: false
         signal toggled(bool v)
         height: 42
-        Text { anchors.left: parent.left; anchors.leftMargin: 2; anchors.verticalCenter: parent.verticalCenter; text: t.label; color: "#F2E8D0"; font.pixelSize: 14 }
+        Image {
+            id: tIcon
+            visible: t.icon.length > 0
+            anchors.left: parent.left; anchors.leftMargin: 2; anchors.verticalCenter: parent.verticalCenter
+            source: t.icon.length > 0 ? "qrc:/jarton/staff/icons/ui/" + t.icon + "-rest.svg" : ""
+            width: 14; height: 14; sourceSize: Qt.size(28, 28)
+        }
+        Text { anchors.left: t.icon.length > 0 ? tIcon.right : parent.left; anchors.leftMargin: t.icon.length > 0 ? 10 : 2; anchors.verticalCenter: parent.verticalCenter; text: t.label; color: "#F2E8D0"; font.pixelSize: 14 }
         Rectangle {
             anchors.right: parent.right; anchors.rightMargin: 2; anchors.verticalCenter: parent.verticalCenter
             width: 44; height: 24; radius: 12
@@ -138,17 +131,17 @@ Item {
                     anchors.top: parent.top; anchors.topMargin: 10
                     anchors.left: parent.left; anchors.right: parent.right
                     anchors.leftMargin: 16; anchors.rightMargin: 16
-                    NotifToggle { width: parent.width; label: "Tickets"; value: root.on("notify_tickets", "notifyTickets"); onToggled: (v) => root.setNotif("tickets", v) }
-                    NotifToggle { width: parent.width; label: "Applications"; value: root.on("notify_applications", "notifyApplications"); onToggled: (v) => root.setNotif("applications", v) }
-                    NotifToggle { width: parent.width; label: "Reports"; value: root.on("notify_reports", "notifyReports"); onToggled: (v) => root.setNotif("reports", v) }
-                    NotifToggle { width: parent.width; label: "Punishments"; value: root.on("notify_punish", "notifyPunish"); onToggled: (v) => root.setNotif("punish", v) }
-                    NotifToggle { width: parent.width; label: "Ban evaders"; value: root.on("notify_evader", "notifyEvader"); onToggled: (v) => root.setNotif("evader", v) }
+                    NotifToggle { width: parent.width; label: "Tickets"; icon: "ticket"; value: root.on("notify_tickets", "notifyTickets"); onToggled: (v) => root.setNotif("tickets", v) }
+                    NotifToggle { width: parent.width; label: "Applications"; icon: "file-text"; value: root.on("notify_applications", "notifyApplications"); onToggled: (v) => root.setNotif("applications", v) }
+                    NotifToggle { width: parent.width; label: "Reports"; icon: "flag"; value: root.on("notify_reports", "notifyReports"); onToggled: (v) => root.setNotif("reports", v) }
+                    NotifToggle { width: parent.width; label: "Punishments"; icon: "shield"; value: root.on("notify_punish", "notifyPunish"); onToggled: (v) => root.setNotif("punish", v) }
+                    NotifToggle { width: parent.width; label: "Ban evaders"; icon: "users"; value: root.on("notify_evader", "notifyEvader"); onToggled: (v) => root.setNotif("evader", v) }
                     // server alerts are Pterodactyl territory — the toggles only exist for staff with the panel role
-                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Mass disconnects"; value: root.on("notify_massdisc", "notifyMassDisc"); onToggled: (v) => root.setNotif("massDisc", v) }
-                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Server crashes"; value: root.on("notify_crash", "notifyCrash"); onToggled: (v) => root.setNotif("crash", v) }
-                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Server recovered"; value: root.on("notify_recovered", "notifyRecovered"); onToggled: (v) => root.setNotif("recovered", v) }
-                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Bridge offline"; value: root.on("notify_bridge", "notifyBridge"); onToggled: (v) => root.setNotif("bridge", v) }
-                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Command abuse"; value: root.on("notify_abuse", "notifyAbuse"); onToggled: (v) => root.setNotif("abuse", v) }
+                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Mass disconnects"; icon: "network"; value: root.on("notify_massdisc", "notifyMassDisc"); onToggled: (v) => root.setNotif("massDisc", v) }
+                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Server crashes"; icon: "terminal"; value: root.on("notify_crash", "notifyCrash"); onToggled: (v) => root.setNotif("crash", v) }
+                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Server recovered"; icon: "clock"; value: root.on("notify_recovered", "notifyRecovered"); onToggled: (v) => root.setNotif("recovered", v) }
+                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Bridge offline"; icon: "external-link"; value: root.on("notify_bridge", "notifyBridge"); onToggled: (v) => root.setNotif("bridge", v) }
+                    NotifToggle { visible: StaffAuth.canPanel; width: parent.width; label: "Command abuse"; icon: "bell"; value: root.on("notify_abuse", "notifyAbuse"); onToggled: (v) => root.setNotif("abuse", v) }
                 }
             }
             Text {
@@ -211,8 +204,7 @@ Item {
             Text { text: "ACCOUNT"; color: "#8a7a56"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 0.5 }
             Row {
                 spacing: 10
-                SButton { visible: ProctorClient.admin; text: "Send test push"; icon: "bell"; variant: "secondary"; onClicked: root.testPush() }
-                SButton { text: "Sign out"; variant: "danger"; onClicked: ProctorClient.signOut() }
+                SButton { text: "Sign out"; icon: "x"; variant: "danger"; onClicked: ProctorClient.signOut() }
             }
             Item { width: 1; height: 8 }  // bottom breathing room for the flick
         }
