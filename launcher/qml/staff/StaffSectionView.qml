@@ -7,6 +7,7 @@ import Jarton
 Item {
     id: section
     property string subtab: "players"
+    onSubtabChanged: ProctorClient.notifyActivity()
 
     Row {
         id: tabs

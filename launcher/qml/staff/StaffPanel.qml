@@ -13,7 +13,7 @@ Rectangle {
     focus: true
 
     readonly property string section: ProctorClient.currentSection
-    readonly property bool needsProctorLogin: section === "staff" && !ProctorClient.connected
+    readonly property bool needsProctorLogin: section === "staff" && !ProctorClient.connected && !ProctorClient.restoring
 
     function sectionTitle(s) {
         return s === "ptero" ? "Pterodactyl" : s === "staff" ? "Staff" : s === "swifty" ? "Swifty" : ""
@@ -122,8 +122,18 @@ Rectangle {
         Loader {
             anchors.fill: parent
             active: panel.section === "ptero" || (panel.section === "staff" && ProctorClient.connected)
+            // while pin-locked the gate REPLACES the section content — the tabs and
+            // their data unload entirely rather than hiding behind an overlay
             source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
-                  : panel.section === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
+                  : panel.section === "staff" ? (ProctorClient.pinLocked ? "qrc:/jarton/staff/PinGate.qml"
+                                                                         : "qrc:/jarton/staff/StaffSectionView.qml") : ""
+        }
+
+        Text {
+            anchors.centerIn: parent
+            visible: panel.section === "staff" && ProctorClient.restoring
+            text: "Connecting…"
+            color: "#9a8a66"; font.pixelSize: 14
         }
 
         Text {
