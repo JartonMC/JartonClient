@@ -1,0 +1,92 @@
+name: Staff Build
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build (Staff-Windows-MSVC)
+
+    permissions:
+      contents: read
+      # Required for Azure Trusted Signing
+      id-token: write
+      # Required for vcpkg binary cache
+      packages: write
+
+    runs-on: windows-2022
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      ARTIFACT_NAME: Staff-Windows-MSVC-Qt6
+      BUILD_PLATFORM: official
+      BUILD_TYPE: Release
+      CMAKE_PRESET: windows_msvc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Setup dependencies
+        id: setup-dependencies
+        uses: ./.github/actions/setup-dependencies
+        with:
+          build-type: ${{ env.BUILD_TYPE }}
+          artifact-name: Staff-Windows-MSVC
+          vcvars-arch: amd64
+          qt-version: 6.10.2
+          # qtwebview backs the embedded Swifty board (WebView2 on Windows)
+          qt-modules: qtimageformats qtnetworkauth qtwebview
+
+      - name: Configure project
+        run: |
+          cmake --preset "$CMAKE_PRESET" -DLauncher_STAFF=ON
+
+      - name: Run build
+        run: |
+          cmake --build --preset "$CMAKE_PRESET" --config "$BUILD_TYPE"
+
+      - name: Run tests
+        run: |
+          ctest --preset "$CMAKE_PRESET" --build-config "$BUILD_TYPE"
+
+      - name: Get short version
+        id: short-version
+        run: |
+          echo "version=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Install (portable layout)
+        shell: pwsh
+        run: |
+          cmake --install build --config ${{ env.BUILD_TYPE }}
+          cmake --install build --config ${{ env.BUILD_TYPE }} --component portable
+
+      # the shared deploy script runs windeployqt with --no-quick-import; the
+      # public client has no QML so that's fine, but the staff panel needs the
+      # QtQuick + QtWebView QML modules deployed alongside the exe
+      - name: Deploy staff QML modules
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem install -Filter jartonclient.exe -Recurse | Select-Object -First 1
+          if (-not $exe) { throw "jartonclient.exe not found in install/" }
+          windeployqt --release --qmldir launcher/qml $exe.FullName
+          if (-not (Test-Path "$($exe.DirectoryName)/qml/QtWebView")) {
+            throw "QtWebView QML module missing after deploy"
+          }
+
+      - name: Upload portable build
+        uses: actions/upload-artifact@v7
+        with:
+          name: JartonClient-Staff-Windows-Portable-${{ steps.short-version.outputs.version }}-${{ env.BUILD_TYPE }}
+          path: install/**
