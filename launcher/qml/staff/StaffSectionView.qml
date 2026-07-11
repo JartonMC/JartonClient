@@ -7,8 +7,6 @@ import Jarton
 Item {
     id: section
     property string subtab: "players"
-    // Alerts is mostly Pterodactyl noise — needs the panel Discord role on top of admin
-    readonly property bool canAlerts: ProctorClient.admin && StaffAuth.canPanel
 
     // access can be revoked mid-session (admin edits the account, /proctor/me refresh
     // lands) — don't leave the view parked on a tab whose chip just disappeared
@@ -16,7 +14,6 @@ Item {
         target: ProctorClient
         function onChanged() {
             if ((section.subtab === "applications" && !ProctorClient.allowApplications)
-                || (section.subtab === "alerts" && !section.canAlerts)
                 || (section.subtab === "staff" && !ProctorClient.admin)) {
                 section.subtab = "players"
             }
@@ -36,9 +33,9 @@ Item {
             ]
             if (ProctorClient.allowApplications) m.push({ id: "applications", label: "Applications", icon: "file-text" })
             m.push({ id: "reports", label: "Reports", icon: "flag" })
-            // the alerts feed is proctorAdminGuard on the broker — no point showing
-            // a tab that can only ever 403 into an empty list
-            if (section.canAlerts) m.push({ id: "alerts", label: "Alerts", icon: "bell" })
+            // everyone's personal notification inbox; the raw server-alert history
+            // inside it stays gated to admin + panel role
+            m.push({ id: "alerts", label: "Alerts", icon: "bell" })
             if (ProctorClient.admin) m.push({ id: "staff", label: "Staff", icon: "shield" })
             m.push({ id: "more", label: "More", icon: "more-horizontal" })
             return m

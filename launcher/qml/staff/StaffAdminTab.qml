@@ -10,6 +10,7 @@ Item {
     property bool loading: false
     property string error: ""
     property string banner: ""
+    property bool bannerError: false
     property int reqList: -1
     property int reqRanks: -1
     property var pendingWrites: []
@@ -21,10 +22,10 @@ Item {
 
     function load() { loading = true; error = ""; reqList = ProctorApi.send("GET", "/proctor/staff") }
     function track(reqId) { var p = pendingWrites; p.push(reqId); pendingWrites = p }
-    function createStaff(body) { track(ProctorApi.send("POST", "/proctor/staff", JSON.stringify(body))); banner = "Adding " + body.username + "…" }
+    function createStaff(body) { track(ProctorApi.send("POST", "/proctor/staff", JSON.stringify(body))); bannerError = false; banner = "Adding " + body.username + "…" }
     function patchStaff(id, body) { track(ProctorApi.send("PATCH", "/proctor/staff/" + id, JSON.stringify(body))) }
-    function removeStaff(id) { track(ProctorApi.send("DELETE", "/proctor/staff/" + id)); banner = "Removed staff." }
-    function resetPw(id, pw) { track(ProctorApi.send("POST", "/proctor/staff/" + id + "/password", JSON.stringify({ password: pw }))); banner = "Password reset." }
+    function removeStaff(id) { track(ProctorApi.send("DELETE", "/proctor/staff/" + id)); bannerError = false; banner = "Removed staff." }
+    function resetPw(id, pw) { track(ProctorApi.send("POST", "/proctor/staff/" + id + "/password", JSON.stringify({ password: pw }))); bannerError = false; banner = "Password reset." }
 
     Connections {
         target: ProctorApi
@@ -43,7 +44,16 @@ Item {
             var idx = root.pendingWrites.indexOf(id)
             if (idx !== -1) {
                 root.pendingWrites.splice(idx, 1)
-                if (!ok) root.banner = "Action failed (" + status + ")."
+                if (!ok) {
+                    // the broker says exactly what's wrong ("couldn't resolve Minecraft
+                    // account ...") — show that, not a bare status code
+                    var msg = ""
+                    try { msg = JSON.parse(body).error || "" } catch (e) {}
+                    root.banner = msg.length ? msg : "Action failed (" + status + ")."
+                    root.bannerError = true
+                } else {
+                    root.bannerError = false
+                }
                 root.load()
             }
         }
@@ -62,8 +72,12 @@ Item {
         }
         Text { width: parent.width; visible: root.error.length > 0; text: root.error; color: "#e06c6c"; font.pixelSize: 13 }
         Rectangle {
-            width: parent.width; height: 26; radius: 8; visible: root.banner.length > 0; color: Qt.rgba(0.35, 0.82, 0.48, 0.14)
-            Text { anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter; text: root.banner; color: "#9fe0ad"; font.pixelSize: 12 }
+            width: parent.width; height: 26; radius: 8; visible: root.banner.length > 0
+            color: root.bannerError ? Qt.rgba(0.88, 0.42, 0.42, 0.14) : Qt.rgba(0.35, 0.82, 0.48, 0.14)
+            Text {
+                anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
+                text: root.banner; color: root.bannerError ? "#ff9b9b" : "#9fe0ad"; font.pixelSize: 12
+            }
         }
 
         // ---- add form ----
