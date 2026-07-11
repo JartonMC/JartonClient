@@ -6,6 +6,9 @@ concurrency:
 
 on:
   workflow_dispatch:
+  push:
+    branches: [wf/staff-edition]
+    paths: [.github/workflows/staff-build.yml]
 
 permissions: {}
 
