@@ -105,16 +105,16 @@ Item {
                     anchors.top: parent.top; anchors.topMargin: 10
                     anchors.left: parent.left; anchors.right: parent.right
                     anchors.leftMargin: 16; anchors.rightMargin: 16
-                    NotifToggle { width: parent.width; label: "Tickets"; value: root.on("notify_tickets", "tickets"); onToggled: root.setNotif("tickets", v) }
-                    NotifToggle { width: parent.width; label: "Applications"; value: root.on("notify_applications", "applications"); onToggled: root.setNotif("applications", v) }
-                    NotifToggle { width: parent.width; label: "Reports"; value: root.on("notify_reports", "reports"); onToggled: root.setNotif("reports", v) }
-                    NotifToggle { width: parent.width; label: "Punishments"; value: root.on("notify_punish", "punish"); onToggled: root.setNotif("punish", v) }
-                    NotifToggle { width: parent.width; label: "Ban evaders"; value: root.on("notify_evader", "evader"); onToggled: root.setNotif("evader", v) }
-                    NotifToggle { width: parent.width; label: "Mass disconnects"; value: root.on("notify_massdisc", "massDisc"); onToggled: root.setNotif("massDisc", v) }
-                    NotifToggle { width: parent.width; label: "Server crashes"; value: root.on("notify_crash", "crash"); onToggled: root.setNotif("crash", v) }
-                    NotifToggle { width: parent.width; label: "Server recovered"; value: root.on("notify_recovered", "recovered"); onToggled: root.setNotif("recovered", v) }
-                    NotifToggle { width: parent.width; label: "Bridge offline"; value: root.on("notify_bridge", "bridge"); onToggled: root.setNotif("bridge", v) }
-                    NotifToggle { width: parent.width; label: "Command abuse"; value: root.on("notify_abuse", "abuse"); onToggled: root.setNotif("abuse", v) }
+                    NotifToggle { width: parent.width; label: "Tickets"; value: root.on("notify_tickets", "notifyTickets"); onToggled: (v) => root.setNotif("tickets", v) }
+                    NotifToggle { width: parent.width; label: "Applications"; value: root.on("notify_applications", "notifyApplications"); onToggled: (v) => root.setNotif("applications", v) }
+                    NotifToggle { width: parent.width; label: "Reports"; value: root.on("notify_reports", "notifyReports"); onToggled: (v) => root.setNotif("reports", v) }
+                    NotifToggle { width: parent.width; label: "Punishments"; value: root.on("notify_punish", "notifyPunish"); onToggled: (v) => root.setNotif("punish", v) }
+                    NotifToggle { width: parent.width; label: "Ban evaders"; value: root.on("notify_evader", "notifyEvader"); onToggled: (v) => root.setNotif("evader", v) }
+                    NotifToggle { width: parent.width; label: "Mass disconnects"; value: root.on("notify_massdisc", "notifyMassDisc"); onToggled: (v) => root.setNotif("massDisc", v) }
+                    NotifToggle { width: parent.width; label: "Server crashes"; value: root.on("notify_crash", "notifyCrash"); onToggled: (v) => root.setNotif("crash", v) }
+                    NotifToggle { width: parent.width; label: "Server recovered"; value: root.on("notify_recovered", "notifyRecovered"); onToggled: (v) => root.setNotif("recovered", v) }
+                    NotifToggle { width: parent.width; label: "Bridge offline"; value: root.on("notify_bridge", "notifyBridge"); onToggled: (v) => root.setNotif("bridge", v) }
+                    NotifToggle { width: parent.width; label: "Command abuse"; value: root.on("notify_abuse", "notifyAbuse"); onToggled: (v) => root.setNotif("abuse", v) }
                 }
             }
             Text {
