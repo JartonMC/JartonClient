@@ -51,6 +51,8 @@ QVariant ServerListModel::data(const QModelIndex& index, int role) const
             return s.state;
         case CpuRole:
             return s.cpuPercent;
+        case CpuLimitRole:
+            return s.cpuLimitPct;
         case MemBytesRole:
             return QVariant::fromValue(s.memoryBytes);
         case MemLimitMbRole:
@@ -69,6 +71,7 @@ QHash<int, QByteArray> ServerListModel::roleNames() const
     return {
         { IdRole, "serverId" },     { NameRole, "name" },         { NodeRole, "node" },
         { AddressRole, "address" }, { StateRole, "state" },       { CpuRole, "cpu" },
+        { CpuLimitRole, "cpuLimit" },
         { MemBytesRole, "memBytes" }, { MemLimitMbRole, "memLimitMb" },
         { PlayersOnlineRole, "playersOnline" }, { PlayersMaxRole, "playersMax" },
     };
@@ -126,6 +129,7 @@ void ServerListModel::refresh()
             g.address = o.value("address").toString();
             g.state = o.value("state").toString();
             g.cpuPercent = o.value("cpuPercent").toDouble();
+            g.cpuLimitPct = o.value("cpuLimitPct").toInt();
             g.memoryBytes = static_cast<qint64>(o.value("memoryBytes").toDouble());
             g.memoryLimitMb = static_cast<qint64>(o.value("memoryLimitMb").toDouble());
             const QJsonObject players = o.value("players").toObject();

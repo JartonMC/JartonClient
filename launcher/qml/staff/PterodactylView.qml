@@ -204,14 +204,19 @@ Item {
                     Row {
                         spacing: 18
                         Row {
+                            id: cpuRow
                             spacing: 7
+                            // cpu_absolute is per-core cumulative (4 cores allowed = up to 400%);
+                            // normalize the bar against the panel's cpu limit, 0 = unlimited
+                            readonly property real ceil: cpuLimit > 0 ? cpuLimit : 100
+                            readonly property real frac: cpu / ceil
                             Text { anchors.verticalCenter: parent.verticalCenter; text: "CPU"; color: "#8a7a56"; font.pixelSize: 9; font.bold: true }
                             Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 72; height: 5; radius: 2; color: Qt.rgba(1, 1, 1, 0.09)
                                 Rectangle {
-                                    width: parent.width * Math.max(0, Math.min(1, cpu / 100)); height: parent.height; radius: 2
-                                    color: cpu > 85 ? "#e06c6c" : "#FFB833"
+                                    width: parent.width * Math.max(0, Math.min(1, cpuRow.frac)); height: parent.height; radius: 2
+                                    color: cpuRow.frac > 0.85 ? "#e06c6c" : "#FFB833"
                                 }
                             }
                             Text { anchors.verticalCenter: parent.verticalCenter; text: Math.round(cpu) + "%"; color: Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 10; font.family: "Menlo" }
@@ -219,9 +224,12 @@ Item {
                         Row {
                             id: ramRow
                             spacing: 7
-                            readonly property real frac: memLimitMb > 0 ? (memBytes / 1048576) / memLimitMb : 0
+                            // limits.memory = 0 means unlimited on the panel — no meaningful fraction, so no bar
+                            readonly property bool unlimited: memLimitMb <= 0
+                            readonly property real frac: unlimited ? 0 : (memBytes / 1048576) / memLimitMb
                             Text { anchors.verticalCenter: parent.verticalCenter; text: "RAM"; color: "#8a7a56"; font.pixelSize: 9; font.bold: true }
                             Rectangle {
+                                visible: !ramRow.unlimited
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 72; height: 5; radius: 2; color: Qt.rgba(1, 1, 1, 0.09)
                                 Rectangle {
@@ -229,7 +237,12 @@ Item {
                                     color: ramRow.frac > 0.9 ? "#e06c6c" : "#FFB833"
                                 }
                             }
-                            Text { anchors.verticalCenter: parent.verticalCenter; text: Math.round(memBytes / 1048576) + "/" + memLimitMb + " MB"; color: Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 10; font.family: "Menlo" }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: ramRow.unlimited ? Math.round(memBytes / 1048576) + " MB"
+                                                       : Math.round(memBytes / 1048576) + "/" + memLimitMb + " MB"
+                                color: Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 10; font.family: "Menlo"
+                            }
                         }
                     }
                 }

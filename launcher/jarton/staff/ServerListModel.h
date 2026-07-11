@@ -16,6 +16,7 @@ struct GameServer {
     QString address;
     QString state;
     double cpuPercent = 0.0;
+    int cpuLimitPct = 0;
     qint64 memoryBytes = 0;
     qint64 memoryLimitMb = 0;
     int playersOnline = 0;
@@ -42,6 +43,7 @@ class ServerListModel : public QAbstractListModel {
         AddressRole,
         StateRole,
         CpuRole,
+        CpuLimitRole,
         MemBytesRole,
         MemLimitMbRole,
         PlayersOnlineRole,
