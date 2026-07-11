@@ -47,8 +47,17 @@ Item {
             // an action THIS tab issued finished — open a download url if present, then refresh
             if (root.pending[id] === undefined) return
             delete root.pending[id]
-            if (ok && body.indexOf("\"url\"") !== -1) {
-                try { Qt.openUrlExternally(JSON.parse(body).url) } catch (e) {}
+            if (!ok) {
+                root.error = "Action failed (" + status + ")."
+            } else if (body.indexOf("\"url\"") !== -1) {
+                try {
+                    root.error = ""
+                    Qt.openUrlExternally(JSON.parse(body).url)
+                } catch (e) {
+                    root.error = "Couldn't open the download link."
+                }
+            } else {
+                root.error = ""
             }
             root.load()
         }

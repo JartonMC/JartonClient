@@ -27,7 +27,7 @@ Rectangle {
     color: hovered ? hoverColor : restColor
     border.width: variant === "primary" ? 0 : 1
     border.color: variant === "danger" ? "#5c2a2a" : variant === "ghost" ? "transparent" : "#3a2f1c"
-    opacity: busy ? 0.55 : 1.0
+    opacity: !enabled ? 0.35 : busy ? 0.55 : 1.0
     scale: hovered ? 1.03 : 1.0
 
     Behavior on color { ColorAnimation { duration: 120 } }

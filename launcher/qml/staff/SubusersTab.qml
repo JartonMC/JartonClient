@@ -32,6 +32,16 @@ Item {
     function toggle(k) {
         var s = selected; s[k] = !s[k]; selected = s
     }
+    function groupOn(keys) {
+        for (var i = 0; i < keys.length; i++) if (selected[keys[i].key] !== true) return false
+        return keys.length > 0
+    }
+    function toggleGroup(keys) {
+        var s = selected; var on = groupOn(keys)
+        for (var i = 0; i < keys.length; i++) s[keys[i].key] = !on
+        selected = s
+    }
+    readonly property int selCount: { var n = 0; for (var k in selected) if (selected[k] === true) n++; return n }
     function selectedList() {
         var out = []
         for (var k in selected) if (selected[k] === true) out.push(k)
@@ -91,59 +101,105 @@ Item {
 
         // editor (invite / edit permissions)
         Rectangle {
-            width: parent.width; height: 280; radius: 11; visible: root.mode.length > 0
+            id: editor
+            width: parent.width; radius: 11; visible: root.mode.length > 0
+            height: visible ? Math.min(480, Math.round(root.height * 0.62)) : 0
             color: "#15100a"; border.color: "#FFB81C"; border.width: 1
             Column {
-                anchors.fill: parent; anchors.margins: 12; spacing: 10
-                Text {
-                    text: root.mode === "invite" ? "Invite a new subuser" : "Edit permissions"
-                    color: "#FFE082"; font.pixelSize: 14; font.bold: true
+                anchors.fill: parent; anchors.margins: 14; spacing: 10
+                Item {
+                    width: parent.width; height: 20
+                    Text {
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                        text: root.mode === "invite" ? "Invite a new subuser" : "Edit permissions"
+                        color: "#FFE082"; font.pixelSize: 14; font.bold: true
+                    }
+                    Text {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        text: root.selCount + " selected"
+                        color: root.selCount > 0 ? "#FFB81C" : "#6b5d3f"; font.pixelSize: 11; font.family: "Menlo"
+                    }
                 }
                 Rectangle {
-                    width: parent.width; height: 30; radius: 8; visible: root.mode === "invite"
-                    color: "#0f0a06"; border.color: "#2a2114"; border.width: 1
+                    width: parent.width; height: 32; radius: 8; visible: root.mode === "invite"
+                    color: "#0f0a06"; border.color: emailIn.activeFocus ? "#FFB81C" : "#2a2114"; border.width: 1
                     TextInput { id: emailIn; anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10; verticalAlignment: TextInput.AlignVCenter; color: "#F2E8D0"; font.pixelSize: 13; clip: true
                         Text { anchors.verticalCenter: parent.verticalCenter; text: "email address"; color: "#6b5d3f"; font.pixelSize: 13; visible: emailIn.text.length === 0 } }
                 }
-                Flickable {
+                Item {
                     width: parent.width
-                    height: parent.height - (root.mode === "invite" ? 92 : 56)
-                    clip: true; contentHeight: permCol.height
-                    Column {
-                        id: permCol; width: parent.width; spacing: 8
-                        Repeater {
-                            model: root.groups
-                            Column {
-                                width: permCol.width; spacing: 4
-                                Text { text: (modelData.group || "").toUpperCase(); color: "#FFB81C"; font.pixelSize: 11; font.bold: true }
-                                Flow {
+                    height: parent.height - 20 - (root.mode === "invite" ? 32 + 10 : 0) - 28 - 20
+                    Flickable {
+                        id: permFlick
+                        anchors.fill: parent; anchors.rightMargin: 10
+                        clip: true; contentHeight: permCol.height
+                        boundsBehavior: Flickable.StopAtBounds
+                        Column {
+                            id: permCol; width: parent.width; spacing: 12
+                            Repeater {
+                                model: root.groups
+                                Column {
                                     width: permCol.width; spacing: 6
-                                    Repeater {
-                                        model: modelData.keys
+                                    Item {
+                                        width: parent.width; height: 18
+                                        Text {
+                                            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                                            text: (modelData.group || "").toUpperCase()
+                                            color: "#FFB81C"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 0.5
+                                        }
                                         Rectangle {
-                                            height: 24; radius: 7
-                                            width: kTxt.width + 22
-                                            color: root.isOn(modelData.key) ? "#3a2f14" : "#0f0a06"
-                                            border.color: root.isOn(modelData.key) ? "#FFB81C" : "#2a2114"; border.width: 1
-                                            Text { id: kTxt; anchors.centerIn: parent; text: modelData.key; color: root.isOn(modelData.key) ? "#FFE082" : "#8a7a56"; font.pixelSize: 11 }
-                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.toggle(modelData.key) }
+                                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                            width: allTxt.width + 16; height: 17; radius: 8
+                                            readonly property bool on: root.groupOn(modelData.keys)
+                                            color: on ? "#3a2f14" : "transparent"
+                                            border.color: on ? "#FFB81C" : "#2a2114"; border.width: 1
+                                            Text { id: allTxt; anchors.centerIn: parent; text: "all"; color: parent.on ? "#FFE082" : "#6b5d3f"; font.pixelSize: 9; font.bold: true }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleGroup(modelData.keys) }
+                                        }
+                                    }
+                                    Flow {
+                                        width: parent.width; spacing: 6
+                                        Repeater {
+                                            model: modelData.keys
+                                            Rectangle {
+                                                height: 26; radius: 8
+                                                width: kTxt.width + 24
+                                                color: root.isOn(modelData.key) ? "#3a2f14" : (chipHover.containsMouse ? "#1a140c" : "#0f0a06")
+                                                border.color: root.isOn(modelData.key) ? "#FFB81C" : (chipHover.containsMouse ? "#4a3c1e" : "#2a2114"); border.width: 1
+                                                Text { id: kTxt; anchors.centerIn: parent; text: modelData.key; color: root.isOn(modelData.key) ? "#FFE082" : "#8a7a56"; font.pixelSize: 11 }
+                                                MouseArea { id: chipHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggle(modelData.key) }
+                                            }
                                         }
                                     }
                                 }
                             }
+                            Item { width: 1; height: 2 }  // keep the last chip row clear of the fade
                         }
+                    }
+                    Rectangle {
+                        // scroll thumb — Flickable alone gives no position cue in a box this dense
+                        anchors.right: parent.right
+                        width: 3; radius: 1.5
+                        visible: permFlick.contentHeight > permFlick.height
+                        height: Math.max(24, permFlick.height * permFlick.visibleArea.heightRatio)
+                        y: permFlick.visibleArea.yPosition * permFlick.height
+                        color: "#3a2f14"
                     }
                 }
                 Row {
                     spacing: 8
-                    SButton { text: root.mode === "invite" ? "Send invite" : "Save"; variant: "primary"; onClicked: root.submit() }
+                    SButton {
+                        text: root.mode === "invite" ? "Send invite" : "Save"; variant: "primary"
+                        enabled: root.selCount > 0 && (root.mode !== "invite" || emailIn.text.length > 0)
+                        onClicked: root.submit()
+                    }
                     SButton { text: "Cancel"; variant: "ghost"; onClicked: root.mode = "" }
                 }
             }
         }
 
         ListView {
-            width: parent.width; height: parent.height - (root.mode.length > 0 ? 342 : 50); clip: true; spacing: 6
+            width: parent.width; height: parent.height - (root.mode.length > 0 ? editor.height + 62 : 50); clip: true; spacing: 6
             model: root.users
             delegate: Rectangle {
                 width: ListView.view.width; height: 56; radius: 11
