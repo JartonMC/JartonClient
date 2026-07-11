@@ -1292,7 +1292,16 @@ if(Launcher_STAFF)
         jarton/staff/StaffModels.cpp
         jarton/staff/StaffWindow.h
         jarton/staff/StaffWindow.cpp
+        jarton/staff/StaffNotifier.h
+        jarton/staff/StaffNotifier.cpp
     )
+    if(APPLE)
+        set(LAUNCHER_SOURCES
+            ${LAUNCHER_SOURCES}
+            jarton/staff/MacNotifier.h
+            jarton/staff/MacNotifier.mm
+        )
+    endif()
     # Scope the LAUNCHER_STAFF guard to just the two integration TUs so toggling the
     # flag doesn't dirty (recompile) the whole target.
     set_source_files_properties(ui/MainWindow.cpp Application.cpp main.cpp
@@ -1427,6 +1436,10 @@ if(APPLE)
         "-framework Foundation"
         "-framework ApplicationServices"
     )
+    if(Launcher_STAFF)
+        # staff alert banners (MacNotifier.mm)
+        target_link_libraries(Launcher_logic "-framework UserNotifications")
+    endif()
     if(Launcher_ENABLE_UPDATER)
         target_link_libraries(Launcher_logic ${SPARKLE_FRAMEWORK})
     endif()

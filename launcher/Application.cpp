@@ -129,6 +129,7 @@
 #include "jarton/staff/ServerListModel.h"
 #include "jarton/staff/StaffAuth.h"
 #include "jarton/staff/StaffModels.h"
+#include "jarton/staff/StaffNotifier.h"
 #endif
 #include "jarton/services/ServerStatusService.h"
 #include "jarton/services/WallpaperService.h"
@@ -1648,7 +1649,7 @@ void Application::initJartonServices()
         // The staff .qrc lives in a static lib; force its resource initializer to be
         // linked + registered (otherwise qrc:/jarton/staff/* is "No such file").
         Q_INIT_RESOURCE(staff);
-        auto* proctor = new Jarton::ProctorClient(this);
+        auto* proctor = new Jarton::ProctorClient(FS::PathCombine(m_dataPath, "jarton-proctor-session"), this);
         m_jartonProctor = proctor;
         registerService("ProctorClient", proctor);
         registerService("ProctorApi", new Jarton::ProctorApi(proctor, this));
@@ -1665,6 +1666,8 @@ void Application::initJartonServices()
         registerService("ServerListModel", new Jarton::ServerListModel(staffAuth, this));
         registerService("PlayerSearchModel", new Jarton::PlayerSearchModel(proctor, this));
         registerService("PlayerHistoryModel", new Jarton::PlayerHistoryModel(proctor, this));
+        // desktop banners for the proctor inbox; no QML surface, rides the session lifecycle
+        new Jarton::StaffNotifier(proctor, FS::PathCombine(m_dataPath, "jarton-staff-notifcursor"), this);
     }
 #endif
 
