@@ -61,7 +61,7 @@ class ServerListModel : public QAbstractListModel {
     QString error() const { return m_error; }
     int totalOnline() const;
 
-    Q_INVOKABLE void refresh();
+    Q_INVOKABLE void refresh(bool quiet = false);
 
    signals:
     void changed();
@@ -70,6 +70,7 @@ class ServerListModel : public QAbstractListModel {
     StaffAuth* m_auth = nullptr;
     QVector<GameServer> m_servers;
     bool m_loading = false;
+    bool m_quietInflight = false;  // background poll in flight (no loading UI)
     bool m_panelKeyMissing = false;
     bool m_retrying = false;  // guards the one-shot refresh-and-retry on a 401
     QString m_error;

@@ -16,6 +16,14 @@ Item {
     property bool loadedOnce: false
     property int openId: -1
 
+    // background refresh: silent, change-gated per feed, paused while a
+    // resolve is in flight (its completion reloads anyway)
+    readonly property int autoRefreshMs: 20000
+    property int quietList: -1
+    property int quietArchived: -1
+    property string lastAppsPayload: ""
+    property string lastArchPayload: ""
+
     onVisibleChanged: if (visible && !loadedOnce) { loadedOnce = true; load() }
 
     function load() {
@@ -23,6 +31,18 @@ Item {
         reqList = ProctorApi.send("GET", "/proctor/applications")
         reqArchived = ProctorApi.send("GET", "/proctor/applications/archived")
     }
+    function quietLoad() {
+        if (loading || pendingWrites.length > 0 || quietList !== -1) return
+        quietList = ProctorApi.send("GET", "/proctor/applications")
+        quietArchived = ProctorApi.send("GET", "/proctor/applications/archived")
+    }
+    function preserveScroll(fn) {
+        var y = list.contentY
+        fn()
+        Qt.callLater(function () { list.contentY = Math.max(0, Math.min(y, list.contentHeight - list.height)) })
+    }
+
+    Timer { interval: root.autoRefreshMs; repeat: true; running: root.visible; onTriggered: root.quietLoad() }
     function resolve(id) { var p = pendingWrites; p.push(ProctorApi.send("POST", "/proctor/applications/" + id + "/resolve", "")); pendingWrites = p }
     function relTime(s) {
         if (!s) return ""
@@ -37,14 +57,39 @@ Item {
     Connections {
         target: ProctorApi
         function onResponse(id, ok, status, body) {
+            if (id === root.quietList) {
+                root.quietList = -1
+                if (ok && body !== root.lastAppsPayload) {
+                    root.lastAppsPayload = body
+                    root.preserveScroll(function () {
+                        try { root.apps = JSON.parse(body).applications || [] } catch (e) {}
+                    })
+                }
+                return
+            }
+            if (id === root.quietArchived) {
+                root.quietArchived = -1
+                if (ok && body !== root.lastArchPayload) {
+                    root.lastArchPayload = body
+                    root.preserveScroll(function () {
+                        try { root.archived = JSON.parse(body).applications || [] } catch (e) {}
+                    })
+                }
+                return
+            }
             if (id === root.reqList) {
                 root.loading = false
-                if (ok) { try { root.apps = JSON.parse(body).applications || [] } catch (e) { root.apps = [] } }
-                else root.error = "Couldn't load applications."
+                if (ok) {
+                    root.lastAppsPayload = body
+                    try { root.apps = JSON.parse(body).applications || [] } catch (e) { root.apps = [] }
+                } else root.error = "Couldn't load applications."
                 return
             }
             if (id === root.reqArchived) {
-                if (ok) { try { root.archived = JSON.parse(body).applications || [] } catch (e) { root.archived = [] } }
+                if (ok) {
+                    root.lastArchPayload = body
+                    try { root.archived = JSON.parse(body).applications || [] } catch (e) { root.archived = [] }
+                }
                 return
             }
             var idx = root.pendingWrites.indexOf(id)
@@ -77,6 +122,7 @@ Item {
         }
         Text { width: parent.width; visible: root.error.length > 0; text: root.error; color: "#e06c6c"; font.pixelSize: 13 }
         ListView {
+            id: list
             width: parent.width; height: parent.height - 84; clip: true; spacing: 8
             model: root.showArchived ? root.archived : root.apps
             delegate: Rectangle {

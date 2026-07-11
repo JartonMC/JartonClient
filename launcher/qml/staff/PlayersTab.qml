@@ -59,6 +59,24 @@ Item {
         loadBrowse()
     }
 
+    // background presence refresh: re-reads everything loaded so far in one
+    // request and swaps it in only when the payload actually changed
+    readonly property int autoRefreshMs: 30000
+    property int quietReq: -1
+    property int quietLimit: 0
+    property string lastQuietPayload: ""
+    function quietRefresh() {
+        if (!browseSupported) { loadOnline(); return }
+        if (browseLoading || quietReq !== -1) return
+        quietLimit = Math.min(200, Math.max(pageSize, browse.length))
+        quietReq = ProctorApi.send("GET", "/proctor/players/browse?limit=" + quietLimit + "&offset=0")
+    }
+    Timer {
+        interval: view.autoRefreshMs; repeat: true
+        running: view.visible && view.selUuid === "" && searchInput.text.length === 0
+        onTriggered: view.quietRefresh()
+    }
+
     Timer { id: debounce; interval: 280; onTriggered: PlayerSearchModel.search(searchInput.text) }
 
     component SectionHead: Item {
@@ -135,6 +153,22 @@ Item {
                     arr.sort(function (a, b) { return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase()) })
                     view.online = arr
                 } catch (e) { view.online = [] } }
+                return
+            }
+            if (id === view.quietReq) {
+                view.quietReq = -1
+                if (!ok || body === view.lastQuietPayload) return
+                view.lastQuietPayload = body
+                try {
+                    var fresh = JSON.parse(body).players || []
+                    var y = browseFlick.contentY
+                    view.browse = fresh
+                    view.browseOffset = fresh.length
+                    view.browseEnd = fresh.length < view.quietLimit
+                    Qt.callLater(function () {
+                        browseFlick.contentY = Math.max(0, Math.min(y, browseFlick.contentHeight - browseFlick.height))
+                    })
+                } catch (e) {}
                 return
             }
             if (id === view.reqBrowse) {

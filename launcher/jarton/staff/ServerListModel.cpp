@@ -77,14 +77,19 @@ QHash<int, QByteArray> ServerListModel::roleNames() const
     };
 }
 
-void ServerListModel::refresh()
+void ServerListModel::refresh(bool quiet)
 {
-    if (m_auth == nullptr || m_auth->token().isEmpty() || m_loading) {
+    if (m_auth == nullptr || m_auth->token().isEmpty() || m_loading || m_quietInflight) {
         return;
     }
-    m_loading = true;
-    m_error.clear();
-    emit changed();
+    if (quiet) {
+        // background poll: no loading state, so the Refresh button never flickers
+        m_quietInflight = true;
+    } else {
+        m_loading = true;
+        m_error.clear();
+        emit changed();
+    }
 
     QNetworkRequest req{ QUrl(m_auth->baseUrl() + "/servers") };
     req.setRawHeader("Authorization", "Bearer " + m_auth->token().toUtf8());
@@ -92,9 +97,10 @@ void ServerListModel::refresh()
     req.setTransferTimeout(20000);
 
     QNetworkReply* reply = m_auth->network()->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, quiet]() {
         reply->deleteLater();
         m_loading = false;
+        m_quietInflight = false;
 
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         if (status == 409) {
@@ -110,6 +116,9 @@ void ServerListModel::refresh()
             return;
         }
         if (reply->error() != QNetworkReply::NoError || status < 200 || status >= 300) {
+            if (quiet) {
+                return;  // background poll failures wait for the next tick
+            }
             m_error = tr("Couldn't load servers.");
             emit changed();
             return;
@@ -138,9 +147,32 @@ void ServerListModel::refresh()
             next.append(g);
         }
 
-        beginResetModel();
-        m_servers = next;
-        endResetModel();
+        // same servers in the same order: update rows in place so the list
+        // doesn't reset scroll or re-realise delegates on every poll
+        bool sameShape = next.size() == m_servers.size();
+        for (int i = 0; sameShape && i < next.size(); ++i) {
+            if (next.at(i).id != m_servers.at(i).id) {
+                sameShape = false;
+            }
+        }
+        if (sameShape) {
+            for (int i = 0; i < next.size(); ++i) {
+                const GameServer& a = m_servers.at(i);
+                const GameServer& b = next.at(i);
+                const bool same = a.state == b.state && a.cpuPercent == b.cpuPercent && a.cpuLimitPct == b.cpuLimitPct &&
+                                  a.memoryBytes == b.memoryBytes && a.memoryLimitMb == b.memoryLimitMb &&
+                                  a.playersOnline == b.playersOnline && a.playersMax == b.playersMax && a.name == b.name &&
+                                  a.node == b.node && a.address == b.address;
+                if (!same) {
+                    m_servers[i] = b;
+                    emit dataChanged(index(i), index(i));
+                }
+            }
+        } else {
+            beginResetModel();
+            m_servers = next;
+            endResetModel();
+        }
         emit changed();
     });
 }

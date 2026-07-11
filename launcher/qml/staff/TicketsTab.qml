@@ -12,9 +12,26 @@ Item {
     property bool loadedOnce: false
     property var openId: null
 
+    // background refresh: no spinner, no scroll jump, and skipped entirely
+    // when the payload hasn't changed
+    readonly property int autoRefreshMs: 20000
+    property int quietReq: -1
+    property string lastPayload: ""
+
     onVisibleChanged: if (visible && !loadedOnce) { loadedOnce = true; load() }
 
     function load() { loading = true; error = ""; reqList = ProctorApi.send("GET", "/proctor/tickets") }
+    function quietLoad() {
+        if (loading || quietReq !== -1) return
+        quietReq = ProctorApi.send("GET", "/proctor/tickets")
+    }
+    function applyQuiet(body) {
+        var y = list.contentY
+        try { tickets = JSON.parse(body).tickets || [] } catch (e) { return }
+        Qt.callLater(function () { list.contentY = Math.max(0, Math.min(y, list.contentHeight - list.height)) })
+    }
+
+    Timer { interval: root.autoRefreshMs; repeat: true; running: root.visible; onTriggered: root.quietLoad() }
     function relTime(s) {
         if (!s) return ""
         var iso = (("" + s).indexOf("T") === -1) ? ("" + s).replace(" ", "T") + "Z" : s
@@ -28,10 +45,19 @@ Item {
     Connections {
         target: ProctorApi
         function onResponse(id, ok, status, body) {
+            if (id === root.quietReq) {
+                root.quietReq = -1
+                if (!ok || body === root.lastPayload) return
+                root.lastPayload = body
+                root.applyQuiet(body)
+                return
+            }
             if (id !== root.reqList) return
             root.loading = false
-            if (ok) { try { root.tickets = JSON.parse(body).tickets || [] } catch (e) { root.tickets = [] } }
-            else root.error = "Couldn't load tickets."
+            if (ok) {
+                root.lastPayload = body
+                try { root.tickets = JSON.parse(body).tickets || [] } catch (e) { root.tickets = [] }
+            } else root.error = "Couldn't load tickets."
         }
     }
 
@@ -44,6 +70,7 @@ Item {
         }
         Text { width: parent.width; visible: root.error.length > 0; text: root.error; color: "#e06c6c"; font.pixelSize: 13 }
         ListView {
+            id: list
             width: parent.width; height: parent.height - 56; clip: true; spacing: 8
             model: root.tickets
             delegate: Rectangle {

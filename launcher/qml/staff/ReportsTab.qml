@@ -9,10 +9,27 @@ Item {
     property string error: ""
     property int reqList: -1
     property bool loadedOnce: false
+    property var pendingWrites: []
+
+    // background refresh: silent + change-gated
+    readonly property int autoRefreshMs: 20000
+    property int quietReq: -1
+    property string lastPayload: ""
 
     onVisibleChanged: if (visible && !loadedOnce) { loadedOnce = true; load() }
 
     function load() { loading = true; error = ""; reqList = ProctorApi.send("GET", "/proctor/reports") }
+    function quietLoad() {
+        if (loading || quietReq !== -1) return
+        quietReq = ProctorApi.send("GET", "/proctor/reports")
+    }
+    function resolve(id) {
+        var p = pendingWrites
+        p.push(ProctorApi.send("POST", "/proctor/reports/" + id + "/resolve", "{}"))
+        pendingWrites = p
+    }
+
+    Timer { interval: root.autoRefreshMs; repeat: true; running: root.visible; onTriggered: root.quietLoad() }
     function relTime(ms) {
         if (!ms || ms <= 0) return ""
         var d = Date.now() - Number(ms)
@@ -24,13 +41,27 @@ Item {
     Connections {
         target: ProctorApi
         function onResponse(id, ok, status, body) {
-            if (id === root.reqList) {
-                root.loading = false
-                if (ok) { try { root.reports = JSON.parse(body).reports || [] } catch (e) { root.reports = [] } }
-                else root.error = "Couldn't load reports."
+            if (id === root.quietReq) {
+                root.quietReq = -1
+                if (!ok || body === root.lastPayload) return
+                root.lastPayload = body
+                var y = list.contentY
+                try { root.reports = JSON.parse(body).reports || [] } catch (e) { return }
+                Qt.callLater(function () { list.contentY = Math.max(0, Math.min(y, list.contentHeight - list.height)) })
                 return
             }
-            root.load()  // a resolve finished — refresh
+            if (id === root.reqList) {
+                root.loading = false
+                if (ok) {
+                    root.lastPayload = body
+                    try { root.reports = JSON.parse(body).reports || [] } catch (e) { root.reports = [] }
+                } else root.error = "Couldn't load reports."
+                return
+            }
+            // only OUR resolve completions reload — reacting to every foreign
+            // response is the cross-tab churn that caused the detail flicker
+            var idx = root.pendingWrites.indexOf(id)
+            if (idx !== -1) { root.pendingWrites.splice(idx, 1); root.load() }
         }
     }
 
@@ -43,6 +74,7 @@ Item {
         }
         Text { width: parent.width; visible: root.error.length > 0; text: root.error; color: "#e06c6c"; font.pixelSize: 13 }
         ListView {
+            id: list
             width: parent.width; height: parent.height - 44; clip: true; spacing: 6
             model: root.reports
             delegate: Rectangle {
@@ -70,9 +102,10 @@ Item {
                     id: resolveBtn
                     anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter
                     text: "Resolve"; variant: "secondary"
-                    onClicked: ProctorApi.send("POST", "/proctor/reports/" + modelData.id + "/resolve", "{}")
+                    onClicked: root.resolve(modelData.id)
                 }
             }
+            Text { anchors.centerIn: parent; visible: root.loading && root.reports.length === 0; text: "Loading reports…"; color: "#6b5d3f"; font.pixelSize: 14 }
             Text { anchors.centerIn: parent; visible: !root.loading && root.reports.length === 0; text: "No open reports."; color: "#6b5d3f"; font.pixelSize: 14 }
         }
     }

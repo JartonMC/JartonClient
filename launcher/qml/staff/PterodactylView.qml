@@ -18,6 +18,15 @@ Item {
         }
     }
 
+    // live stats: the broker snapshots /servers for ~3s, so a 10s quiet poll
+    // keeps CPU/RAM/players moving without hammering anything
+    readonly property int listRefreshMs: 10000
+    Timer {
+        interval: view.listRefreshMs; repeat: true
+        running: view.visible && StaffAuth.panelKeyConnected && view.detailId === ""
+        onTriggered: ServerListModel.refresh(true)
+    }
+
     Connections {
         target: StaffAuth
         function onChanged() {
