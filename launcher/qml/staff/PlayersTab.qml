@@ -3,16 +3,27 @@ import Jarton
 
 // Player management — one screen per player, matching the app: status, punish actions,
 // offence ladder, history, and notes all together (no separate "punish" button). The
-// landing list shows who's online; typing searches everyone who has ever joined.
+// landing shows a face grid: online players first, then everyone by recency
+// (/proctor/players/browse, paged); typing searches everyone who has ever joined.
 Item {
     id: view
 
     property string selUuid: ""
     property string selName: ""
 
-    // online roster (landing list)
+    // online roster (fallback landing list, old brokers only)
     property var online: []
     property int reqOnline: -1
+
+    // face browse (online grid + everyone-else by recency, /proctor/players/browse)
+    property var browse: []
+    property int browseOffset: 0
+    property bool browseLoading: false
+    property bool browseEnd: false
+    property bool browseSupported: true
+    property int reqBrowse: -1
+    readonly property var onlineBrowse: browse.filter(function (p) { return p.online === true })
+    readonly property var offlineBrowse: browse.filter(function (p) { return p.online !== true })
 
     // punish state (live-bridge routed, mirrors the app)
     property string route: ""
@@ -50,6 +61,13 @@ Item {
         var d = Math.floor(diff / 86400000); if (d > 0) return d + "d ago"
         var h = Math.floor(diff / 3600000); if (h > 0) return h + "h ago"
         return Math.max(1, Math.floor(diff / 60000)) + "m ago"
+    }
+    // lastSeen arrives as epoch ms or a datetime string depending on the source table
+    function lastSeenMs(v) {
+        if (!v) return 0
+        if (typeof v === "number") return v
+        var t = Date.parse(v)
+        return isNaN(t) ? 0 : t
     }
 
     // ---- punish helpers (mirror the app's guard-action flow) ----
@@ -115,10 +133,60 @@ Item {
         else { pendingAction = a.action; pendingNode = a.node; pendingTemp = a.temp }
     }
 
-    Component.onCompleted: loadOnline()
+    Component.onCompleted: loadBrowse()
     function loadOnline() { reqOnline = ProctorApi.send("GET", "/proctor/online") }
+    function loadBrowse() {
+        if (browseLoading || browseEnd || !browseSupported) return
+        browseLoading = true
+        reqBrowse = ProctorApi.send("GET", "/proctor/players/browse?limit=60&offset=" + browseOffset)
+    }
+    function resetBrowse() {
+        if (!browseSupported) { loadOnline(); return }
+        browse = []; browseOffset = 0; browseEnd = false
+        loadBrowse()
+    }
 
     Timer { id: debounce; interval: 280; onTriggered: PlayerSearchModel.search(searchInput.text) }
+
+    component FaceCell: Rectangle {
+        id: cell
+        property var p: ({})
+        width: 92; height: 106; radius: 12
+        color: cellHover.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.04)
+        Behavior on color { ColorAnimation { duration: 100 } }
+        Column {
+            anchors.top: parent.top; anchors.topMargin: 10
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 6
+            Item {
+                width: 56; height: 56
+                anchors.horizontalCenter: parent.horizontalCenter
+                Avatar { anchors.fill: parent; size: 56; uuid: cell.p.uuid || "" }
+                Rectangle {
+                    visible: cell.p.online === true
+                    width: 16; height: 16; radius: 8
+                    anchors.right: parent.right; anchors.bottom: parent.bottom
+                    anchors.rightMargin: -3; anchors.bottomMargin: -3
+                    color: "#3BA55D"; border.color: "#0f0a06"; border.width: 3
+                }
+            }
+            Text {
+                width: 80; horizontalAlignment: Text.AlignHCenter
+                text: cell.p.name || ""; color: "#FFFFFF"; font.pixelSize: 12; font.bold: true; elide: Text.ElideMiddle
+            }
+            Text {
+                visible: cell.p.online !== true && text.length > 0
+                width: 80; horizontalAlignment: Text.AlignHCenter
+                text: view.relTime(view.lastSeenMs(cell.p.lastSeen))
+                color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 10
+            }
+        }
+        MouseArea {
+            id: cellHover
+            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+            onClicked: view.openPlayer(cell.p.uuid, cell.p.name)
+        }
+    }
 
     Connections {
         target: ProctorApi
@@ -129,6 +197,22 @@ Item {
                     arr.sort(function (a, b) { return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase()) })
                     view.online = arr
                 } catch (e) { view.online = [] } }
+                return
+            }
+            if (id === view.reqBrowse) {
+                view.browseLoading = false
+                if (ok) {
+                    try {
+                        var ps = JSON.parse(body).players || []
+                        view.browse = view.browse.concat(ps)
+                        view.browseOffset += ps.length
+                        if (ps.length < 60) view.browseEnd = true
+                    } catch (e) { view.browseEnd = true }
+                } else {
+                    // old broker without the browse route — fall back to the plain online list
+                    view.browseSupported = false
+                    view.loadOnline()
+                }
                 return
             }
             if (id === view.reqServers) {
@@ -171,16 +255,62 @@ Item {
                 }
             }
 
-            // section label
+            // section label (search results + the no-browse fallback list)
             Text {
+                visible: searchInput.text.length > 0 || !view.browseSupported
                 text: searchInput.text.length > 0 ? "RESULTS" : ("ONLINE · " + view.online.length)
                 color: "#FFB833"; font.pixelSize: 11; font.bold: true
             }
 
-            // online list (no query)
+            // face browse: online grid, then everyone else by recency
+            Flickable {
+                id: browseFlick
+                width: parent.width; height: parent.height - 56
+                visible: searchInput.text.length === 0 && view.browseSupported
+                contentWidth: width; contentHeight: browseCol.height + 8; clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                onContentYChanged: if (contentY + height > contentHeight - 400) view.loadBrowse()
+
+                Column {
+                    id: browseCol
+                    width: parent.width; spacing: 12
+
+                    Text { text: "ONLINE · " + view.onlineBrowse.length; color: "#FFB833"; font.pixelSize: 11; font.bold: true }
+                    Text {
+                        visible: view.onlineBrowse.length === 0 && !view.browseLoading
+                        text: "Nobody is online right now."
+                        color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 14
+                    }
+                    Flow {
+                        width: parent.width; spacing: 10
+                        Repeater {
+                            model: view.onlineBrowse
+                            delegate: FaceCell { required property var modelData; p: modelData }
+                        }
+                    }
+
+                    Item { width: 1; height: 4; visible: view.offlineBrowse.length > 0 }
+                    Text { visible: view.offlineBrowse.length > 0; text: "OFFLINE"; color: "#8a7a56"; font.pixelSize: 11; font.bold: true }
+                    Flow {
+                        width: parent.width; spacing: 10
+                        Repeater {
+                            model: view.offlineBrowse
+                            delegate: FaceCell { required property var modelData; p: modelData }
+                        }
+                    }
+
+                    Text {
+                        visible: view.browseLoading
+                        text: "Loading…"
+                        color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 12
+                    }
+                }
+            }
+
+            // online list (no query — fallback when the browse route is unavailable)
             ListView {
                 width: parent.width; height: parent.height - 90; clip: true; spacing: 6
-                visible: searchInput.text.length === 0
+                visible: searchInput.text.length === 0 && !view.browseSupported
                 model: view.online
                 delegate: Rectangle {
                     required property var modelData
@@ -238,7 +368,7 @@ Item {
                 width: parent.width; height: 44
                 Row {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 12
-                    SButton { anchors.verticalCenter: parent.verticalCenter; text: "Back"; glyph: "‹"; variant: "ghost"; onClicked: { view.selUuid = ""; view.loadOnline() } }
+                    SButton { anchors.verticalCenter: parent.verticalCenter; text: "Back"; glyph: "‹"; variant: "ghost"; onClicked: { view.selUuid = ""; view.resetBrowse() } }
                     Avatar { anchors.verticalCenter: parent.verticalCenter; size: 40; uuid: view.selUuid }
                     Column {
                         anchors.verticalCenter: parent.verticalCenter; spacing: 3
