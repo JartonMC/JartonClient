@@ -83,10 +83,10 @@ Item {
         // power controls
         Row {
             spacing: 9
-            SButton { text: "Start"; variant: "primary"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("start") }
-            SButton { text: "Restart"; variant: "secondary"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("restart") }
-            SButton { text: "Stop"; variant: "secondary"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("stop") }
-            SButton { text: "Kill"; variant: "danger"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("kill") }
+            SButton { text: "Start"; icon: "play"; variant: "primary"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("start") }
+            SButton { text: "Restart"; icon: "refresh"; variant: "secondary"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("restart") }
+            SButton { text: "Stop"; icon: "square"; variant: "secondary"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("stop") }
+            SButton { text: "Kill"; icon: "zap"; variant: "danger"; busy: PteroServer.powerBusy; onClicked: PteroServer.power("kill") }
         }
 
         // live stats
