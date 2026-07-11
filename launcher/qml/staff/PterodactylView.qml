@@ -151,7 +151,7 @@ Item {
             width: parent.width; height: 38
             Row {
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 10
-                Text { anchors.verticalCenter: parent.verticalCenter; text: "Servers"; color: "#FFFFFF"; font.pixelSize: 21; font.bold: true }
+                Text { anchors.verticalCenter: parent.verticalCenter; text: "Servers"; color: "#F2E8D0"; font.pixelSize: 20; font.bold: true }
                 Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: ServerListModel.totalOnline >= 0
@@ -238,10 +238,11 @@ Item {
                 id: card
                 width: ListView.view.width
                 height: 84
-                radius: 18
-                color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.05)
+                radius: 14
+                color: rowArea.containsMouse ? "#1c160d" : "#16110a"
                 Behavior on color { ColorAnimation { duration: 120 } }
-                border.color: Qt.rgba(1, 1, 1, 0.08); border.width: 1
+                border.color: rowArea.containsMouse ? "#3a2f14" : "#241c12"; border.width: 1
+                Behavior on border.color { ColorAnimation { duration: 120 } }
 
                 readonly property bool isUp: model.state === "running"
                 readonly property bool isTransition: model.state === "starting" || model.state === "stopping"
@@ -293,12 +294,12 @@ Item {
                         Text {
                             id: nameTxt
                             anchors.left: parent.left; anchors.right: nodeTxt.left; anchors.rightMargin: 8
-                            text: name; color: "#FFFFFF"; font.pixelSize: 15; font.bold: true; elide: Text.ElideRight
+                            text: name; color: "#F2E8D0"; font.pixelSize: 15; font.bold: true; elide: Text.ElideRight
                         }
                         Text {
                             id: nodeTxt
                             anchors.right: parent.right; anchors.verticalCenter: nameTxt.verticalCenter
-                            text: node; color: Qt.rgba(1, 1, 1, 0.32); font.pixelSize: 11; font.family: "Menlo"
+                            text: node; color: "#6b5d3f"; font.pixelSize: 11; font.family: "Menlo"
                         }
                     }
                     Row {

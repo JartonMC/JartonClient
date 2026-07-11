@@ -698,18 +698,37 @@ Item {
                 Repeater {
                     model: PlayerHistoryModel
                     delegate: Rectangle {
-                        width: detailCol.width; height: hc.height + 20; radius: 11; color: Qt.rgba(1, 1, 1, 0.04)
+                        width: detailCol.width; height: hc.height + 20; radius: 11
+                        color: "#16110a"; border.color: active ? "#4a3018" : "#241c12"; border.width: 1
+                        // duration text for temp actions ("30m", "7d"); 0 = permanent
+                        function fmtDur(ms) {
+                            if (!ms || ms <= 0) return ""
+                            var m = Math.round(Number(ms) / 60000)
+                            if (m < 60) return m + "m"
+                            var h = Math.round(m / 60)
+                            if (h < 48) return h + "h"
+                            return Math.round(h / 24) + "d"
+                        }
                         Column {
                             id: hc
                             anchors.left: parent.left; anchors.leftMargin: 14; anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                            Row {
-                                spacing: 6
-                                Text { text: action.toUpperCase(); color: "#FFB833"; font.pixelSize: 12; font.bold: true }
-                                Rectangle { visible: active; width: av.width + 12; height: 16; radius: 8; color: Qt.rgba(1, 0.42, 0.42, 0.16); anchors.verticalCenter: parent.verticalCenter
-                                    Text { id: av; anchors.centerIn: parent; text: "active"; color: "#ff6b6b"; font.pixelSize: 9; font.bold: true } }
-                                Text { text: root.relTime(timestamp); color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
+                            Item {
+                                width: parent.width; height: 16
+                                Row {
+                                    anchors.left: parent.left; spacing: 6
+                                    Text { text: action.toUpperCase() + (fmtDur(duration).length ? "  ·  " + fmtDur(duration) : ""); color: "#FFB833"; font.pixelSize: 12; font.bold: true }
+                                    Rectangle { visible: active; width: av.width + 12; height: 16; radius: 8; color: Qt.rgba(1, 0.72, 0.2, 0.18); anchors.verticalCenter: parent.verticalCenter
+                                        Text { id: av; anchors.centerIn: parent; text: "active"; color: "#FFB81C"; font.pixelSize: 9; font.bold: true } }
+                                    Rectangle { visible: typeof server !== "undefined" && server !== null && String(server).length > 0; width: sv.width + 12; height: 16; radius: 8; color: Qt.rgba(1, 1, 1, 0.06); anchors.verticalCenter: parent.verticalCenter
+                                        Text { id: sv; anchors.centerIn: parent; text: server || ""; color: "#8a7a56"; font.pixelSize: 9; font.family: "Menlo" } }
+                                }
+                                Text {
+                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                    text: root.relTime(ts) + "  ·  " + root.fmtWhen(ts)
+                                    color: "#8a7a56"; font.pixelSize: 11
+                                }
                             }
-                            Text { width: parent.width; text: reason; color: Qt.rgba(1, 1, 1, 0.8); font.pixelSize: 12; elide: Text.ElideRight }
+                            Text { width: parent.width; text: reason; color: "#F2E8D0"; font.pixelSize: 12; elide: Text.ElideRight }
                             Text { text: "by " + staffName; color: Qt.rgba(1, 1, 1, 0.4); font.pixelSize: 11 }
                         }
                     }

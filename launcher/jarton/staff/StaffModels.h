@@ -53,7 +53,7 @@ class PlayerHistoryModel : public QAbstractListModel {
     Q_PROPERTY(bool muted READ muted NOTIFY changed)
 
    public:
-    enum Roles : uint16_t { ActionRole = Qt::UserRole + 1, ReasonRole, StaffRole, TimestampRole, DurationRole, ActiveRole };
+    enum Roles : uint16_t { ActionRole = Qt::UserRole + 1, ReasonRole, StaffRole, TimestampRole, DurationRole, ActiveRole, ServerRole };
 
     explicit PlayerHistoryModel(ProctorClient* proctor, QObject* parent = nullptr);
 
@@ -80,6 +80,7 @@ class PlayerHistoryModel : public QAbstractListModel {
         qint64 timestamp = 0;
         qint64 duration = 0;
         bool active = false;
+        QString server;
     };
     void recomputeStatus();
 
