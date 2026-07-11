@@ -115,12 +115,14 @@ Rectangle {
         anchors.fill: parent
         visible: !panel.needsProctorLogin
 
+        // Swifty is NOT loaded here: QtWebView's native view can't attach to this
+        // QQuickWidget's offscreen scene. MainWindow hosts SwiftyWebView.qml in its
+        // own QQuickView window container over this panel; the swifty section just
+        // shows the panel backdrop underneath it.
         Loader {
             anchors.fill: parent
-            active: panel.section === "ptero" || panel.section === "swifty"
-                  || (panel.section === "staff" && ProctorClient.connected)
+            active: panel.section === "ptero" || (panel.section === "staff" && ProctorClient.connected)
             source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
-                  : panel.section === "swifty" ? "qrc:/jarton/staff/SwiftyWebView.qml"
                   : panel.section === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
         }
 

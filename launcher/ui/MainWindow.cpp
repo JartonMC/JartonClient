@@ -70,6 +70,7 @@
 #include <QQuickItem>
 #include <QQmlContext>
 #include <QQuickItem>
+#include <QQuickView>
 #include <QQuickWidget>
 #include <QVBoxLayout>
 #include <QWindowStateChangeEvent>
@@ -1699,6 +1700,11 @@ void MainWindow::repositionFloatingOverlays()
         m_staffPanel->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
         m_staffPanel->raise();
     }
+    // The Swifty window container tracks the same rect, stacked above the panel.
+    if (m_centralBg != nullptr && m_swiftyContainer != nullptr && m_swiftyContainer->isVisible()) {
+        m_swiftyContainer->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
+        m_swiftyContainer->raise();
+    }
 }
 
 // Sidebar indices: -1 brand mark (opens About); 0 Home / 1 Instances /
@@ -1751,6 +1757,9 @@ void MainWindow::showStaffSection(const QString& section)
     if (section.isEmpty()) {
         // restore the instance grid + its overlays
         m_staffPanel->hide();
+        if (m_swiftyContainer != nullptr) {
+            m_swiftyContainer->hide();
+        }
         if (view != nullptr) {
             view->show();
         }
@@ -1783,6 +1792,27 @@ void MainWindow::showStaffSection(const QString& section)
     }
     m_staffPanel->show();
     m_staffPanel->raise();
+
+#ifdef LAUNCHER_STAFF
+    // Swifty is a native webview (see m_swiftyView in the header) — swap its window
+    // container in over the panel for the Swifty section, keep it hidden elsewhere.
+    if (section == QLatin1String("swifty")) {
+        if (m_swiftyContainer == nullptr && m_centralBg != nullptr) {
+            m_swiftyView = new QQuickView();
+            m_swiftyView->setResizeMode(QQuickView::SizeRootObjectToView);
+            m_swiftyView->setColor(QColor(0x0f, 0x0a, 0x06));
+            m_swiftyView->setSource(QUrl(QStringLiteral("qrc:/jarton/staff/SwiftyWebView.qml")));
+            m_swiftyContainer = QWidget::createWindowContainer(m_swiftyView, m_centralBg);
+        }
+        if (m_swiftyContainer != nullptr) {
+            m_swiftyContainer->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
+            m_swiftyContainer->show();
+            m_swiftyContainer->raise();
+        }
+    } else if (m_swiftyContainer != nullptr) {
+        m_swiftyContainer->hide();
+    }
+#endif
 }
 
 void MainWindow::on_actionDeleteInstance_triggered()

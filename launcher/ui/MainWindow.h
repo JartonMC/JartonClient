@@ -47,6 +47,7 @@
 #include <QTimer>
 
 class QQuickWidget;
+class QQuickView;
 class QHBoxLayout;
 class QPushButton;
 namespace Jarton {
@@ -249,6 +250,13 @@ class MainWindow : public QMainWindow {
     QPushButton* m_changelogToggle = nullptr;
     // Staff edition: docked Companion panel in the central area (null in the public build).
     QQuickWidget* m_staffPanel = nullptr;
+    // Swifty's native webview can't live inside m_staffPanel: QtWebView on macOS/Windows
+    // is a real platform view that needs a platform-backed QQuickWindow, and QQuickWidget
+    // renders its scene offscreen. So the Swifty QML gets its own QQuickView, wrapped in
+    // a window container stacked over the panel while the Swifty section is active.
+    // Lazy-created on first use in showStaffSection() (null in the public build).
+    QQuickView* m_swiftyView = nullptr;
+    QWidget* m_swiftyContainer = nullptr;
     QAction* m_actionCreateJartonInstance = nullptr;
     // Sticky preference. Set true when the user explicitly hides the changelog
     // and cleared when they explicitly show it; window-maximize transitions
