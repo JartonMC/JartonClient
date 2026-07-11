@@ -6,16 +6,18 @@ import Jarton
 Item {
     id: root
     property var staff: []
+    property var ranks: []
     property bool loading: false
     property string error: ""
     property string banner: ""
     property int reqList: -1
+    property int reqRanks: -1
     property var pendingWrites: []
     property bool loadedOnce: false
     property bool adding: false
     property int openId: -1
 
-    onVisibleChanged: if (visible && !loadedOnce) { loadedOnce = true; load() }
+    onVisibleChanged: if (visible && !loadedOnce) { loadedOnce = true; load(); reqRanks = ProctorApi.send("GET", "/proctor/ranks") }
 
     function load() { loading = true; error = ""; reqList = ProctorApi.send("GET", "/proctor/staff") }
     function track(reqId) { var p = pendingWrites; p.push(reqId); pendingWrites = p }
@@ -31,6 +33,11 @@ Item {
                 root.loading = false
                 if (ok) { try { root.staff = JSON.parse(body).staff || [] } catch (e) { root.staff = [] } }
                 else root.error = "Couldn't load staff (admin only)."
+                return
+            }
+            if (id === root.reqRanks) {
+                // empty/failed → RankField falls back to free text, form never bricks
+                if (ok) { try { root.ranks = JSON.parse(body).ranks || [] } catch (e) { root.ranks = [] } }
                 return
             }
             var idx = root.pendingWrites.indexOf(id)
@@ -61,9 +68,11 @@ Item {
 
         // ---- add form ----
         Rectangle {
-            width: parent.width; height: 156; radius: 12; visible: root.adding; color: Qt.rgba(1, 1, 1, 0.05); border.color: "#FFB833"; border.width: 1
+            id: addForm
+            width: parent.width; height: addFormCol.height + 24; radius: 12; visible: root.adding; color: Qt.rgba(1, 1, 1, 0.05); border.color: "#FFB833"; border.width: 1
             Column {
-                anchors.fill: parent; anchors.margins: 12; spacing: 8
+                id: addFormCol
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 12; spacing: 8
                 Text { text: "New staff member"; color: "#FFE082"; font.pixelSize: 13; font.bold: true }
                 Row {
                     width: parent.width; spacing: 8
@@ -72,8 +81,9 @@ Item {
                 }
                 Row {
                     width: parent.width; spacing: 8
+                    z: fRank.open ? 10 : 0
                     StaffField { id: fMc; ph: "minecraft name"; w: (parent.width - 8) / 2 }
-                    StaffField { id: fRank; ph: "rank (e.g. Moderator)"; w: (parent.width - 8) / 2 }
+                    RankField { id: fRank; w: (parent.width - 8) / 2 }
                 }
                 Row {
                     width: parent.width; spacing: 8
@@ -101,7 +111,7 @@ Item {
         }
 
         ListView {
-            width: parent.width; height: parent.height - (root.adding ? 220 : 56) - (root.banner.length > 0 ? 38 : 0); clip: true; spacing: 8
+            width: parent.width; height: parent.height - (root.adding ? addForm.height + 64 : 56) - (root.banner.length > 0 ? 38 : 0); clip: true; spacing: 8
             model: root.staff
             delegate: Rectangle {
                 id: sCard
@@ -138,8 +148,9 @@ Item {
                         width: parent.width; spacing: 8; visible: sCard.open
                         Row {
                             width: parent.width; spacing: 8
-                            StaffField { id: erank; ph: "rank"; w: (parent.width - 8) / 2; preset: modelData.rank ? modelData.rank : "" }
-                            SButton { anchors.verticalCenter: parent.verticalCenter; text: "Save rank"; variant: "secondary"; onClicked: if (erank.value.length) root.patchStaff(modelData.id, { rank: erank.value }) }
+                            z: erank.open ? 10 : 0
+                            RankField { id: erank; w: (parent.width - 8) / 2; preset: modelData.rank ? modelData.rank : "" }
+                            SButton { anchors.top: parent.top; anchors.topMargin: 0; height: 32; text: "Save rank"; variant: "secondary"; onClicked: if (erank.value.length) root.patchStaff(modelData.id, { rank: erank.value }) }
                         }
                         Row {
                             spacing: 8
@@ -182,6 +193,72 @@ Item {
             verticalAlignment: TextInput.AlignVCenter; color: "#FFFFFF"; font.pixelSize: 12; clip: true
             echoMode: fld.pw ? TextInput.Password : TextInput.Normal
             Text { anchors.verticalCenter: parent.verticalCenter; text: fld.ph; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 12; visible: ti.text.length === 0 }
+        }
+    }
+    // rank picker fed by /proctor/ranks; expands in place (no overlay popup — the
+    // hosting Columns reflow instead, so nothing clips inside the ListView cards).
+    // No ranks loaded → plain text input, the form must never brick on a dead route.
+    component RankField: Rectangle {
+        id: rf
+        property real w: 160
+        property string preset: ""
+        property bool open: false
+        readonly property bool dd: root.ranks.length > 0
+        property string picked: ""
+        readonly property string value: dd ? picked : rti.text
+        function clear() { picked = ""; rti.text = ""; open = false }
+        width: w; height: 32 + (dd && open ? optFlick.height + 6 : 0)
+        radius: 8; color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: (dd ? open : rti.activeFocus) ? "#FFB833" : "transparent"; border.width: 1
+        Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+        Component.onCompleted: if (preset.length) { picked = preset; rti.text = preset }
+
+        Item {
+            width: parent.width; height: 32; visible: rf.dd
+            Text {
+                anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
+                text: rf.picked.length ? rf.picked : "rank"
+                color: rf.picked.length ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 12
+            }
+            Text {
+                anchors.right: parent.right; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter
+                text: rf.open ? "▴" : "▾"; color: Qt.rgba(1, 1, 1, 0.4); font.pixelSize: 11
+            }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: rf.open = !rf.open }
+        }
+        Flickable {
+            id: optFlick
+            visible: rf.dd && rf.open
+            anchors.top: parent.top; anchors.topMargin: 34
+            anchors.left: parent.left; anchors.right: parent.right; anchors.leftMargin: 4; anchors.rightMargin: 4
+            height: Math.min(root.ranks.length, 6) * 28
+            contentHeight: optCol.height; clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            Column {
+                id: optCol; width: parent.width
+                Repeater {
+                    model: root.ranks
+                    Rectangle {
+                        width: optCol.width; height: 28; radius: 6
+                        color: optHover.containsMouse ? Qt.rgba(1, 0.72, 0.2, 0.14) : "transparent"
+                        Text {
+                            anchors.left: parent.left; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.rank; color: optHover.containsMouse ? "#FFE082" : "#F2E8D0"; font.pixelSize: 12
+                        }
+                        MouseArea {
+                            id: optHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: { rf.picked = modelData.rank; rf.open = false }
+                        }
+                    }
+                }
+            }
+        }
+        TextInput {
+            id: rti; visible: !rf.dd
+            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+            anchors.leftMargin: 10; anchors.rightMargin: 10; height: 32
+            verticalAlignment: TextInput.AlignVCenter; color: "#FFFFFF"; font.pixelSize: 12; clip: true
+            Text { anchors.verticalCenter: parent.verticalCenter; text: "rank"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 12; visible: rti.text.length === 0 }
         }
     }
     component AdminToggle: Rectangle {
