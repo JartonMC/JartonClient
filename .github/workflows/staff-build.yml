@@ -49,8 +49,9 @@ jobs:
           artifact-name: Staff-Windows-MSVC
           vcvars-arch: amd64
           qt-version: 6.10.2
-          # qtwebview backs the embedded Swifty board (WebView2 on Windows)
-          qt-modules: qtimageformats qtnetworkauth qtwebview
+          # staff extras: qtwebview backs the embedded Swifty board (WebView2 on
+          # Windows), qtwebsockets backs the live wings console
+          qt-modules: qtimageformats qtnetworkauth qtwebview qtwebsockets
 
       - name: Configure project
         run: |
