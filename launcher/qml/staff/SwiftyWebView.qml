@@ -68,7 +68,7 @@ Item {
         MouseArea {
             id: popArea
             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: ProctorClient.requestSwiftyPop(!ProctorClient.swiftyPopped)
+            onClicked: ProctorClient.requestSectionPop("swifty", !ProctorClient.swiftyPopped)
         }
     }
 

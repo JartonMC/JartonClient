@@ -41,13 +41,13 @@ void ProctorClient::setCurrentSection(const QString& section)
     emit sectionChanged();
 }
 
-void ProctorClient::setSwiftyPopped(bool popped)
+void ProctorClient::setSectionPopped(const QString& section, bool popped)
 {
-    if (m_swiftyPopped == popped) {
+    if (m_popped.value(section) == popped) {
         return;
     }
-    m_swiftyPopped = popped;
-    emit swiftyPoppedChanged();
+    m_popped[section] = popped;
+    emit poppedChanged();
 }
 
 void ProctorClient::signIn(const QString& username, const QString& password)

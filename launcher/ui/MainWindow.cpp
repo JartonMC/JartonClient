@@ -502,10 +502,19 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         m_staffPanel->setSource(QUrl(QStringLiteral("qrc:/jarton/staff/StaffPanel.qml")));
         m_staffPanel->hide();
 
-        // Pop-out requests come from QML (the Swifty header chip / the docked
-        // placeholder) through the shared ProctorClient singleton.
+        m_sectionHosts = { { { QStringLiteral("ptero"), QStringLiteral("qrc:/jarton/staff/PterodactylView.qml"),
+                               tr("Pterodactyl — Jarton Client"), QStringLiteral("PteroWindowGeometry") },
+                             { QStringLiteral("staff"), QStringLiteral("qrc:/jarton/staff/StaffSectionView.qml"),
+                               tr("Staff — Jarton Client"), QStringLiteral("StaffWindowGeometry") },
+                             { QStringLiteral("swifty"), QStringLiteral("qrc:/jarton/staff/SwiftyWebView.qml"),
+                               tr("Swifty — Jarton Client"), QStringLiteral("SwiftyWindowGeometry") } } };
+
+        // Pop-out requests come from QML (each section's header chip / the docked
+        // placeholder) through the shared ProctorClient singleton. The proctor session
+        // state also drives whether the staff section shows its login form or content.
         if (auto* proctor = APPLICATION->jartonProctor()) {
-            connect(proctor, SIGNAL(swiftyPopRequested(bool)), this, SLOT(onSwiftyPopRequested(bool)));
+            connect(proctor, SIGNAL(sectionPopRequested(QString, bool)), this, SLOT(onSectionPopRequested(QString, bool)));
+            connect(proctor, SIGNAL(changed()), this, SLOT(onProctorStateChanged()));
         }
 #endif
     }
@@ -946,11 +955,13 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
         repositionFloatingOverlays();
     }
 #ifdef LAUNCHER_STAFF
-    // Closing the popped-out Swifty window docks it back instead of destroying it —
-    // the WKWebView/WebView2 must survive, it carries the live session.
-    if (obj == m_swiftyView && ev->type() == QEvent::Close && m_swiftyPoppedOut) {
-        popInSwifty();
-        return true;
+    // Closing a popped-out section window docks it back instead of destroying it —
+    // the views carry live state (Swifty's webview session, console sockets).
+    if (ev->type() == QEvent::Close) {
+        if (SectionHost* host = sectionHostForView(obj); host != nullptr && host->popped) {
+            popInSection(*host);
+            return true;
+        }
     }
 #endif
     if (obj == view) {
@@ -1715,10 +1726,12 @@ void MainWindow::repositionFloatingOverlays()
         m_staffPanel->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
         m_staffPanel->raise();
     }
-    // The Swifty window container tracks the same rect, stacked above the panel.
-    if (m_centralBg != nullptr && m_swiftyContainer != nullptr && m_swiftyContainer->isVisible()) {
-        m_swiftyContainer->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
-        m_swiftyContainer->raise();
+    // Docked section containers track the same rect, stacked above the panel.
+    for (auto& host : m_sectionHosts) {
+        if (m_centralBg != nullptr && host.container != nullptr && host.container->isVisible()) {
+            host.container->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
+            host.container->raise();
+        }
     }
 }
 
@@ -1770,11 +1783,9 @@ void MainWindow::showStaffSection(const QString& section)
         QMetaObject::invokeMethod(proctor, "setCurrentSection", Q_ARG(QString, section));
     }
     if (section.isEmpty()) {
-        // restore the instance grid + its overlays
+        // restore the instance grid + its overlays; popped-out windows stay open
         m_staffPanel->hide();
-        if (m_swiftyContainer != nullptr) {
-            m_swiftyContainer->hide();
-        }
+        hideDockedSections(QString());
         if (view != nullptr) {
             view->show();
         }
@@ -1809,67 +1820,133 @@ void MainWindow::showStaffSection(const QString& section)
     m_staffPanel->raise();
 
 #ifdef LAUNCHER_STAFF
-    // Swifty is a native webview (see m_swiftyView in the header) — swap its window
-    // container in over the panel for the Swifty section, keep it hidden elsewhere.
-    // While popped out, the docked panel shows StaffPanel.qml's placeholder instead;
-    // picking the section just brings the floating window forward.
-    if (section == QLatin1String("swifty")) {
-        if (m_swiftyPoppedOut) {
-            if (m_swiftyView != nullptr) {
-                m_swiftyView->raise();
-                m_swiftyView->requestActivate();
+    // Every section's content lives in its own QQuickView (see SectionHost in the
+    // header) — swap the active section's window container in over the panel, keep
+    // the rest hidden. While popped out, the docked panel shows StaffPanel.qml's
+    // placeholder instead; picking the section just brings the floating window forward.
+    hideDockedSections(section);
+    if (SectionHost* host = sectionHost(section)) {
+        if (host->popped) {
+            if (host->view != nullptr) {
+                host->view->raise();
+                host->view->requestActivate();
             }
+        } else if (section == QLatin1String("staff")) {
+            syncStaffSectionContent();  // login-gated: form or content by session state
         } else {
-            if (m_swiftyContainer == nullptr && m_centralBg != nullptr) {
-                if (m_swiftyView == nullptr) {
-                    m_swiftyView = new QQuickView();
-                    m_swiftyView->setResizeMode(QQuickView::SizeRootObjectToView);
-                    m_swiftyView->setColor(QColor(0x0f, 0x0a, 0x06));
-                    m_swiftyView->setSource(QUrl(QStringLiteral("qrc:/jarton/staff/SwiftyWebView.qml")));
-                }
-                m_swiftyContainer = QWidget::createWindowContainer(m_swiftyView, m_centralBg);
-            }
-            if (m_swiftyContainer != nullptr) {
-                m_swiftyContainer->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
-                m_swiftyContainer->show();
-                m_swiftyContainer->raise();
-            }
+            showDockedSection(*host);
         }
-    } else if (m_swiftyContainer != nullptr) {
-        m_swiftyContainer->hide();
     }
 #endif
 }
 
 #ifdef LAUNCHER_STAFF
-void MainWindow::onSwiftyPopRequested(bool popped)
+MainWindow::SectionHost* MainWindow::sectionHost(const QString& section)
 {
-    if (popped) {
-        popOutSwifty();
-    } else {
-        popInSwifty();
+    for (auto& host : m_sectionHosts) {
+        if (host.section == section) {
+            return &host;
+        }
+    }
+    return nullptr;
+}
+
+MainWindow::SectionHost* MainWindow::sectionHostForView(const QObject* obj)
+{
+    for (auto& host : m_sectionHosts) {
+        if (host.view != nullptr && host.view == obj) {
+            return &host;
+        }
+    }
+    return nullptr;
+}
+
+void MainWindow::showDockedSection(SectionHost& host)
+{
+    if (m_centralBg == nullptr) {
+        return;
+    }
+    if (host.view == nullptr) {
+        host.view = new QQuickView();
+        host.view->setResizeMode(QQuickView::SizeRootObjectToView);
+        host.view->setColor(QColor(0x0f, 0x0a, 0x06));
+        host.view->setSource(QUrl(host.qmlSource));
+    }
+    if (host.container == nullptr) {
+        host.container = QWidget::createWindowContainer(host.view, m_centralBg);
+    }
+    host.container->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
+    host.container->show();
+    host.container->raise();
+}
+
+void MainWindow::hideDockedSections(const QString& exceptSection)
+{
+    for (auto& host : m_sectionHosts) {
+        if (host.section != exceptSection && host.container != nullptr) {
+            host.container->hide();
+        }
     }
 }
 
-void MainWindow::popOutSwifty()
+void MainWindow::onSectionPopRequested(const QString& section, bool popped)
 {
-    if (m_swiftyView == nullptr || m_swiftyPoppedOut) {
+    if (SectionHost* host = sectionHost(section)) {
+        if (popped) {
+            popOutSection(*host);
+        } else {
+            popInSection(*host);
+        }
+    }
+}
+
+void MainWindow::onProctorStateChanged()
+{
+    syncStaffSectionContent();
+}
+
+void MainWindow::syncStaffSectionContent()
+{
+    auto* proctor = APPLICATION->jartonProctor();
+    SectionHost* host = sectionHost(QStringLiteral("staff"));
+    if (proctor == nullptr || host == nullptr) {
+        return;
+    }
+    const bool connected = proctor->property("connected").toBool();
+    if (!connected && host->popped) {
+        // signed out while floating: the window would show a dead session — dock it
+        popInSection(*host);
+    }
+    if (host->popped) {
+        return;
+    }
+    const bool onStaff = proctor->property("currentSection").toString() == QLatin1String("staff");
+    if (onStaff && connected && m_staffPanel != nullptr && m_staffPanel->isVisible()) {
+        showDockedSection(*host);
+    } else if (host->container != nullptr) {
+        host->container->hide();  // the login form (or another section) owns the area
+    }
+}
+
+void MainWindow::popOutSection(SectionHost& host)
+{
+    if (host.view == nullptr || host.popped) {
         return;
     }
     // Release the window from its container BEFORE the container dies — the container
     // owns the window and would take it down otherwise. Containers can't be reused
     // after their window leaves, so it's recreated on pop-in.
-    m_swiftyView->setParent(nullptr);
-    if (m_swiftyContainer != nullptr) {
-        m_swiftyContainer->hide();
-        m_swiftyContainer->deleteLater();
-        m_swiftyContainer = nullptr;
+    host.view->setParent(nullptr);
+    if (host.container != nullptr) {
+        host.container->hide();
+        host.container->deleteLater();
+        host.container = nullptr;
     }
-    m_swiftyView->setFlags(Qt::Window);
-    m_swiftyView->setTitle(tr("Swifty — Jarton Client"));
+    host.view->setFlags(Qt::Window);
+    host.view->setTitle(host.title);
 
     QRect r;
-    const QStringList parts = APPLICATION->settings()->get("SwiftyWindowGeometry").toString().split(',');
+    const QStringList parts = APPLICATION->settings()->get(host.geometryKey).toString().split(',');
     if (parts.size() == 4) {
         r = QRect(parts[0].toInt(), parts[1].toInt(), parts[2].toInt(), parts[3].toInt());
     }
@@ -1884,66 +1961,91 @@ void MainWindow::popOutSwifty()
                                                                                   : QGuiApplication::primaryScreen();
         r.moveCenter(screen->availableGeometry().center());
     }
-    m_swiftyView->setGeometry(r);
+    host.view->setGeometry(r);
 
-    if (!m_swiftyFilterInstalled) {
-        m_swiftyView->installEventFilter(this);
-        m_swiftyFilterInstalled = true;
+    if (!host.filterInstalled) {
+        host.view->installEventFilter(this);
+        host.filterInstalled = true;
     }
-    m_swiftyPoppedOut = true;
-    m_swiftyView->show();
-    m_swiftyView->requestActivate();
+    host.popped = true;
+    host.view->show();
+    host.view->requestActivate();
     if (auto* proctor = APPLICATION->jartonProctor()) {
-        QMetaObject::invokeMethod(proctor, "setSwiftyPopped", Q_ARG(bool, true));
+        QMetaObject::invokeMethod(proctor, "setSectionPopped", Q_ARG(QString, host.section), Q_ARG(bool, true));
     }
 }
 
-void MainWindow::popInSwifty()
+void MainWindow::popInSection(SectionHost& host)
 {
-    if (!m_swiftyPoppedOut || m_swiftyView == nullptr) {
+    if (!host.popped || host.view == nullptr) {
         return;
     }
-    saveSwiftyWindowGeometry();
-    m_swiftyView->hide();
-    m_swiftyPoppedOut = false;
+    saveSectionWindowGeometry(host);
+    host.view->hide();
+    host.popped = false;
+    auto* proctor = APPLICATION->jartonProctor();
     if (m_centralBg != nullptr) {
-        // Fresh container each time (see popOutSwifty). If the platform view ever comes
+        // Fresh container each time (see popOutSection). If a platform view ever comes
         // back blank after re-wrapping, the fallback is recreating the QQuickView here —
-        // Swifty's session lives in localStorage, so it lands back on the boards.
-        m_swiftyContainer = QWidget::createWindowContainer(m_swiftyView, m_centralBg);
-        auto* proctor = APPLICATION->jartonProctor();
-        const bool onSwifty = proctor != nullptr && proctor->property("currentSection").toString() == QLatin1String("swifty");
-        if (onSwifty) {
-            m_swiftyContainer->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
-            m_swiftyContainer->show();
-            m_swiftyContainer->raise();
+        // Swifty's session lives in localStorage, the other sections rebuild from the
+        // shared singletons.
+        host.container = QWidget::createWindowContainer(host.view, m_centralBg);
+        const bool current =
+            proctor != nullptr && proctor->property("currentSection").toString() == host.section;
+        // the staff section docks back behind its login gate when the session dropped
+        const bool gated =
+            host.section == QLatin1String("staff") && (proctor == nullptr || !proctor->property("connected").toBool());
+        if (current && !gated) {
+            host.container->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
+            host.container->show();
+            host.container->raise();
         }
     }
-    if (auto* proctor = APPLICATION->jartonProctor()) {
-        QMetaObject::invokeMethod(proctor, "setSwiftyPopped", Q_ARG(bool, false));
+    if (proctor != nullptr) {
+        QMetaObject::invokeMethod(proctor, "setSectionPopped", Q_ARG(QString, host.section), Q_ARG(bool, false));
     }
 }
 
-void MainWindow::saveSwiftyWindowGeometry()
+void MainWindow::saveSectionWindowGeometry(SectionHost& host)
 {
-    if (m_swiftyView == nullptr || !m_swiftyPoppedOut) {
+    if (host.view == nullptr || !host.popped) {
         return;
     }
-    const QRect r = m_swiftyView->geometry();
-    APPLICATION->settings()->set("SwiftyWindowGeometry",
+    const QRect r = host.view->geometry();
+    APPLICATION->settings()->set(host.geometryKey,
                                  QString("%1,%2,%3,%4").arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height()));
 }
 #else
-void MainWindow::onSwiftyPopRequested(bool)
+MainWindow::SectionHost* MainWindow::sectionHost(const QString&)
+{
+    return nullptr;
+}
+MainWindow::SectionHost* MainWindow::sectionHostForView(const QObject*)
+{
+    return nullptr;
+}
+void MainWindow::showDockedSection(SectionHost&)
 {
 }
-void MainWindow::popOutSwifty()
+void MainWindow::hideDockedSections(const QString&)
 {
 }
-void MainWindow::popInSwifty()
+void MainWindow::onSectionPopRequested(const QString&, bool)
 {
 }
-void MainWindow::saveSwiftyWindowGeometry()
+void MainWindow::onProctorStateChanged()
+{
+}
+void MainWindow::syncStaffSectionContent()
+{
+}
+void MainWindow::popOutSection(SectionHost&)
+{
+}
+void MainWindow::popInSection(SectionHost&)
+{
+}
+void MainWindow::saveSectionWindowGeometry(SectionHost&)
 {
 }
 #endif
@@ -2046,12 +2148,14 @@ void MainWindow::on_actionViewSelectedInstFolder_triggered()
 void MainWindow::closeEvent(QCloseEvent* event)
 {
 #ifdef LAUNCHER_STAFF
-    // Take the popped-out Swifty window down with us (it would otherwise keep the
+    // Take any popped-out section windows down with us (they would otherwise keep the
     // app alive). Geometry saved first so the next pop-out lands where it was.
-    if (m_swiftyPoppedOut && m_swiftyView != nullptr) {
-        saveSwiftyWindowGeometry();
-        m_swiftyView->removeEventFilter(this);
-        m_swiftyView->close();
+    for (auto& host : m_sectionHosts) {
+        if (host.popped && host.view != nullptr) {
+            saveSectionWindowGeometry(host);
+            host.view->removeEventFilter(this);
+            host.view->close();
+        }
     }
 #endif
     // Save the window state and geometry.

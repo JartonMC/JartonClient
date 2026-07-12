@@ -865,6 +865,8 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         m_settings->registerSetting("MainWindowState", "");
         m_settings->registerSetting("MainWindowGeometry", "");
         // popped-out staff panes remember where they lived ("x,y,w,h")
+        m_settings->registerSetting("PteroWindowGeometry", "");
+        m_settings->registerSetting("StaffWindowGeometry", "");
         m_settings->registerSetting("SwiftyWindowGeometry", "");
 
         m_settings->registerSetting("ConsoleWindowState", "");

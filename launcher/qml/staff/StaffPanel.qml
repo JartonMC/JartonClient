@@ -14,6 +14,9 @@ Rectangle {
 
     readonly property string section: ProctorClient.currentSection
     readonly property bool needsProctorLogin: section === "staff" && !ProctorClient.connected && !ProctorClient.restoring
+    readonly property bool sectionPopped: section === "ptero" ? ProctorClient.pteroPopped
+                                        : section === "staff" ? ProctorClient.staffPopped
+                                        : section === "swifty" ? ProctorClient.swiftyPopped : false
 
     function sectionTitle(s) {
         return s === "ptero" ? "Pterodactyl" : s === "staff" ? "Staff" : s === "swifty" ? "Swifty" : ""
@@ -115,22 +118,16 @@ Rectangle {
         anchors.fill: parent
         visible: !panel.needsProctorLogin
 
-        // Swifty is NOT loaded here: QtWebView's native view can't attach to this
-        // QQuickWidget's offscreen scene. MainWindow hosts SwiftyWebView.qml in its
-        // own QQuickView window container over this panel; the swifty section just
-        // shows the panel backdrop underneath it — or this card while it's popped
-        // out into its own window.
-        Loader {
-            anchors.fill: parent
-            active: panel.section === "ptero" || (panel.section === "staff" && ProctorClient.connected)
-            source: panel.section === "ptero" ? "qrc:/jarton/staff/PterodactylView.qml"
-                  : panel.section === "staff" ? "qrc:/jarton/staff/StaffSectionView.qml" : ""
-        }
-
+        // No section content loads here: every section lives in its own QQuickView
+        // that MainWindow stacks over this panel while docked (Swifty's native
+        // webview can't attach to this QQuickWidget's offscreen scene, and hosting
+        // ptero/staff the same way keeps their views warm across section hops).
+        // This panel is just the docked backdrop, the proctor login gate above,
+        // and the placeholder below while a section is popped out into its own window.
         Column {
             anchors.centerIn: parent
             spacing: 14
-            visible: panel.section === "swifty" && ProctorClient.swiftyPopped
+            visible: panel.sectionPopped && (panel.section !== "staff" || ProctorClient.connected)
             Image {
                 anchors.horizontalCenter: parent.horizontalCenter
                 source: "qrc:/jarton/staff/icons/ui/external-link-rest.svg"
@@ -138,13 +135,13 @@ Rectangle {
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: "Swifty is open in its own window"
+                text: panel.sectionTitle(panel.section) + " is open in its own window"
                 color: "#FFE082"; font.pixelSize: 16; font.bold: true
             }
             SButton {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "Bring back"; icon: "corner-down-left"; variant: "secondary"
-                onClicked: ProctorClient.requestSwiftyPop(false)
+                onClicked: ProctorClient.requestSectionPop(panel.section, false)
             }
         }
 
@@ -161,22 +158,6 @@ Rectangle {
             text: panel.section === "" ? "Select a staff tab from the sidebar."
                                        : panel.sectionTitle(panel.section) + " — coming soon"
             color: "#9a8a66"; font.pixelSize: 16
-        }
-
-        // Proctor sign-out, only meaningful inside the Staff section.
-        Rectangle {
-            anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.margins: 12
-            visible: panel.section === "staff" && ProctorClient.connected
-            width: 92; height: 28; radius: 8
-            color: outArea.containsMouse ? "#2a1414" : "transparent"
-            border.color: "#5c3a3a"; border.width: 1
-            Text { anchors.centerIn: parent; text: "Sign out"; color: "#e0a0a0"; font.pixelSize: 12 }
-            MouseArea {
-                id: outArea
-                anchors.fill: parent; hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: ProctorClient.signOut()
-            }
         }
     }
 }

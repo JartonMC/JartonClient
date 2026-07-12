@@ -501,6 +501,12 @@ Item {
                                     SButton { text: "Items"; variant: "secondary"; compact: true; enabled: !root.invBusy; onClicked: { root.confirmScope = "items"; root.confirmLabel = "Items" } }
                                     SButton { text: "XP"; variant: "secondary"; compact: true; enabled: !root.invBusy; onClicked: { root.confirmScope = "xp"; root.confirmLabel = "XP" } }
                                     SButton { text: "Gold"; variant: "secondary"; compact: true; enabled: !root.invBusy; onClicked: { root.confirmScope = "gold"; root.confirmLabel = "Gold" } }
+                                    SButton {
+                                        // pre-nectar snapshots carry null — nothing to restore, so no button
+                                        visible: snapCard.modelData.nectar !== null && snapCard.modelData.nectar !== undefined
+                                        text: "Nectar"; variant: "secondary"; compact: true; enabled: !root.invBusy
+                                        onClicked: { root.confirmScope = "nectar"; root.confirmLabel = "Nectar" }
+                                    }
                                     SButton { text: "Everything"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: { root.confirmScope = "all"; root.confirmLabel = "Everything" } }
                                 }
                                 Row {

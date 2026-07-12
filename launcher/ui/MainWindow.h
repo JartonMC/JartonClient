@@ -40,6 +40,7 @@
 
 #pragma once
 
+#include <array>
 #include <memory>
 
 #include <QMainWindow>
@@ -237,8 +238,10 @@ class MainWindow : public QMainWindow {
 
     void onAnnouncementPopupOpen();
     void repositionFloatingOverlays();
-    // QML-initiated pop-out/pop-in of the Swifty window (no-op in the public build).
-    void onSwiftyPopRequested(bool popped);
+    // QML-initiated pop-out/pop-in of a staff section window (no-op in the public build).
+    void onSectionPopRequested(const QString& section, bool popped);
+    // Proctor session changes flip the staff section between login form and content.
+    void onProctorStateChanged();
 
    private:
     void retranslateUi();
@@ -251,22 +254,38 @@ class MainWindow : public QMainWindow {
     Jarton::StatsOverlayWidget* m_statsOverlay = nullptr;
     QPushButton* m_changelogToggle = nullptr;
     // Staff edition: docked Companion panel in the central area (null in the public build).
+    // It keeps the proctor login flow and the popped-out placeholders; the section
+    // CONTENT lives in per-section QQuickViews below.
     QQuickWidget* m_staffPanel = nullptr;
-    // Swifty's native webview can't live inside m_staffPanel: QtWebView on macOS/Windows
-    // is a real platform view that needs a platform-backed QQuickWindow, and QQuickWidget
-    // renders its scene offscreen. So the Swifty QML gets its own QQuickView, wrapped in
-    // a window container stacked over the panel while the Swifty section is active.
-    // Lazy-created on first use in showStaffSection() (null in the public build).
-    // The same view can pop out into a framed top-level window (multi-monitor); the
-    // container is destroyed on pop-out and recreated on pop-in — containers don't
-    // survive their window being released.
-    QQuickView* m_swiftyView = nullptr;
-    QWidget* m_swiftyContainer = nullptr;
-    bool m_swiftyPoppedOut = false;
-    bool m_swiftyFilterInstalled = false;
-    void popOutSwifty();
-    void popInSwifty();
-    void saveSwiftyWindowGeometry();
+    // Each staff section runs in its own QQuickView, wrapped in a window container
+    // stacked over the panel while that section is active, or released into a framed
+    // top-level window when popped out (multi-monitor). Swifty NEEDS this hosting —
+    // QtWebView's native view can't attach to the QQuickWidget's offscreen scene —
+    // and ptero/staff ride the same rails so their views stay warm across section
+    // hops and pop transitions (live console sockets survive). Views are lazy-created
+    // on first visit and never destroyed; containers don't survive their window being
+    // released, so they're rebuilt on pop-in. Views stay null in the public build.
+    struct SectionHost {
+        QString section;      // "ptero" | "staff" | "swifty"
+        QString qmlSource;
+        QString title;        // popped-out window title
+        QString geometryKey;  // settings key holding "x,y,w,h"
+        QQuickView* view = nullptr;
+        QWidget* container = nullptr;
+        bool popped = false;
+        bool filterInstalled = false;
+    };
+    std::array<SectionHost, 3> m_sectionHosts;
+    SectionHost* sectionHost(const QString& section);
+    SectionHost* sectionHostForView(const QObject* obj);
+    void showDockedSection(SectionHost& host);
+    void hideDockedSections(const QString& exceptSection);
+    void popOutSection(SectionHost& host);
+    void popInSection(SectionHost& host);
+    void saveSectionWindowGeometry(SectionHost& host);
+    // The staff section is login-gated: swap between the panel's login form and the
+    // docked content as ProctorClient's session state changes.
+    void syncStaffSectionContent();
     QAction* m_actionCreateJartonInstance = nullptr;
     // Sticky preference. Set true when the user explicitly hides the changelog
     // and cleared when they explicitly show it; window-maximize transitions

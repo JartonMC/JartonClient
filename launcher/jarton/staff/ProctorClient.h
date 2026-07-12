@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
 
+#include <QHash>
 #include <QObject>
 #include <QString>
 
@@ -33,10 +34,12 @@ class ProctorClient : public QObject {
     // channel both sides see. NOTIFY makes the panel's Loader react, which a plain
     // setProperty on a QML-declared property did not.
     Q_PROPERTY(QString currentSection READ currentSection NOTIFY sectionChanged)
-    // Whether the Swifty view is popped out into its own window. Same cross-engine
-    // rationale as currentSection: the docked panel's placeholder and the popped
-    // window's own chrome both bind here; MainWindow owns the actual window juggling.
-    Q_PROPERTY(bool swiftyPopped READ swiftyPopped NOTIFY swiftyPoppedChanged)
+    // Which sections are popped out into their own windows. Same cross-engine
+    // rationale as currentSection: the docked panel's placeholders and each popped
+    // window's own chrome bind here; MainWindow owns the actual window juggling.
+    Q_PROPERTY(bool pteroPopped READ pteroPopped NOTIFY poppedChanged)
+    Q_PROPERTY(bool staffPopped READ staffPopped NOTIFY poppedChanged)
+    Q_PROPERTY(bool swiftyPopped READ swiftyPopped NOTIFY poppedChanged)
 
    public:
     explicit ProctorClient(const QString& tokenPath, QObject* parent = nullptr);
@@ -52,17 +55,19 @@ class ProctorClient : public QObject {
     bool allowApplications() const { return m_allowApplications; }
     bool allowJoinInfo() const { return m_allowJoinInfo; }
     QString currentSection() const { return m_currentSection; }
-    bool swiftyPopped() const { return m_swiftyPopped; }
+    bool pteroPopped() const { return m_popped.value(QStringLiteral("ptero")); }
+    bool staffPopped() const { return m_popped.value(QStringLiteral("staff")); }
+    bool swiftyPopped() const { return m_popped.value(QStringLiteral("swifty")); }
     // invokable because the host window reaches it through the QObject* accessor
-    Q_INVOKABLE void setSwiftyPopped(bool popped);
+    Q_INVOKABLE void setSectionPopped(const QString& section, bool popped);
 
     Q_INVOKABLE void signIn(const QString& username, const QString& password);
     Q_INVOKABLE void signOut();
     Q_INVOKABLE void setCurrentSection(const QString& section);
     Q_INVOKABLE void copyToClipboard(const QString& text);
     // QML asks; the host window answers by actually re-parenting the view and then
-    // confirming through setSwiftyPopped().
-    Q_INVOKABLE void requestSwiftyPop(bool popped) { emit swiftyPopRequested(popped); }
+    // confirming through setSectionPopped().
+    Q_INVOKABLE void requestSectionPop(const QString& section, bool popped) { emit sectionPopRequested(section, popped); }
 
     // C++-side accessors for sibling staff models that reuse this broker session.
     QNetworkAccessManager* network() const { return m_nam; }
@@ -72,8 +77,8 @@ class ProctorClient : public QObject {
    signals:
     void changed();
     void sectionChanged();
-    void swiftyPoppedChanged();
-    void swiftyPopRequested(bool popped);
+    void poppedChanged();
+    void sectionPopRequested(const QString& section, bool popped);
 
    private:
     void applyStaff(const QJsonObject& staff);
@@ -98,7 +103,7 @@ class ProctorClient : public QObject {
     bool m_allowApplications = true;
     bool m_allowJoinInfo = false;   // locked off by default server-side, granted per account
     QString m_currentSection;
-    bool m_swiftyPopped = false;
+    QHash<QString, bool> m_popped;  // section -> popped-out into its own window
 };
 
 }  // namespace Jarton
