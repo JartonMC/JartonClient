@@ -1944,6 +1944,12 @@ void MainWindow::popOutSection(SectionHost& host)
     }
     host.view->setFlags(Qt::Window);
     host.view->setTitle(host.title);
+    // Cocoa never converts the container's child NSView into an NSWindow on a flag
+    // change — without recreating the platform window the view keeps rendering as a
+    // frameless sliver clipped inside the main window. destroy() + show() rebuilds
+    // it as a real framed top-level; the scene graph re-initialises on expose and
+    // the QML content lives in the view, not the platform window.
+    host.view->destroy();
 
     QRect r;
     const QStringList parts = APPLICATION->settings()->get(host.geometryKey).toString().split(',');
