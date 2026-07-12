@@ -382,10 +382,12 @@ Item {
 
             // ---- raw compose form ----
             Rectangle {
-                width: parent.width; height: 96; radius: 12; visible: root.pendingAction.length > 0
+                width: parent.width; height: confirmForm.implicitHeight + 24; radius: 12; visible: root.pendingAction.length > 0
                 color: Qt.rgba(1, 1, 1, 0.05); border.color: "#FFB833"; border.width: 1
                 Column {
-                    anchors.fill: parent; anchors.margins: 12; spacing: 8
+                    id: confirmForm
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                    anchors.margins: 12; spacing: 8
                     Text { text: "Confirm " + root.pendingAction; color: "#FFE082"; font.pixelSize: 13; font.bold: true }
                     Rectangle {
                         width: parent.width; height: 30; radius: 8; color: Qt.rgba(1, 1, 1, 0.06)
