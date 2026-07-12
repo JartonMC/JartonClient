@@ -58,46 +58,52 @@ Item {
         }
     }
     function tidyAction(a) {
+        // last segment, dashes→spaces, lowercased — a clean readable fallback with no "-ed" gluing
         var p = String(a || "").split(".")
-        var v = p[p.length - 1].replace(/-/g, " ")
-        return v.charAt(0).toUpperCase() + v.slice(1)
+        return p[p.length - 1].replace(/-/g, " ")
+    }
+    function cap(s) { s = String(s || ""); return s.charAt(0).toUpperCase() + s.slice(1) }
+    // internal read lookups that must never surface as audit entries (belt for old rows)
+    function isReadAction(a) {
+        return ["guard.guide", "guard.notes", "guard.offense-counts", "guard.players", "guard.history",
+                "guide", "notes", "offense-counts", "players", "history"].indexOf(String(a || "")) !== -1
     }
     function auditLine(row) {
-        var actor = row.actor || "Someone"
+        var actor = cap(row.actor) || "Someone"
         var action = String(row.action || "")
         var d = detailObj(row)
         var det = String(row.detail || "")
+        var tgt = d ? (d.targetName || "") : ""
+        var srv = onServer(d && d.server)
 
-        if (action === "guard.punish" || action === "guard.unpunish") {
-            var sub = d ? (d.action || d.type || "") : ""
-            var tgt = d ? (d.targetName || "") : ""
+        switch (action) {
+        case "guard.punish": {
             var reason = d && d.reason ? " — " + d.reason : ""
-            return actor + " " + punishVerb(sub) + (tgt ? " " + tgt : "") + onServer(d && d.server) + reason
+            return actor + " " + punishVerb(d ? (d.action || d.type) : "") + (tgt ? " " + tgt : "") + srv + reason
         }
-        if (action === "guard.note-add" || action === "guard.note-remove") {
-            var who = d ? (d.targetName || "") : ""
-            return actor + (action.indexOf("remove") >= 0 ? " removed a note" : " added a note") + (who ? " on " + who : "")
+        case "guard.unpunish": return actor + " " + punishVerb(d ? (d.action || d.type) : "") + (tgt ? " " + tgt : "") + srv
+        case "guard.freeze":   return actor + " froze"   + (tgt ? " " + tgt : "") + srv
+        case "guard.unfreeze": return actor + " unfroze" + (tgt ? " " + tgt : "") + srv
+        case "guard.note-add":    return actor + " added a note"   + (tgt ? " on " + tgt : "")
+        case "guard.note-remove": return actor + " removed a note" + (tgt ? " on " + tgt : "")
+        case "guard.restore":  return actor + " restored " + (tgt ? tgt + "'s" : "a player's") + " inventory"
+        case "history.clear":  return actor + " cleared " + (tgt ? tgt + "'s" : "a player's") + " punishment history"
+        case "report.resolve": return actor + " resolved a report"
+        case "application.resolve": return actor + " resolved " + det.replace(/^app#/, "application #")
+        case "staff.create":   return actor + " created staff account " + (det.split(" ")[0] || "")
+        case "staff.update":   return actor + " updated a staff account" + (det ? " (" + det.split(":")[0] + ")" : "")
+        case "staff.delete":   return actor + " removed staff account " + det
+        case "staff.reset-password": return actor + " reset " + (det || "a staff") + "'s password"
+        case "auth.login":     return actor + " signed in"
+        case "auth.change-password": return actor + " changed their password"
+        case "auth.pin-set":   return actor + " set their PIN"
+        case "auth.pin-reset": return actor + " reset " + (det.replace("target=", "") || "a staff") + "'s PIN"
+        case "settings.crash": return actor + " changed crash-alert settings"
+        case "settings.notify": return actor + " updated notification settings"
         }
-        if (action.indexOf("guard.") === 0) {
-            var t2 = d ? (d.targetName || "") : ""
-            return actor + " " + punishVerb(action.slice(6)) + (t2 ? " " + t2 : "") + onServer(d && d.server)
-        }
-        if (action === "staff.create")  return actor + " created staff account " + (det.split(" ")[0] || "")
-        if (action === "staff.update")  return actor + " updated " + (det.split(":")[0] || "a staff account")
-        if (action === "staff.delete")  return actor + " removed staff account " + det
-        if (action === "staff.reset-password") return actor + " reset " + det + "'s password"
-        if (action === "application.resolve") return actor + " resolved " + det
-        if (action === "report.resolve") return actor + " resolved " + det
-        if (action === "auth.pin-set") return actor + " set their PIN"
-        if (action === "auth.pin-reset") return actor + " reset " + det.replace("target=", "") + "'s PIN"
-        if (action === "auth.login") return actor + " signed in"
-        if (action === "auth.change-password") return actor + " changed their password"
-        if (action === "settings.notify") return actor + " updated notification settings"
-        if (action === "history.delete") return actor + " deleted a punishment record"
-        if (action === "history.clear") return actor + " cleared a player's history"
-        // fallback: tidy verb, human fields only — never the raw JSON/UUID
-        var extra = d ? (d.targetName || "") : (det.charAt(0) === "{" ? "" : det)
-        return actor + " " + tidyAction(action).toLowerCase() + (extra ? " " + extra : "")
+        // future-proof fallback: readable verb + a human field only, never JSON/UUID/"-ed"
+        var extra = tgt || (det.charAt(0) === "{" ? "" : det)
+        return actor + " " + tidyAction(action) + (extra ? " " + extra : "")
     }
 
     // ---- sub-tab bar (hidden when embedded) ----
@@ -135,6 +141,7 @@ Item {
             property bool zoneNote: false               // dim "times shown in your local time" line
             property bool showHeader: !root.embedded   // the drill-in host draws its own header
             property Component row
+            property var rowFilter: null            // optional predicate to drop rows client-side
             property var items: []
             property bool loading: false
             property bool ended: false
@@ -148,6 +155,7 @@ Item {
                 if (paged && before) q += "&before=" + before
                 return path + q
             }
+            function keep(arr) { return feed.rowFilter ? (arr || []).filter(feed.rowFilter) : (arr || []) }
             function load() { loading = true; ended = false; reqId = ProctorApi.send("GET", url(0)) }
             function quiet() { if (loading) return; reqQuiet = ProctorApi.send("GET", url(0)) }
             function more() {
@@ -164,21 +172,21 @@ Item {
                 function onResponse(id, ok, status, body) {
                     if (id === feed.reqId) {
                         feed.loading = false
-                        if (ok) { try { feed.items = JSON.parse(body)[feed.key] || []; feed.lastRaw = body } catch (e) { feed.items = [] }
+                        if (ok) { try { feed.items = feed.keep(JSON.parse(body)[feed.key]); feed.lastRaw = body } catch (e) { feed.items = [] }
                                   feed.ended = feed.items.length < feed.limit }
                         return
                     }
                     if (id === feed.reqQuiet) {
                         if (ok && body !== feed.lastRaw) {
                             var y = list.contentY
-                            try { feed.items = JSON.parse(body)[feed.key] || []; feed.lastRaw = body } catch (e) {}
+                            try { feed.items = feed.keep(JSON.parse(body)[feed.key]); feed.lastRaw = body } catch (e) {}
                             list.contentY = y
                         }
                         return
                     }
                     if (id === feed.reqMore) {
                         if (ok) { try {
-                            var page = JSON.parse(body)[feed.key] || []
+                            var page = feed.keep(JSON.parse(body)[feed.key])
                             if (page.length === 0) { feed.ended = true }
                             else { feed.items = feed.items.concat(page); feed.ended = page.length < feed.limit }
                         } catch (e) {} }
@@ -316,6 +324,7 @@ Item {
         Feed {
             anchors.fill: parent; visible: root.current === "audit"
             path: "/proctor/audit"; key: "audit"; title: "Audit Log"; emptyText: "Nothing logged yet."; limit: 150
+            rowFilter: function (r) { return !root.isReadAction(r.action) }
             row: Card {
                 height: 50
                 Avatar { id: aAv; anchors.left: parent.left; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter

@@ -48,7 +48,6 @@ Item {
     }
 
     readonly property var navItems: [
-        { id: "active",   label: "Active staff", icon: "users",     sub: "Who's clocked in" },
         { id: "sessions", label: "Sessions",     icon: "clock",     sub: "Login history" },
         { id: "commands", label: "Command logs", icon: "terminal",  sub: "Staff command trail" },
         { id: "presence", label: "Join / Leave", icon: "network",   sub: "Presence events" },
@@ -73,6 +72,13 @@ Item {
         quietReq = ProctorApi.send("GET", "/proctor/staff")
     }
     Timer { interval: root.autoRefreshMs; repeat: true; running: root.visible && root.drill.length === 0; onTriggered: root.quietLoad() }
+
+    // clocked-in staff — shown inline under the roster like the Players online grid
+    property var activeStaff: []
+    property int reqActive: -1
+    property string activePayload: ""
+    function loadActive() { if (reqActive === -1) reqActive = ProctorApi.send("GET", "/proctor/active") }
+    Timer { interval: 25000; repeat: true; running: root.visible && root.drill.length === 0; triggeredOnStart: true; onTriggered: root.loadActive() }
     function track(reqId) { var p = pendingWrites; p.push(reqId); pendingWrites = p }
     function createStaff(body) { track(ProctorApi.send("POST", "/proctor/staff", JSON.stringify(body))); say("Adding " + body.username + "…") }
     function patchStaff(id, body) { track(ProctorApi.send("PATCH", "/proctor/staff/" + id, JSON.stringify(body))); say("Saving…") }
@@ -99,6 +105,14 @@ Item {
             }
             if (id === root.reqRanks) {
                 if (ok) { try { root.ranks = JSON.parse(body).ranks || [] } catch (e) { root.ranks = [] } }
+                return
+            }
+            if (id === root.reqActive) {
+                root.reqActive = -1
+                if (ok && body !== root.activePayload) {
+                    root.activePayload = body
+                    try { root.activeStaff = JSON.parse(body).active || [] } catch (e) {}
+                }
                 return
             }
             var idx = root.pendingWrites.indexOf(id)
@@ -321,33 +335,85 @@ Item {
             }
         }
 
-        // ---- oversight drill-in buttons ----
-        Text { text: "OVERSIGHT"; color: "#8a7a56"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 0.5 }
-        Grid {
-            width: parent.width; columns: 2; columnSpacing: 8; rowSpacing: 8
+        // ---- clocked-in staff (inline, Players-online style) ----
+        Text { text: "CLOCKED IN · " + root.activeStaff.length; color: "#8a7a56"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 0.5 }
+        Text {
+            width: parent.width; visible: root.activeStaff.length === 0
+            text: "Nobody's clocked in right now."; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13
+        }
+        Flow {
+            width: parent.width; spacing: 8; visible: root.activeStaff.length > 0
             Repeater {
-                model: root.navItems
+                model: root.activeStaff
                 Rectangle {
-                    width: (parent.width - 8) / 2; height: 52; radius: 11
-                    color: navHover.containsMouse ? "#1c160d" : "#16110a"
-                    border.color: navHover.containsMouse ? "#3a2f14" : "#241c12"; border.width: 1
-                    Behavior on color { ColorAnimation { duration: 110 } }
-                    Image {
-                        id: navIco; anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter
-                        source: "qrc:/jarton/staff/icons/ui/" + modelData.icon + "-active.svg"
-                        width: 18; height: 18; sourceSize: Qt.size(36, 36)
-                    }
+                    width: 92; height: 106; radius: 12
+                    color: acHover.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.04)
+                    Behavior on color { ColorAnimation { duration: 100 } }
                     Column {
-                        anchors.left: navIco.right; anchors.leftMargin: 12; anchors.right: navChev.left; anchors.rightMargin: 6
-                        anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                        Text { text: modelData.label; color: "#F2E8D0"; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight; width: parent.width }
-                        Text { text: modelData.sub; color: "#6b5d3f"; font.pixelSize: 11; elide: Text.ElideRight; width: parent.width }
+                        anchors.top: parent.top; anchors.topMargin: 10
+                        anchors.horizontalCenter: parent.horizontalCenter; spacing: 6
+                        Item {
+                            width: 56; height: 56; anchors.horizontalCenter: parent.horizontalCenter
+                            Avatar { anchors.fill: parent; size: 56; uuid: modelData.mcUuid || modelData.mcName || "" }
+                            Rectangle {
+                                width: 16; height: 16; radius: 8
+                                anchors.right: parent.right; anchors.bottom: parent.bottom
+                                anchors.rightMargin: -3; anchors.bottomMargin: -3
+                                color: "#3BA55D"; border.color: "#0f0a06"; border.width: 3
+                            }
+                        }
+                        Text {
+                            width: 80; horizontalAlignment: Text.AlignHCenter
+                            text: modelData.displayName || modelData.mcName || ""; color: "#FFFFFF"; font.pixelSize: 12; font.bold: true; elide: Text.ElideMiddle
+                        }
+                        Text {
+                            width: 80; horizontalAlignment: Text.AlignHCenter
+                            text: modelData.server || ""; color: "#FFB833"; font.pixelSize: 10
+                        }
                     }
-                    Text { id: navChev; anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
-                        text: "›"; color: "#6b5d3f"; font.pixelSize: 16 }
-                    MouseArea { id: navHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: root.drill = modelData.id }
+                    MouseArea { id: acHover; anchors.fill: parent; hoverEnabled: true }
                 }
+            }
+        }
+
+        // ---- oversight drill-in buttons: 5 feeds, laid out 2 / 2 / 1-centered so the
+        //      odd card sits centered instead of leaving a hole ----
+        Text { text: "OVERSIGHT"; color: "#8a7a56"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 0.5 }
+        component NavCard: Rectangle {
+            property var item: ({})
+            width: (root.width - 8 - 8) / 2; height: 52; radius: 11
+            color: nc.containsMouse ? "#1c160d" : "#16110a"
+            border.color: nc.containsMouse ? "#3a2f14" : "#241c12"; border.width: 1
+            Behavior on color { ColorAnimation { duration: 110 } }
+            Image {
+                id: nci; anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter
+                source: "qrc:/jarton/staff/icons/ui/" + item.icon + "-active.svg"
+                width: 18; height: 18; sourceSize: Qt.size(36, 36)
+            }
+            Column {
+                anchors.left: nci.right; anchors.leftMargin: 12; anchors.right: ncc.left; anchors.rightMargin: 6
+                anchors.verticalCenter: parent.verticalCenter; spacing: 2
+                Text { text: item.label; color: "#F2E8D0"; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight; width: parent.width }
+                Text { text: item.sub; color: "#6b5d3f"; font.pixelSize: 11; elide: Text.ElideRight; width: parent.width }
+            }
+            Text { id: ncc; anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
+                text: "›"; color: "#6b5d3f"; font.pixelSize: 16 }
+            MouseArea { id: nc; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: root.drill = item.id }
+        }
+        Column {
+            width: parent.width; spacing: 8
+            Row { width: parent.width; spacing: 8
+                NavCard { item: root.navItems[0] }
+                NavCard { item: root.navItems[1] }
+            }
+            Row { width: parent.width; spacing: 8
+                NavCard { item: root.navItems[2] }
+                NavCard { item: root.navItems[3] }
+            }
+            Item {
+                width: parent.width; height: 52
+                NavCard { anchors.horizontalCenter: parent.horizontalCenter; item: root.navItems[4] }
             }
         }
     }
