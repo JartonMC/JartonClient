@@ -67,6 +67,11 @@ Item {
     property int reqPlaytime: -1
     property int reqInfo: -1
 
+    // ---- reports filed against this player (jartonguard.player_reports) ----
+    property var reports: []
+    property int reqReports: -1
+    property var reportPending: ({})   // resolve write ids
+
     readonly property var rawActions: [
         { label: "Ban",        action: "ban",       node: "ban",      color: "#ff6b6b", temp: false },
         { label: "Temp-ban",   action: "temp-ban",  node: "tempban",  color: "#ff6b6b", temp: true  },
@@ -83,8 +88,13 @@ Item {
         reqServers = ProctorApi.send("GET", "/proctor/servers")
         reqDiscord = ProctorApi.send("GET", "/proctor/players/discord?uuid=" + uuid)
         reqPlaytime = ProctorApi.send("GET", "/proctor/players/playtime?uuid=" + uuid)
+        reqReports = ProctorApi.send("GET", "/proctor/players/reports?uuid=" + uuid)
         if (ProctorClient.allowJoinInfo)
             reqInfo = ProctorApi.send("GET", "/proctor/players/info?uuid=" + uuid)
+    }
+
+    function resolveReport(id) {
+        reportPending[ProctorApi.send("POST", "/proctor/reports/" + id + "/resolve", "{}")] = id
     }
 
     function relTime(ms) {
@@ -97,6 +107,15 @@ Item {
     function fmtWhen(ms) {
         var d = new Date(Number(ms))
         return d.toLocaleDateString(Qt.locale(), "dd MMM") + ", " + d.toLocaleTimeString(Qt.locale(), "HH:mm")
+    }
+    // player_reports.timestamp may be a MySQL DATETIME string or an epoch (s/ms) — normalize to ms
+    function reportTs(t) {
+        if (t === undefined || t === null) return 0
+        if (typeof t === "number") return t > 1e12 ? t : t * 1000
+        var s = "" + t
+        var iso = (s.indexOf("T") === -1) ? s.replace(" ", "T") + "Z" : s
+        var ms = Date.parse(iso); if (!isNaN(ms)) return ms
+        var n = Number(s); return isNaN(n) ? 0 : (n > 1e12 ? n : n * 1000)
     }
     function fmtSeconds(s) {
         s = Number(s) || 0
@@ -244,6 +263,16 @@ Item {
             }
             if (id === root.reqInfo) {
                 if (ok) { try { root.joinInfo = JSON.parse(body).info || null } catch (e) { root.joinInfo = null } }
+                return
+            }
+            if (id === root.reqReports) {
+                if (ok) { try { root.reports = JSON.parse(body).reports || [] } catch (e) { root.reports = [] } }
+                return
+            }
+            if (root.reportPending[id] !== undefined) {
+                var rp = root.reportPending; delete rp[id]; root.reportPending = rp
+                if (ok) root.reqReports = ProctorApi.send("GET", "/proctor/players/reports?uuid=" + root.uuid)
+                else root.banner = "Resolve failed (" + status + ")."
                 return
             }
             // only writes THIS screen issued refresh the history — everything else
@@ -738,6 +767,54 @@ Item {
                             }
                             Text { width: parent.width; text: reason; color: "#F2E8D0"; font.pixelSize: 12; elide: Text.ElideRight }
                             Text { text: "by " + staffName; color: Qt.rgba(1, 1, 1, 0.4); font.pixelSize: 11 }
+                        }
+                    }
+                }
+            }
+
+            // ---- reports filed against this player ----
+            Row {
+                spacing: 8
+                Text { text: "Reports"; color: "#FFFFFF"; font.pixelSize: 14; font.bold: true; anchors.verticalCenter: parent.verticalCenter }
+                Rectangle {
+                    visible: root.reports.length > 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: openTxt.width + 16; height: 18; radius: 9
+                    readonly property int openCount: { var c = 0; for (var i = 0; i < root.reports.length; i++) if (!root.reports[i].resolved) c++; return c }
+                    color: openCount > 0 ? Qt.rgba(0.94, 0.66, 0.35, 0.16) : Qt.rgba(0.35, 0.82, 0.48, 0.16)
+                    Text { id: openTxt; anchors.centerIn: parent; text: parent.openCount > 0 ? parent.openCount + " open" : "resolved"; color: parent.openCount > 0 ? "#f0a85a" : "#5ad17a"; font.pixelSize: 10; font.bold: true }
+                }
+            }
+            Text { visible: root.reports.length === 0; text: "No reports on record."; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13 }
+            Column {
+                width: parent.width; spacing: 6
+                Repeater {
+                    model: root.reports
+                    delegate: Rectangle {
+                        id: repCard
+                        required property var modelData
+                        readonly property bool resolved: modelData.resolved === true
+                        width: detailCol.width; height: rc.height + 18; radius: 11
+                        color: "#16110a"; border.color: resolved ? "#241c12" : "#3a2f14"; border.width: 1
+                        opacity: resolved ? 0.6 : 1.0
+                        Column {
+                            id: rc
+                            anchors.left: parent.left; anchors.leftMargin: 14; anchors.right: rResolve.left; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; spacing: 3
+                            Row { spacing: 8
+                                Text { text: (modelData.category ? ("" + modelData.category).toUpperCase() : "REPORT"); color: "#FFB81C"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 0.5; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: "by " + (modelData.reporterName ? modelData.reporterName : "unknown"); color: "#FFE082"; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: root.relTime(root.reportTs(modelData.timestamp)); color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
+                                Rectangle { visible: repCard.resolved; anchors.verticalCenter: parent.verticalCenter; width: rvTxt.width + 12; height: 15; radius: 7; color: Qt.rgba(0.35, 0.82, 0.48, 0.16)
+                                    Text { id: rvTxt; anchors.centerIn: parent; text: "resolved"; color: "#5ad17a"; font.pixelSize: 9; font.bold: true } }
+                            }
+                            Text { width: parent.width; text: modelData.reason ? modelData.reason : ""; color: Qt.rgba(1, 1, 1, 0.8); font.pixelSize: 12; wrapMode: Text.WordWrap; visible: text.length > 0 }
+                        }
+                        SButton {
+                            id: rResolve
+                            anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
+                            visible: !repCard.resolved
+                            text: "Resolve"; variant: "secondary"; compact: true
+                            onClicked: root.resolveReport(modelData.id)
                         }
                     }
                 }
