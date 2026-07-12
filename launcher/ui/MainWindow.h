@@ -251,6 +251,7 @@ class MainWindow : public QMainWindow {
     Jarton::ChangelogPanel* m_changelogPanel = nullptr;
     QQuickWidget* m_announceBar = nullptr;
     Jarton::AnnouncementDialog* m_announcementDialog = nullptr;
+    QString m_activeSection;  // current staff section ("" = instance grid) — restored after the announcement modal closes
     Jarton::StatsOverlayWidget* m_statsOverlay = nullptr;
     QPushButton* m_changelogToggle = nullptr;
     // Staff edition: docked Companion panel in the central area (null in the public build).

@@ -82,6 +82,7 @@ void AnnouncementDialog::showAtIndex(int index)
     }
     show();
     raise();
+    emit opened();
 }
 
 void AnnouncementDialog::onCloseRequested()
@@ -90,6 +91,7 @@ void AnnouncementDialog::onCloseRequested()
     if (m_scrim != nullptr) {
         m_scrim->hide();
     }
+    emit closed();
 }
 
 bool AnnouncementDialog::eventFilter(QObject* watched, QEvent* event)

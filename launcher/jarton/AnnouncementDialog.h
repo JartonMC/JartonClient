@@ -16,6 +16,12 @@ class AnnouncementDialog : public QFrame {
 
     void showAtIndex(int index);
 
+   signals:
+    // native section containers (QQuickView windows) composite over this QWidget
+    // modal, so MainWindow hides them while we're open and restores on close
+    void opened();
+    void closed();
+
    protected:
     void resizeEvent(QResizeEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;

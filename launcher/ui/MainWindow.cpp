@@ -423,6 +423,21 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         // Announcement modal as a proper frameless QDialog — handles
         // transparency reliably on macOS, modal show/hide, dismiss on X.
         m_announcementDialog = new Jarton::AnnouncementDialog(this);
+        // The staff sections live in native QQuickView window containers that
+        // composite above ordinary widgets, so they'd render over this modal.
+        // Hide the docked containers (+ the native Swifty pop button) while the
+        // announcement is open, then restore the active section on close.
+        connect(m_announcementDialog, &Jarton::AnnouncementDialog::opened, this, [this]() {
+            hideDockedSections(QString());  // no host matches "" → hides them all
+            if (m_swiftyPopButton != nullptr) {
+                m_swiftyPopButton->hide();
+            }
+        });
+        connect(m_announcementDialog, &Jarton::AnnouncementDialog::closed, this, [this]() {
+            if (m_staffPanel != nullptr && m_staffPanel->isVisible() && !m_activeSection.isEmpty()) {
+                showStaffSection(m_activeSection);
+            }
+        });
         installEventFilter(this);  // catch MainWindow resize for overlays
         // (InstanceView gets added to the top row when it's constructed below.)
 
@@ -1797,6 +1812,7 @@ void MainWindow::showStaffSection(const QString& section)
     if (m_staffPanel == nullptr) {
         return;  // public build — no staff panel
     }
+    m_activeSection = section;  // remembered so the announcement modal can restore it on close
     // Drive the section through the shared ProctorClient singleton's NOTIFY property:
     // the sidebar and the docked panel run in separate QML engines, so setProperty on
     // the panel's own root never reached the panel's Loader. The singleton does.
