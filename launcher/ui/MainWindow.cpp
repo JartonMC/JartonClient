@@ -67,6 +67,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QProgressDialog>
+#include <QIcon>
 #include <QPushButton>
 #include <QQuickItem>
 #include <QQmlContext>
@@ -508,6 +509,25 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
                                tr("Staff — Jarton Client"), QStringLiteral("StaffWindowGeometry") },
                              { QStringLiteral("swifty"), QStringLiteral("qrc:/jarton/staff/SwiftyWebView.qml"),
                                tr("Swifty — Jarton Client"), QStringLiteral("SwiftyWindowGeometry") } } };
+
+        // Swifty's pop-out chip can't live in QML (the WKWebView paints over it), so it's
+        // a native sibling button raised above the webview container. Forced native so it
+        // z-orders above the (also native) window container instead of behind it.
+        m_swiftyPopButton = new QPushButton(m_centralBg);
+        m_swiftyPopButton->setObjectName(QStringLiteral("swiftyPopButton"));
+        m_swiftyPopButton->setAttribute(Qt::WA_NativeWindow);
+        m_swiftyPopButton->setCursor(Qt::PointingHandCursor);
+        m_swiftyPopButton->setFocusPolicy(Qt::NoFocus);
+        m_swiftyPopButton->setFixedSize(30, 30);
+        m_swiftyPopButton->setToolTip(tr("Open Swifty in its own window"));
+        m_swiftyPopButton->setIcon(QIcon(QStringLiteral(":/jarton/staff/icons/ui/external-link-cream.svg")));
+        m_swiftyPopButton->setIconSize(QSize(16, 16));
+        m_swiftyPopButton->setStyleSheet(QStringLiteral(
+            "QPushButton#swiftyPopButton{background:#1b150e;border:1px solid #3a2f14;border-radius:8px;}"
+            "QPushButton#swiftyPopButton:hover{background:#26200f;border-color:#4a3c1e;}"));
+        m_swiftyPopButton->hide();
+        connect(m_swiftyPopButton, &QPushButton::clicked, this,
+                [this]() { onSectionPopRequested(QStringLiteral("swifty"), true); });
 
         // Pop-out requests come from QML (each section's header chip / the docked
         // placeholder) through the shared ProctorClient singleton. The proctor session
@@ -1733,6 +1753,7 @@ void MainWindow::repositionFloatingOverlays()
             host.container->raise();
         }
     }
+    updateSwiftyPopButton();  // re-place + re-raise above the (just-raised) webview container
 }
 
 // Sidebar indices: -1 brand mark (opens About); 0 Home / 1 Instances /
@@ -1796,6 +1817,7 @@ void MainWindow::showStaffSection(const QString& section)
             m_changelogToggle->show();
         }
         applyChangelogVisibility(!m_changelogManuallyHidden && isMaximized());
+        updateSwiftyPopButton();  // back to the grid — hide the Swifty pop-out button
         return;
     }
     // take over the central area: hide the instance grid + its floating overlays + the
@@ -1837,6 +1859,7 @@ void MainWindow::showStaffSection(const QString& section)
             showDockedSection(*host);
         }
     }
+    updateSwiftyPopButton();  // show over the webview only when Swifty is docked + active
 #endif
 }
 
@@ -1979,6 +2002,7 @@ void MainWindow::popOutSection(SectionHost& host)
     if (auto* proctor = APPLICATION->jartonProctor()) {
         QMetaObject::invokeMethod(proctor, "setSectionPopped", Q_ARG(QString, host.section), Q_ARG(bool, true));
     }
+    updateSwiftyPopButton();  // popped now — hide the docked button
 }
 
 void MainWindow::popInSection(SectionHost& host)
@@ -2010,6 +2034,7 @@ void MainWindow::popInSection(SectionHost& host)
     if (proctor != nullptr) {
         QMetaObject::invokeMethod(proctor, "setSectionPopped", Q_ARG(QString, host.section), Q_ARG(bool, false));
     }
+    updateSwiftyPopButton();  // docked back — show the button again if Swifty is active
 }
 
 void MainWindow::saveSectionWindowGeometry(SectionHost& host)
@@ -2020,6 +2045,27 @@ void MainWindow::saveSectionWindowGeometry(SectionHost& host)
     const QRect r = host.view->geometry();
     APPLICATION->settings()->set(host.geometryKey,
                                  QString("%1,%2,%3,%4").arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height()));
+}
+
+void MainWindow::updateSwiftyPopButton()
+{
+    if (m_swiftyPopButton == nullptr || m_centralBg == nullptr) {
+        return;
+    }
+    SectionHost* host = sectionHost(QStringLiteral("swifty"));
+    auto* proctor = APPLICATION->jartonProctor();
+    const bool onSwifty =
+        proctor != nullptr && proctor->property("currentSection").toString() == QLatin1String("swifty");
+    // Only while Swifty is the docked, active section — not when popped (the floating
+    // window is self-contained) and not while another section or the grid is showing.
+    const bool wanted = host != nullptr && !host->popped && onSwifty && host->container != nullptr &&
+                        host->container->isVisible();
+    m_swiftyPopButton->setVisible(wanted);
+    if (wanted) {
+        const int margin = 14;
+        m_swiftyPopButton->move(m_centralBg->width() - m_swiftyPopButton->width() - margin, margin);
+        m_swiftyPopButton->raise();
+    }
 }
 #else
 MainWindow::SectionHost* MainWindow::sectionHost(const QString&)
@@ -2052,6 +2098,9 @@ void MainWindow::popInSection(SectionHost&)
 {
 }
 void MainWindow::saveSectionWindowGeometry(SectionHost&)
+{
+}
+void MainWindow::updateSwiftyPopButton()
 {
 }
 #endif

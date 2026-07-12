@@ -283,6 +283,11 @@ class MainWindow : public QMainWindow {
     void popOutSection(SectionHost& host);
     void popInSection(SectionHost& host);
     void saveSectionWindowGeometry(SectionHost& host);
+    // Swifty's content is a native WKWebView that composites above the QML scene, so an
+    // in-QML pop-out chip is occluded. This native sibling button rides above the webview
+    // container and is the pop-out affordance for Swifty only (ptero/staff use QML chips).
+    QPushButton* m_swiftyPopButton = nullptr;
+    void updateSwiftyPopButton();
     // The staff section is login-gated: swap between the panel's login form and the
     // docked content as ProctorClient's session state changes.
     void syncStaffSectionContent();
