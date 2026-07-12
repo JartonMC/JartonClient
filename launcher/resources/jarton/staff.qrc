@@ -19,6 +19,7 @@
         <file alias="ReportsTab.qml">../../qml/staff/ReportsTab.qml</file>
         <file alias="AlertsTab.qml">../../qml/staff/AlertsTab.qml</file>
         <file alias="StaffAdminTab.qml">../../qml/staff/StaffAdminTab.qml</file>
+        <file alias="AdminTab.qml">../../qml/staff/AdminTab.qml</file>
         <file alias="MoreTab.qml">../../qml/staff/MoreTab.qml</file>
         <file alias="STabBar.qml">../../qml/staff/STabBar.qml</file>
         <file alias="icons/ui/clock-cream.svg">icons/ui/clock-cream.svg</file>

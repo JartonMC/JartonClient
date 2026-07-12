@@ -14,7 +14,7 @@ Item {
         target: ProctorClient
         function onChanged() {
             if ((section.subtab === "applications" && !ProctorClient.allowApplications)
-                || (section.subtab === "staff" && !ProctorClient.admin)) {
+                || ((section.subtab === "staff" || section.subtab === "admin") && !ProctorClient.admin)) {
                 section.subtab = "players"
             }
         }
@@ -38,6 +38,7 @@ Item {
             // inside it stays gated to admin + panel role
             m.push({ id: "alerts", label: "Alerts", icon: "bell" })
             if (ProctorClient.admin) m.push({ id: "staff", label: "Staff", icon: "shield" })
+            if (ProctorClient.admin) m.push({ id: "admin", label: "Admin", icon: "database" })
             m.push({ id: "more", label: "More", icon: "more-horizontal" })
             return m
         }
@@ -54,6 +55,7 @@ Item {
         ReportsTab      { anchors.fill: parent; visible: section.subtab === "reports" }
         AlertsTab       { anchors.fill: parent; visible: section.subtab === "alerts" }
         StaffAdminTab   { anchors.fill: parent; visible: section.subtab === "staff" }
+        AdminTab        { anchors.fill: parent; visible: section.subtab === "admin" }
         MoreTab         { anchors.fill: parent; visible: section.subtab === "more" }
     }
 
