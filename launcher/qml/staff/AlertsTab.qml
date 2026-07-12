@@ -87,13 +87,7 @@ Item {
         return out
     }
 
-    function relTime(ts) {
-        if (!ts) return ""
-        var d = Date.now() - ts
-        var days = Math.floor(d / 86400000); if (days > 0) return days + "d ago"
-        var h = Math.floor(d / 3600000); if (h > 0) return h + "h ago"
-        return Math.max(1, Math.floor(d / 60000)) + "m ago"
-    }
+    function relTime(ts) { return TimeFmt.rel(ts) }
     function typeIcon(type) {
         switch (type) {
         case "ticket": return "ticket"

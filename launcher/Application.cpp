@@ -130,6 +130,7 @@
 #include "jarton/staff/StaffAuth.h"
 #include "jarton/staff/StaffModels.h"
 #include "jarton/staff/StaffNotifier.h"
+#include "jarton/staff/TimeFmt.h"
 #endif
 #include "jarton/services/ServerStatusService.h"
 #include "jarton/services/WallpaperService.h"
@@ -1656,6 +1657,7 @@ void Application::initJartonServices()
         auto* proctor = new Jarton::ProctorClient(FS::PathCombine(m_dataPath, "jarton-proctor-session"), this);
         m_jartonProctor = proctor;
         registerService("ProctorClient", proctor);
+        registerService("TimeFmt", new Jarton::TimeFmt(this));
         registerService("ProctorApi", new Jarton::ProctorApi(proctor, this));
         auto* staffAuth = new Jarton::StaffAuth(FS::PathCombine(m_dataPath, "jarton-staff-session"), this);
         m_jartonStaffAuth = staffAuth;

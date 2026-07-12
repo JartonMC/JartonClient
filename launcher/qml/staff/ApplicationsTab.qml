@@ -44,15 +44,7 @@ Item {
 
     Timer { interval: root.autoRefreshMs; repeat: true; running: root.visible; onTriggered: root.quietLoad() }
     function resolve(id) { var p = pendingWrites; p.push(ProctorApi.send("POST", "/proctor/applications/" + id + "/resolve", "")); pendingWrites = p }
-    function relTime(s) {
-        if (!s) return ""
-        var iso = (("" + s).indexOf("T") === -1) ? ("" + s).replace(" ", "T") + "Z" : s
-        var t = Date.parse(iso); if (isNaN(t)) return ""
-        var d = Date.now() - t
-        var days = Math.floor(d / 86400000); if (days > 0) return days + "d ago"
-        var h = Math.floor(d / 3600000); if (h > 0) return h + "h ago"
-        return Math.max(1, Math.floor(d / 60000)) + "m ago"
-    }
+    function relTime(s) { return TimeFmt.rel(s) }
 
     Connections {
         target: ProctorApi

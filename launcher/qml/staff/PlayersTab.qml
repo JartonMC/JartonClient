@@ -29,20 +29,8 @@ Item {
     readonly property var onlineBrowse: browse.filter(function (p) { return p.online === true })
     readonly property var offlineBrowse: browse.filter(function (p) { return p.online !== true })
 
-    function relTime(ms) {
-        if (!ms || ms <= 0) return ""
-        var diff = Date.now() - Number(ms)
-        var d = Math.floor(diff / 86400000); if (d > 0) return d + "d ago"
-        var h = Math.floor(diff / 3600000); if (h > 0) return h + "h ago"
-        return Math.max(1, Math.floor(diff / 60000)) + "m ago"
-    }
-    // lastSeen arrives as epoch ms or a datetime string depending on the source table
-    function lastSeenMs(v) {
-        if (!v) return 0
-        if (typeof v === "number") return v
-        var t = Date.parse(v)
-        return isNaN(t) ? 0 : t
-    }
+    function relTime(v) { return TimeFmt.rel(v) }
+    function lastSeenMs(v) { return v }   // TimeFmt.rel takes the raw value (string or ms) directly
 
     function openPlayer(uuid, name) { selUuid = uuid; selName = name }
 

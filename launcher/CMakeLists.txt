@@ -1268,6 +1268,8 @@ if(Launcher_STAFF)
         ${LAUNCHER_SOURCES}
         jarton/staff/ProctorClient.h
         jarton/staff/ProctorClient.cpp
+        jarton/staff/TimeFmt.h
+        jarton/staff/TimeFmt.cpp
         jarton/staff/StaffAuth.h
         jarton/staff/StaffAuth.cpp
         jarton/staff/PteroServer.h

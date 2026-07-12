@@ -30,13 +30,7 @@ Item {
     }
 
     Timer { interval: root.autoRefreshMs; repeat: true; running: root.visible; onTriggered: root.quietLoad() }
-    function relTime(ms) {
-        if (!ms || ms <= 0) return ""
-        var d = Date.now() - Number(ms)
-        var days = Math.floor(d / 86400000); if (days > 0) return days + "d ago"
-        var h = Math.floor(d / 3600000); if (h > 0) return h + "h ago"
-        return Math.max(1, Math.floor(d / 60000)) + "m ago"
-    }
+    function relTime(ms) { return TimeFmt.rel(ms) }
 
     Connections {
         target: ProctorApi

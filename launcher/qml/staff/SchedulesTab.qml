@@ -20,14 +20,7 @@ Item {
         reqList = StaffApi.send("GET", "/servers/" + serverId + "/schedules")
     }
     function act(method, path, body) { root.pending[StaffApi.send(method, path, body)] = true }
-    function relTime(iso) {
-        if (!iso) return "—"
-        var t = Date.parse(iso); if (isNaN(t)) return "—"
-        var d = t - Date.now(); var fut = d > 0; d = Math.abs(d)
-        var days = Math.floor(d / 86400000); var h = Math.floor(d / 3600000); var m = Math.floor(d / 60000)
-        var s = days > 0 ? days + "d" : h > 0 ? h + "h" : Math.max(1, m) + "m"
-        return fut ? "in " + s : s + " ago"
-    }
+    function nextRun(iso) { var a = TimeFmt.abs(iso); return a.length ? a : "—" }
     function cronOf(c) { return c ? (c.minute + " " + c.hour + " " + c.dayOfMonth + " " + c.month + " " + c.dayOfWeek) : "" }
 
     Connections {
@@ -47,7 +40,11 @@ Item {
         anchors.fill: parent; spacing: 12
         Item {
             width: parent.width; height: 36
-            Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Schedules"; color: "#F2E8D0"; font.pixelSize: 18; font.bold: true }
+            Column {
+                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 1
+                Text { text: "Schedules"; color: "#F2E8D0"; font.pixelSize: 18; font.bold: true }
+                Text { visible: root.schedules.length > 0; text: "Times shown in your local time (" + TimeFmt.zoneLabel + ")"; color: "#6b5d3f"; font.pixelSize: 11 }
+            }
             Row {
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 8
                 SButton { text: "New schedule"; icon: "plus"; variant: "primary"; onClicked: root.creating = !root.creating }
@@ -112,7 +109,7 @@ Item {
                             Text { id: stTxt; anchors.centerIn: parent; text: modelData.isProcessing ? "running" : (modelData.isActive ? "active" : "paused"); color: modelData.isActive ? "#5ad17a" : "#8a7a56"; font.pixelSize: 9; font.bold: true }
                         }
                     }
-                    Text { text: root.cronOf(modelData.cron) + "   ·   next " + root.relTime(modelData.nextRunAt); color: "#8a7a56"; font.family: "Menlo"; font.pixelSize: 12 }
+                    Text { text: root.cronOf(modelData.cron) + "   ·   next " + root.nextRun(modelData.nextRunAt); color: "#8a7a56"; font.family: "Menlo"; font.pixelSize: 12 }
                 }
                 Row {
                     anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 7

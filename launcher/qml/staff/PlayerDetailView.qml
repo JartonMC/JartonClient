@@ -97,17 +97,8 @@ Item {
         reportPending[ProctorApi.send("POST", "/proctor/reports/" + id + "/resolve", "{}")] = id
     }
 
-    function relTime(ms) {
-        if (!ms || ms <= 0) return ""
-        var diff = Date.now() - Number(ms)
-        var d = Math.floor(diff / 86400000); if (d > 0) return d + "d ago"
-        var h = Math.floor(diff / 3600000); if (h > 0) return h + "h ago"
-        return Math.max(1, Math.floor(diff / 60000)) + "m ago"
-    }
-    function fmtWhen(ms) {
-        var d = new Date(Number(ms))
-        return d.toLocaleDateString(Qt.locale(), "dd MMM") + ", " + d.toLocaleTimeString(Qt.locale(), "HH:mm")
-    }
+    function relTime(v) { return TimeFmt.rel(v) }
+    function fmtWhen(v) { return TimeFmt.abs(v) }
     // player_reports.timestamp may be a MySQL DATETIME string or an epoch (s/ms) — normalize to ms
     function reportTs(t) {
         if (t === undefined || t === null) return 0
@@ -665,6 +656,7 @@ Item {
             Column {
                 width: parent.width; spacing: 8; visible: ProctorClient.allowJoinInfo && root.joinInfo !== null
                 Text { text: "Join info"; color: "#FFFFFF"; font.pixelSize: 14; font.bold: true }
+                Text { text: "First seen shown in your local time (" + TimeFmt.zoneLabel + ")"; color: "#6b5d3f"; font.pixelSize: 11 }
                 Rectangle {
                     width: parent.width; height: jiCol.height + 20; radius: 11; color: Qt.rgba(1, 1, 1, 0.04)
                     Column {

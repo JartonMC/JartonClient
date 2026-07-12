@@ -1,8 +1,10 @@
 import QtQuick
 import Jarton
 
-// Staff roster (admin): list, add, expand-to-edit (rank, flags, enable/disable, reset
-// password) and remove. Mirrors the app's staff admin. All routes are admin-gated.
+// Staff — the ownership home. A scrollable, searchable roster (add / edit / rank / flags /
+// reset password / remove) on top, then drill-in buttons into the read-only oversight feeds
+// (active staff, sessions, command logs, join/leave, audit, abuse) that used to live under a
+// separate Admin tab. All routes are admin-gated. Drilling shows one AdminTab feed with a Back.
 Item {
     id: root
     property var staff: []
@@ -17,8 +19,43 @@ Item {
     property bool loadedOnce: false
     property bool adding: false
     property int openId: -1
+    property string searchText: ""
+    property string drill: ""          // "" = roster home, else a feed id (active/sessions/…)
 
     onVisibleChanged: if (visible && !loadedOnce) { loadedOnce = true; load(); reqRanks = ProctorApi.send("GET", "/proctor/ranks") }
+
+    // filtered roster (name / username / mc name), re-evaluates on search or roster change
+    readonly property var shownStaff: {
+        var q = searchText.toLowerCase()
+        if (!q.length) return staff
+        return staff.filter(function (s) {
+            return (String(s.displayName || "")).toLowerCase().indexOf(q) >= 0
+                || (String(s.username || "")).toLowerCase().indexOf(q) >= 0
+                || (String(s.mcName || "")).toLowerCase().indexOf(q) >= 0
+        })
+    }
+    // displayName / username / mcName → { name, uuid } so the feeds' faces resolve
+    readonly property var staffMap: {
+        var m = ({})
+        for (var i = 0; i < staff.length; i++) {
+            var s = staff[i]
+            var e = { name: s.mcName || s.username || "", uuid: s.mcUuid || "" }
+            if (s.displayName) m[s.displayName] = e
+            if (s.username) m[s.username] = e
+            if (s.mcName) m[s.mcName] = e
+        }
+        return m
+    }
+
+    readonly property var navItems: [
+        { id: "active",   label: "Active staff", icon: "users",     sub: "Who's clocked in" },
+        { id: "sessions", label: "Sessions",     icon: "clock",     sub: "Login history" },
+        { id: "commands", label: "Command logs", icon: "terminal",  sub: "Staff command trail" },
+        { id: "presence", label: "Join / Leave", icon: "network",   sub: "Presence events" },
+        { id: "audit",    label: "Audit log",    icon: "file-text", sub: "Everything that changed" },
+        { id: "abuse",    label: "Abuse alerts", icon: "flag",      sub: "Flagged staff actions" }
+    ]
+    function navLabel(id) { for (var i = 0; i < navItems.length; i++) if (navItems[i].id === id) return navItems[i].label; return id }
 
     // success banners clear themselves; errors stay until the next action
     Timer { id: bannerTimer; interval: 4000; onTriggered: root.banner = "" }
@@ -26,8 +63,8 @@ Item {
     function say(msg) { bannerError = false; banner = msg; bannerTimer.stop() }
     function load() { loading = true; error = ""; reqList = ProctorApi.send("GET", "/proctor/staff") }
 
-    // background roster refresh: silent + change-gated, and paused whenever a
-    // card is expanded or the add form is open so edits never get clobbered
+    // background roster refresh: silent + change-gated, paused whenever a card is expanded
+    // or the add form is open so edits never get clobbered
     readonly property int autoRefreshMs: 30000
     property int quietReq: -1
     property string lastPayload: ""
@@ -35,7 +72,7 @@ Item {
         if (loading || quietReq !== -1 || adding || openId !== -1 || pendingWrites.length > 0) return
         quietReq = ProctorApi.send("GET", "/proctor/staff")
     }
-    Timer { interval: root.autoRefreshMs; repeat: true; running: root.visible; onTriggered: root.quietLoad() }
+    Timer { interval: root.autoRefreshMs; repeat: true; running: root.visible && root.drill.length === 0; onTriggered: root.quietLoad() }
     function track(reqId) { var p = pendingWrites; p.push(reqId); pendingWrites = p }
     function createStaff(body) { track(ProctorApi.send("POST", "/proctor/staff", JSON.stringify(body))); say("Adding " + body.username + "…") }
     function patchStaff(id, body) { track(ProctorApi.send("PATCH", "/proctor/staff/" + id, JSON.stringify(body))); say("Saving…") }
@@ -47,7 +84,6 @@ Item {
         function onResponse(id, ok, status, body) {
             if (id === root.quietReq) {
                 root.quietReq = -1
-                // an edit may have opened while the poll was in flight — drop the result
                 if (!ok || body === root.lastPayload || root.adding || root.openId !== -1) return
                 root.lastPayload = body
                 try { root.staff = JSON.parse(body).staff || [] } catch (e) {}
@@ -62,7 +98,6 @@ Item {
                 return
             }
             if (id === root.reqRanks) {
-                // empty/failed → RankField falls back to free text, form never bricks
                 if (ok) { try { root.ranks = JSON.parse(body).ranks || [] } catch (e) { root.ranks = [] } }
                 return
             }
@@ -70,8 +105,6 @@ Item {
             if (idx !== -1) {
                 root.pendingWrites.splice(idx, 1)
                 if (!ok) {
-                    // the broker says exactly what's wrong ("couldn't resolve Minecraft
-                    // account ...") — show that, not a bare status code
                     var msg = ""
                     try { msg = JSON.parse(body).error || "" } catch (e) {}
                     root.banner = msg.length ? msg : "Action failed (" + status + ")."
@@ -87,8 +120,29 @@ Item {
         }
     }
 
+    // ================= DRILL-IN FEED =================
+    Item {
+        anchors.fill: parent; anchors.margins: 4; visible: root.drill.length > 0
+        Item {
+            id: drillHead
+            width: parent.width; height: 34
+            SButton { id: backBtn; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                text: "Back"; icon: "chevron-left"; variant: "ghost"; onClicked: root.drill = "" }
+            Text { anchors.left: backBtn.right; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
+                text: root.navLabel(root.drill); color: "#F2E8D0"; font.pixelSize: 18; font.bold: true }
+        }
+        AdminTab {
+            anchors.top: drillHead.bottom; anchors.topMargin: 8
+            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            forceView: root.drill
+            staffMap: root.staffMap
+        }
+    }
+
+    // ================= ROSTER HOME =================
     Column {
-        anchors.fill: parent; anchors.margins: 4; spacing: 12
+        anchors.fill: parent; anchors.margins: 4; spacing: 12; visible: root.drill.length === 0
+
         Item {
             width: parent.width; height: 32
             Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Staff roster"; color: "#FFFFFF"; font.pixelSize: 17; font.bold: true }
@@ -105,6 +159,23 @@ Item {
             Text {
                 anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
                 text: root.banner; color: root.bannerError ? "#ff9b9b" : "#9fe0ad"; font.pixelSize: 12
+            }
+        }
+
+        // search
+        Rectangle {
+            width: parent.width; height: 32; radius: 8; color: "#0f0a06"
+            border.color: searchIn.activeFocus ? "#FFB81C" : "#2a2114"; border.width: 1
+            Image {
+                id: srchIco; anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
+                source: "qrc:/jarton/staff/icons/ui/users-rest.svg"; width: 13; height: 13; sourceSize: Qt.size(26, 26); opacity: 0.5
+            }
+            TextInput {
+                id: searchIn; anchors.left: srchIco.right; anchors.leftMargin: 8; anchors.right: parent.right; anchors.rightMargin: 10
+                anchors.verticalCenter: parent.verticalCenter
+                color: "#F2E8D0"; font.pixelSize: 12; clip: true
+                onTextChanged: root.searchText = text
+                Text { anchors.verticalCenter: parent.verticalCenter; text: "Search staff…"; color: "#6b5d3f"; font.pixelSize: 12; visible: searchIn.text.length === 0 }
             }
         }
 
@@ -153,93 +224,131 @@ Item {
             }
         }
 
-        ListView {
-            width: parent.width; height: parent.height - (root.adding ? addForm.height + 64 : 56) - (root.banner.length > 0 ? 38 : 0); clip: true; spacing: 8
-            model: root.staff
-            delegate: Rectangle {
-                id: sCard
-                required property var modelData
-                readonly property bool open: root.openId === modelData.id
-                width: ListView.view.width; height: sCol.height + 22; radius: 12
-                color: "#16110a"; border.color: sCard.open ? "#3a2f14" : "#241c12"; border.width: 1
-                opacity: modelData.enabled === false ? 0.55 : 1.0
-                Behavior on height { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+        // ---- roster: fixed-height scroll, ~3 cards visible, scroll for the rest ----
+        Rectangle {
+            width: parent.width
+            height: root.adding ? 120 : 244
+            radius: 12; color: "transparent"
+            ListView {
+                id: rosterList
+                anchors.fill: parent
+                clip: true; spacing: 8
+                model: root.shownStaff
+                delegate: Rectangle {
+                    id: sCard
+                    required property var modelData
+                    readonly property bool open: root.openId === modelData.id
+                    width: rosterList.width; height: sCol.height + 22; radius: 12
+                    color: "#16110a"; border.color: sCard.open ? "#3a2f14" : "#241c12"; border.width: 1
+                    opacity: modelData.enabled === false ? 0.55 : 1.0
+                    Behavior on height { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
 
-                Column {
-                    id: sCol
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 11; spacing: 10
-                    Item {
-                        width: parent.width; height: 32
-                        Avatar { id: sh; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; size: 30; uuid: modelData.mcUuid ? modelData.mcUuid : "" }
-                        Column {
-                            anchors.left: sh.right; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                            Text { text: modelData.displayName ? modelData.displayName : modelData.username; color: "#F2E8D0"; font.pixelSize: 14; font.bold: true }
-                            Row {
-                                spacing: 6
-                                Text { text: (modelData.mcName ? modelData.mcName : modelData.username) + "   ·   @" + modelData.username; color: "#9a8a66"; font.pixelSize: 11 }
-                                Rectangle {
-                                    visible: !!modelData.discord
-                                    width: dcT.width + 12; height: 16; radius: 8; color: Qt.rgba(0.45, 0.5, 0.9, 0.18)
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    Text { id: dcT; anchors.centerIn: parent; text: "@" + (modelData.discord || ""); color: "#9aa4ff"; font.pixelSize: 10; font.bold: true }
-                                    MouseArea {
-                                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                        // copyable, same as the player profile's linked-Discord badge
-                                        onClicked: { ProctorClient.copyToClipboard("@" + modelData.discord); root.say("Copied @" + modelData.discord) }
+                    Column {
+                        id: sCol
+                        anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 11; spacing: 10
+                        Item {
+                            width: parent.width; height: 32
+                            Avatar { id: sh; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; size: 30; uuid: modelData.mcUuid ? modelData.mcUuid : "" }
+                            Column {
+                                anchors.left: sh.right; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter; spacing: 2
+                                Text { text: modelData.displayName ? modelData.displayName : modelData.username; color: "#F2E8D0"; font.pixelSize: 14; font.bold: true }
+                                Row {
+                                    spacing: 6
+                                    Text { text: (modelData.mcName ? modelData.mcName : modelData.username) + "   ·   @" + modelData.username; color: "#9a8a66"; font.pixelSize: 11 }
+                                    Rectangle {
+                                        visible: !!modelData.discord
+                                        width: dcT.width + 12; height: 16; radius: 8; color: Qt.rgba(0.45, 0.5, 0.9, 0.18)
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        Text { id: dcT; anchors.centerIn: parent; text: "@" + (modelData.discord || ""); color: "#9aa4ff"; font.pixelSize: 10; font.bold: true }
+                                        MouseArea {
+                                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: { ProctorClient.copyToClipboard("@" + modelData.discord); root.say("Copied @" + modelData.discord) }
+                                        }
                                     }
                                 }
                             }
+                            Row {
+                                anchors.right: chev.left; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                                Rectangle { width: rkT.width + 16; height: 20; radius: 10; color: Qt.rgba(1, 0.72, 0.2, 0.16); anchors.verticalCenter: parent.verticalCenter
+                                    Text { id: rkT; anchors.centerIn: parent; text: modelData.rank ? modelData.rank : "staff"; color: "#FFB833"; font.pixelSize: 11; font.bold: true } }
+                                Rectangle { visible: modelData.proctorAdmin === true; width: adT.width + 14; height: 20; radius: 10; color: Qt.rgba(0.35, 0.82, 0.48, 0.16); anchors.verticalCenter: parent.verticalCenter
+                                    Text { id: adT; anchors.centerIn: parent; text: "admin"; color: "#5ad17a"; font.pixelSize: 10; font.bold: true } }
+                                Rectangle { visible: modelData.active === true; width: 8; height: 8; radius: 4; color: "#5ad17a"; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                            Image {
+                                id: chev
+                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                source: "qrc:/jarton/staff/icons/ui/chevron-up-cream.svg"
+                                width: 12; height: 12; sourceSize: Qt.size(24, 24)
+                                opacity: 0.45
+                                rotation: sCard.open ? 180 : 90
+                                Behavior on rotation { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+                            }
                         }
-                        Row {
-                            anchors.right: chev.left; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; spacing: 6
-                            Rectangle { width: rkT.width + 16; height: 20; radius: 10; color: Qt.rgba(1, 0.72, 0.2, 0.16); anchors.verticalCenter: parent.verticalCenter
-                                Text { id: rkT; anchors.centerIn: parent; text: modelData.rank ? modelData.rank : "staff"; color: "#FFB833"; font.pixelSize: 11; font.bold: true } }
-                            Rectangle { visible: modelData.proctorAdmin === true; width: adT.width + 14; height: 20; radius: 10; color: Qt.rgba(0.35, 0.82, 0.48, 0.16); anchors.verticalCenter: parent.verticalCenter
-                                Text { id: adT; anchors.centerIn: parent; text: "admin"; color: "#5ad17a"; font.pixelSize: 10; font.bold: true } }
-                            Rectangle { visible: modelData.active === true; width: 8; height: 8; radius: 4; color: "#5ad17a"; anchors.verticalCenter: parent.verticalCenter }
-                        }
-                        Image {
-                            id: chev
-                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                            source: "qrc:/jarton/staff/icons/ui/chevron-up-cream.svg"
-                            width: 12; height: 12; sourceSize: Qt.size(24, 24)
-                            opacity: 0.45
-                            rotation: sCard.open ? 180 : 90
-                            Behavior on rotation { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+
+                        // expanded controls
+                        Column {
+                            width: parent.width; spacing: 8; visible: sCard.open
+                            Row {
+                                width: parent.width; spacing: 8
+                                z: erank.open ? 10 : 0
+                                RankField { id: erank; w: (parent.width - 8) / 2; preset: modelData.rank ? modelData.rank : "" }
+                                SButton { anchors.top: parent.top; anchors.topMargin: 0; height: 32; text: "Save rank"; variant: "secondary"; onClicked: if (erank.value.length) root.patchStaff(modelData.id, { rank: erank.value }) }
+                            }
+                            Row {
+                                spacing: 7
+                                SButton { compact: true; text: modelData.proctorAdmin ? "Revoke admin" : "Make admin"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { proctorAdmin: !modelData.proctorAdmin }) }
+                                SButton { compact: true; text: modelData.autoOp ? "Disable auto-op" : "Enable auto-op"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { autoOp: !modelData.autoOp }) }
+                                SButton { compact: true; text: modelData.allowApplications === false ? "Allow applications" : "Block applications"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { allowApplications: modelData.allowApplications === false }) }
+                                SButton { compact: true; text: modelData.enabled === false ? "Enable" : "Disable"; variant: modelData.enabled === false ? "primary" : "ghost"; onClicked: root.patchStaff(modelData.id, { enabled: modelData.enabled === false }) }
+                            }
+                            Row {
+                                width: parent.width; spacing: 7
+                                StaffField { id: epw; ph: "new password (min 8)"; pw: true; w: (parent.width - 8) / 2 }
+                                SButton { compact: true; anchors.verticalCenter: parent.verticalCenter; text: "Reset password"; variant: "secondary"; onClicked: if (epw.value.length >= 8) { root.resetPw(modelData.id, epw.value); epw.clear() } }
+                                SButton { compact: true; anchors.verticalCenter: parent.verticalCenter; text: "Remove"; variant: "danger"; onClicked: root.removeStaff(modelData.id) }
+                            }
                         }
                     }
-
-                    // expanded controls
-                    Column {
-                        width: parent.width; spacing: 8; visible: sCard.open
-                        Row {
-                            width: parent.width; spacing: 8
-                            z: erank.open ? 10 : 0
-                            RankField { id: erank; w: (parent.width - 8) / 2; preset: modelData.rank ? modelData.rank : "" }
-                            SButton { anchors.top: parent.top; anchors.topMargin: 0; height: 32; text: "Save rank"; variant: "secondary"; onClicked: if (erank.value.length) root.patchStaff(modelData.id, { rank: erank.value }) }
-                        }
-                        Row {
-                            spacing: 7
-                            SButton { compact: true; text: modelData.proctorAdmin ? "Revoke admin" : "Make admin"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { proctorAdmin: !modelData.proctorAdmin }) }
-                            SButton { compact: true; text: modelData.autoOp ? "Disable auto-op" : "Enable auto-op"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { autoOp: !modelData.autoOp }) }
-                            SButton { compact: true; text: modelData.allowApplications === false ? "Allow applications" : "Block applications"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { allowApplications: modelData.allowApplications === false }) }
-                            SButton { compact: true; text: modelData.enabled === false ? "Enable" : "Disable"; variant: modelData.enabled === false ? "primary" : "ghost"; onClicked: root.patchStaff(modelData.id, { enabled: modelData.enabled === false }) }
-                        }
-                        Row {
-                            width: parent.width; spacing: 7
-                            StaffField { id: epw; ph: "new password (min 8)"; pw: true; w: (parent.width - 8) / 2 }
-                            SButton { compact: true; anchors.verticalCenter: parent.verticalCenter; text: "Reset password"; variant: "secondary"; onClicked: if (epw.value.length >= 8) { root.resetPw(modelData.id, epw.value); epw.clear() } }
-                            SButton { compact: true; anchors.verticalCenter: parent.verticalCenter; text: "Remove"; variant: "danger"; onClicked: root.removeStaff(modelData.id) }
-                        }
+                    MouseArea {
+                        anchors.fill: parent; anchors.bottomMargin: sCard.open ? sCard.height - 44 : 0
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.openId = sCard.open ? -1 : modelData.id
                     }
                 }
-                MouseArea {
-                    anchors.fill: parent; anchors.bottomMargin: sCard.open ? sCard.height - 44 : 0
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.openId = sCard.open ? -1 : modelData.id
+                Text { anchors.centerIn: parent; visible: !root.loading && root.shownStaff.length === 0 && root.error.length === 0
+                    text: root.searchText.length ? "No staff match." : "No staff."; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 14 }
+            }
+        }
+
+        // ---- oversight drill-in buttons ----
+        Text { text: "OVERSIGHT"; color: "#8a7a56"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 0.5 }
+        Grid {
+            width: parent.width; columns: 2; columnSpacing: 8; rowSpacing: 8
+            Repeater {
+                model: root.navItems
+                Rectangle {
+                    width: (parent.width - 8) / 2; height: 52; radius: 11
+                    color: navHover.containsMouse ? "#1c160d" : "#16110a"
+                    border.color: navHover.containsMouse ? "#3a2f14" : "#241c12"; border.width: 1
+                    Behavior on color { ColorAnimation { duration: 110 } }
+                    Image {
+                        id: navIco; anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter
+                        source: "qrc:/jarton/staff/icons/ui/" + modelData.icon + "-active.svg"
+                        width: 18; height: 18; sourceSize: Qt.size(36, 36)
+                    }
+                    Column {
+                        anchors.left: navIco.right; anchors.leftMargin: 12; anchors.right: navChev.left; anchors.rightMargin: 6
+                        anchors.verticalCenter: parent.verticalCenter; spacing: 2
+                        Text { text: modelData.label; color: "#F2E8D0"; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight; width: parent.width }
+                        Text { text: modelData.sub; color: "#6b5d3f"; font.pixelSize: 11; elide: Text.ElideRight; width: parent.width }
+                    }
+                    Text { id: navChev; anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
+                        text: "›"; color: "#6b5d3f"; font.pixelSize: 16 }
+                    MouseArea { id: navHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: root.drill = modelData.id }
                 }
             }
-            Text { anchors.centerIn: parent; visible: !root.loading && root.staff.length === 0 && root.error.length === 0; text: "No staff."; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 14 }
         }
     }
 
@@ -262,9 +371,6 @@ Item {
             Text { anchors.verticalCenter: parent.verticalCenter; text: fld.ph; color: "#6b5d3f"; font.pixelSize: 12; visible: ti.text.length === 0 }
         }
     }
-    // rank picker fed by /proctor/ranks; expands in place (no overlay popup — the
-    // hosting Columns reflow instead, so nothing clips inside the ListView cards).
-    // No ranks loaded → plain text input, the form must never brick on a dead route.
     component RankField: Rectangle {
         id: rf
         property real w: 160

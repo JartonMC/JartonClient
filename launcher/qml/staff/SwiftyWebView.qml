@@ -14,13 +14,29 @@ Item {
 
     Rectangle { anchors.fill: parent; color: "#0f0a06" }  // dark backstop while the page paints
 
+    // the native webview composites above QML, so the timezone note can't overlay it —
+    // reserve a thin strip below the page for it instead
     WebView {
         id: web
-        anchors.fill: parent
+        anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+        anchors.bottom: tzBar.top
         url: root.homeUrl
         onLoadingChanged: function (req) {
             if (req.status === WebView.LoadFailedStatus) root.failed = true
             else if (req.status === WebView.LoadSucceededStatus) root.failed = false
+        }
+    }
+
+    // timezone disclaimer strip — Swifty renders its own times inside the web app,
+    // which the client can't reformat, so this is honest about that
+    Rectangle {
+        id: tzBar
+        anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
+        height: 22; color: "#120d07"; border.color: "#241c12"; border.width: 1
+        Text {
+            anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter
+            text: "Swifty times are shown in the app's own timezone"
+            color: "#6b5d3f"; font.pixelSize: 11
         }
     }
 

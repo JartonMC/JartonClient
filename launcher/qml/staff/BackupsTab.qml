@@ -25,15 +25,7 @@ Item {
         var mb = b / 1048576
         return mb >= 1024 ? (mb / 1024).toFixed(1) + " GB" : Math.round(mb) + " MB"
     }
-    function relTime(iso) {
-        if (!iso) return ""
-        var t = Date.parse(iso)
-        if (isNaN(t)) return ""
-        var d = Date.now() - t
-        var days = Math.floor(d / 86400000); if (days > 0) return days + "d ago"
-        var h = Math.floor(d / 3600000); if (h > 0) return h + "h ago"
-        var m = Math.floor(d / 60000); return Math.max(1, m) + "m ago"
-    }
+    function relTime(iso) { return TimeFmt.rel(iso) }
 
     Connections {
         target: StaffApi
@@ -88,8 +80,14 @@ Item {
             text: root.error; color: "#e06c6c"; font.pixelSize: 13
         }
 
+        Text {
+            width: parent.width; visible: root.backups.length > 0
+            text: "Times shown in your local time (" + TimeFmt.zoneLabel + ")"
+            color: "#6b5d3f"; font.pixelSize: 11
+        }
+
         ListView {
-            width: parent.width; height: parent.height - 50
+            width: parent.width; height: parent.height - (root.backups.length > 0 ? 70 : 50)
             clip: true; spacing: 6
             model: root.backups
             delegate: Rectangle {
@@ -113,7 +111,7 @@ Item {
                         }
                     }
                     Text {
-                        text: root.fmtBytes(modelData.bytes) + "  ·  " + root.relTime(modelData.createdAt)
+                        text: root.fmtBytes(modelData.bytes) + "  ·  " + TimeFmt.when(modelData.createdAt)
                         color: "#8a7a56"; font.pixelSize: 12
                     }
                 }
