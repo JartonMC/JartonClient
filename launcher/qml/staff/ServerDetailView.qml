@@ -201,19 +201,23 @@ Item {
                     }
                 }
 
-                ListView {
+                // a TextEdit mirror of PteroServer.console instead of a delegate-per-line
+                // ListView, so output is selectable and Cmd/Ctrl+C copies like a terminal
+                Flickable {
                     id: log
                     anchors.top: termBar.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     anchors.margins: 12
                     clip: true
                     flickDeceleration: 2600
                     maximumFlickVelocity: 6000
-                    model: PteroServer.console
+                    contentWidth: width
+                    contentHeight: term.height
                     // terminal follow: pinned to the tail until the user scrolls up,
                     // re-pins when they come back to the bottom
                     property bool follow: true
                     property real accel: 1
                     property real lastWheel: 0
+                    function pin() { contentY = Math.max(0, contentHeight - height) }
                     WheelHandler {
                         acceptedDevices: PointerDevice.Mouse
                         onWheel: function (e) {
@@ -226,22 +230,56 @@ Item {
                             e.accepted = true
                         }
                     }
-                    delegate: Text {
-                        required property string line
-                        width: log.width
-                        text: line; color: "#cfc3a6"
-                        font.family: "Menlo"; font.pixelSize: 12; lineHeight: 1.2
-                        wrapMode: Text.WrapAnywhere; textFormat: Text.RichText
-                    }
                     onMovementEnded: follow = atYEnd
-                    onCountChanged: if (follow) Qt.callLater(log.positionViewAtEnd)
-                    // wrapped RichText rows settle their heights after insertion; keep
+                    // wrapped RichText settles its height after insertion; keep
                     // re-pinning as the content grows so the tail stays in view
-                    onContentHeightChanged: if (follow && !moving) positionViewAtEnd()
-                    onVisibleChanged: if (visible) { follow = true; Qt.callLater(log.positionViewAtEnd) }
+                    onContentHeightChanged: if (follow && !moving) pin()
+                    onVisibleChanged: if (visible) { follow = true; Qt.callLater(log.pin) }
+
+                    TextEdit {
+                        id: term
+                        width: log.width
+                        height: Math.max(implicitHeight, log.height)  // short logs: click anywhere in the frame to focus
+                        readOnly: true
+                        selectByMouse: true; selectByKeyboard: true; persistentSelection: true
+                        color: "#cfc3a6"; font.family: "Menlo"; font.pixelSize: 12
+                        wrapMode: TextEdit.WrapAnywhere
+                        textFormat: TextEdit.RichText
+                        selectionColor: "#5c4a2a"
+
+                        property int bufLines: 0
+                        // TextEdit has no lineHeight; carry the old delegate's 1.2 on each block
+                        function wrap(html) { return "<div style=\"margin:0;line-height:120%\">" + html + "</div>" }
+                        function push(html) {
+                            append(wrap(html))
+                            bufLines++
+                            // mirror ConsoleLogModel's front trim so the document can't outgrow the cap
+                            var cap = PteroServer.console.maxLines()
+                            while (bufLines > cap) {
+                                var nl = getText(0, Math.min(length, 4096)).indexOf("\n")
+                                if (nl < 0) break
+                                remove(0, nl + 1)
+                                bufLines--
+                            }
+                            if (log.follow) Qt.callLater(log.pin)
+                        }
+                        function refill() {
+                            var ls = PteroServer.console.allLines()
+                            text = ls.map(wrap).join("")
+                            bufLines = ls.length
+                            log.follow = true
+                            Qt.callLater(log.pin)
+                        }
+                        Component.onCompleted: refill()
+                        Connections {
+                            target: PteroServer.console
+                            function onLineAppended(html) { term.push(html) }
+                            function onCleared() { term.clear(); term.bufLines = 0; log.follow = true }
+                        }
+                    }
                     Text {
                         anchors.centerIn: parent
-                        visible: log.count === 0
+                        visible: term.bufLines === 0
                         text: PteroServer.consoleState === "live" ? "Waiting for output…" : "Connecting to console…"
                         color: "#6b5d3f"; font.pixelSize: 13
                     }
@@ -291,6 +329,33 @@ Item {
             visible: view.tab === "files"
             property bool creatingFolder: false
             property string renaming: ""
+
+            // browser-style name filter (Ctrl+F while browsing)
+            property bool filtering: false
+            property string filterText: ""   // kept lowercased; delegates collapse on mismatch
+            onFilterTextChanged: fileList.positionViewAtBeginning()
+            // a filter carried into a new dir would silently hide files there
+            property string filterCwd: PteroFiles.cwd
+            onFilterCwdChanged: closeFilter()
+
+            function openFilter() {
+                filtering = true
+                filterIn.forceActiveFocus()
+                filterIn.selectAll()
+            }
+            function closeFilter() {
+                filtering = false
+                filterIn.text = ""
+            }
+
+            Shortcut {
+                sequences: [StandardKey.Find]
+                enabled: filesTab.visible
+                onActivated: {
+                    if (PteroFiles.openPath !== "") edOverlay.openFind()
+                    else filesTab.openFilter()
+                }
+            }
 
             // browser-style directory history: every navigation pushes the dir we
             // left, mouse back/forward (and the editor's back) walk the stacks
@@ -364,6 +429,25 @@ Item {
                         SButton { anchors.verticalCenter: parent.verticalCenter; text: "Cancel"; variant: "ghost"; onClicked: { filesTab.creatingFolder = false; filesTab.renaming = ""; nameIn.text = "" } }
                     }
                 }
+                // inline name filter
+                Rectangle {
+                    width: parent.width; height: 38; radius: 9
+                    visible: filesTab.filtering
+                    color: "#15100a"; border.color: filterIn.activeFocus ? "#FFB81C" : "#2a2114"; border.width: 1
+                    Behavior on border.color { ColorAnimation { duration: 120 } }
+                    Row {
+                        anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 8; spacing: 8
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "Filter"; color: "#FFE082"; font.pixelSize: 12 }
+                        TextInput {
+                            id: filterIn
+                            width: parent.width - 140; anchors.verticalCenter: parent.verticalCenter
+                            color: "#F2E8D0"; font.pixelSize: 13; clip: true
+                            onTextChanged: filesTab.filterText = text.toLowerCase()
+                            Keys.onEscapePressed: filesTab.closeFilter()
+                        }
+                        SButton { anchors.verticalCenter: parent.verticalCenter; text: "✕"; variant: "ghost"; onClicked: filesTab.closeFilter() }
+                    }
+                }
             }
 
             function commitInline(value) {
@@ -376,7 +460,7 @@ Item {
                 id: fileList
                 anchors.top: fhead.bottom; anchors.topMargin: 10
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                clip: true; spacing: 5
+                clip: true
                 flickDeceleration: 2600
                 maximumFlickVelocity: 6000
                 model: PteroFiles
@@ -393,54 +477,106 @@ Item {
                         e.accepted = true
                     }
                 }
-                delegate: Rectangle {
-                    width: ListView.view.width; height: 40; radius: 9
-                    color: fileArea.containsMouse ? "#221a0f" : "#16110a"
-                    border.color: fileArea.containsMouse ? "#3a2f1c" : "#221a12"; border.width: 1
-                    Behavior on color { ColorAnimation { duration: 100 } }
-                    MouseArea {
-                        id: fileArea
-                        anchors.fill: parent; hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (isFile) {
-                                PteroFiles.openFile(name)
-                            } else if (!PteroFiles.loading) {
-                                filesTab.navPush()
-                                PteroFiles.enter(name)
+                // wrapper owns the 5px row gap (not ListView spacing) so filtered-out
+                // rows collapse to zero instead of leaving a stack of gaps
+                delegate: Item {
+                    readonly property bool shown: filesTab.filterText === "" || name.toLowerCase().indexOf(filesTab.filterText) !== -1
+                    width: ListView.view.width
+                    height: shown ? 45 : 0
+                    visible: shown
+                    Rectangle {
+                        width: parent.width; height: 40; radius: 9
+                        color: fileArea.containsMouse ? "#221a0f" : "#16110a"
+                        border.color: fileArea.containsMouse ? "#3a2f1c" : "#221a12"; border.width: 1
+                        Behavior on color { ColorAnimation { duration: 100 } }
+                        MouseArea {
+                            id: fileArea
+                            anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (isFile) {
+                                    PteroFiles.openFile(name)
+                                } else if (!PteroFiles.loading) {
+                                    filesTab.navPush()
+                                    PteroFiles.enter(name)
+                                }
                             }
                         }
-                    }
-                    Text {
-                        anchors.left: parent.left; anchors.leftMargin: 14
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: isFile ? "📄" : "📁"; font.pixelSize: 14
-                    }
-                    Text {
-                        anchors.left: parent.left; anchors.leftMargin: 42
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: name; color: "#F2E8D0"; font.pixelSize: 13
-                    }
-                    Row {
-                        anchors.right: parent.right; anchors.rightMargin: 12
-                        anchors.verticalCenter: parent.verticalCenter; spacing: 8
                         Text {
+                            anchors.left: parent.left; anchors.leftMargin: 14
                             anchors.verticalCenter: parent.verticalCenter
-                            text: isFile ? view.fmtBytes(size) : ""
-                            color: "#6b5d3f"; font.pixelSize: 11
-                            visible: !fileArea.containsMouse
+                            text: isFile ? "📄" : "📁"; font.pixelSize: 14
                         }
-                        SButton { anchors.verticalCenter: parent.verticalCenter; visible: fileArea.containsMouse; text: "Rename"; variant: "ghost"; onClicked: { filesTab.creatingFolder = false; filesTab.renaming = name; nameIn.text = name; nameIn.forceActiveFocus() } }
-                        SButton { anchors.verticalCenter: parent.verticalCenter; visible: fileArea.containsMouse; text: "Delete"; variant: "danger"; onClicked: PteroFiles.deleteEntry(name) }
+                        Text {
+                            anchors.left: parent.left; anchors.leftMargin: 42
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: name; color: "#F2E8D0"; font.pixelSize: 13
+                        }
+                        Row {
+                            anchors.right: parent.right; anchors.rightMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter; spacing: 8
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: isFile ? view.fmtBytes(size) : ""
+                                color: "#6b5d3f"; font.pixelSize: 11
+                                visible: !fileArea.containsMouse
+                            }
+                            SButton { anchors.verticalCenter: parent.verticalCenter; visible: fileArea.containsMouse; text: "Rename"; variant: "ghost"; onClicked: { filesTab.creatingFolder = false; filesTab.renaming = name; nameIn.text = name; nameIn.forceActiveFocus() } }
+                            SButton { anchors.verticalCenter: parent.verticalCenter; visible: fileArea.containsMouse; text: "Delete"; variant: "danger"; onClicked: PteroFiles.deleteEntry(name) }
+                        }
                     }
                 }
             }
 
             // editor overlay
             Rectangle {
+                id: edOverlay
                 anchors.fill: parent
                 visible: PteroFiles.openPath !== ""
                 color: "#0f0a06"
+
+                property bool finding: false
+                property var matches: []   // match start offsets
+                property int matchIndex: -1
+
+                onVisibleChanged: if (!visible) closeFind()
+
+                function openFind() {
+                    finding = true
+                    findIn.forceActiveFocus()
+                    findIn.selectAll()
+                    refind(true)
+                }
+                function closeFind() {
+                    finding = false
+                    findIn.text = ""
+                    if (visible) editor.forceActiveFocus()
+                }
+                // plain-text scan, capped so a 1-char query on a huge file can't stall the UI.
+                // jump=false when the editor text changed under us — reselecting the first
+                // match mid-edit would yank the viewport away from the cursor
+                function refind(jump) {
+                    matchIndex = -1
+                    var q = findIn.text.toLowerCase()
+                    if (!finding || q.length === 0) { matches = []; return }
+                    var hay = editor.text.toLowerCase()
+                    var out = []
+                    var i = hay.indexOf(q)
+                    while (i !== -1 && out.length < 5000) {
+                        out.push(i)
+                        i = hay.indexOf(q, i + q.length)
+                    }
+                    matches = out
+                    if (jump && out.length > 0) findStep(1)
+                }
+                function findStep(dir) {
+                    if (matches.length === 0) return
+                    matchIndex = matchIndex < 0 ? (dir > 0 ? 0 : matches.length - 1)
+                                                : (matchIndex + dir + matches.length) % matches.length
+                    var start = matches[matchIndex]
+                    editor.select(start, start + findIn.text.length)
+                    flick.ensureVisible(editor.positionToRectangle(start))
+                }
 
                 Shortcut {
                     sequences: [StandardKey.Save]
@@ -464,14 +600,45 @@ Item {
                     }
                     SButton { text: PteroFiles.saving ? "Saving…" : "Save"; variant: "primary"; busy: PteroFiles.saving; onClicked: PteroFiles.save(editor.text) }
                 }
+                // in-editor find bar (Ctrl+F while a file is open)
+                Rectangle {
+                    id: findBar
+                    anchors.top: edBar.bottom; anchors.topMargin: 6
+                    width: parent.width; height: 34; radius: 9
+                    visible: edOverlay.finding
+                    color: "#15100a"; border.color: findIn.activeFocus ? "#FFB81C" : "#2a2114"; border.width: 1
+                    Behavior on border.color { ColorAnimation { duration: 120 } }
+                    Row {
+                        anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 6; spacing: 8
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "Find"; color: "#FFE082"; font.pixelSize: 12 }
+                        TextInput {
+                            id: findIn
+                            width: parent.width - 320; anchors.verticalCenter: parent.verticalCenter
+                            color: "#F2E8D0"; font.family: "Menlo"; font.pixelSize: 13; clip: true
+                            onTextChanged: edOverlay.refind(true)
+                            Keys.onReturnPressed: function (e) { edOverlay.findStep(e.modifiers & Qt.ShiftModifier ? -1 : 1) }
+                            Keys.onEnterPressed: function (e) { edOverlay.findStep(e.modifiers & Qt.ShiftModifier ? -1 : 1) }
+                            Keys.onEscapePressed: edOverlay.closeFind()
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: edOverlay.matches.length === 0 ? "0/0"
+                                : (edOverlay.matchIndex + 1) + "/" + edOverlay.matches.length + (edOverlay.matches.length >= 5000 ? "+" : "")
+                            color: "#6b5d3f"; font.family: "Menlo"; font.pixelSize: 11
+                        }
+                        SButton { anchors.verticalCenter: parent.verticalCenter; compact: true; text: "Prev"; variant: "ghost"; onClicked: edOverlay.findStep(-1) }
+                        SButton { anchors.verticalCenter: parent.verticalCenter; compact: true; text: "Next"; variant: "ghost"; onClicked: edOverlay.findStep(1) }
+                        SButton { anchors.verticalCenter: parent.verticalCenter; compact: true; text: "✕"; variant: "ghost"; onClicked: edOverlay.closeFind() }
+                    }
+                }
                 Text {
                     id: edErr
-                    anchors.top: edBar.bottom; anchors.topMargin: 6
+                    anchors.top: findBar.visible ? findBar.bottom : edBar.bottom; anchors.topMargin: 6
                     text: PteroFiles.editorError; color: "#e06c6c"; font.pixelSize: 12
                     visible: PteroFiles.editorError.length > 0
                 }
                 Rectangle {
-                    anchors.top: edErr.visible ? edErr.bottom : edBar.bottom; anchors.topMargin: 10
+                    anchors.top: edErr.visible ? edErr.bottom : (findBar.visible ? findBar.bottom : edBar.bottom); anchors.topMargin: 10
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     radius: 13; color: "#0a0805"; border.color: "#2a2114"; border.width: 1
                     Flickable {
@@ -518,6 +685,7 @@ Item {
                             }
                             Component.onCompleted: SyntaxHelper.attach(editor.textDocument)
                             onCursorRectangleChanged: flick.ensureVisible(cursorRectangle)
+                            onTextChanged: if (edOverlay.finding) edOverlay.refind(false)
                         }
                     }
                     Text {

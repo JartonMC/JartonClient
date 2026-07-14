@@ -12,6 +12,18 @@
 
 namespace Jarton {
 
+namespace {
+
+// Staff builds follow their own release channel. An empty staff field means
+// "no staff release yet" — never fall back to launcher_version, which would
+// replace a staff install with the public client.
+QString availableLauncherVersion(const Manifest& m)
+{
+    return BuildConfig.JARTON_STAFF ? m.staffLauncherVersion : m.launcherVersion;
+}
+
+}  // namespace
+
 JartonUpdateService::JartonUpdateService(JartonManifestService* manifest, InstanceList* instances, QObject* parent)
     : QObject(parent), m_manifest(manifest), m_instances(instances)
 {
@@ -36,7 +48,7 @@ void JartonUpdateService::manualCheck()
 {
     m_launcherPrompted = false;
     const bool ready = m_manifest != nullptr && m_manifest->ready();
-    const QString available = ready ? m_manifest->manifest().launcherVersion : QString();
+    const QString available = ready ? availableLauncherVersion(m_manifest->manifest()) : QString();
     if (!available.isEmpty() && Version(runningLauncherVersion()) < Version(available)) {
         checkLauncherUpdate();
         return;
@@ -140,7 +152,7 @@ void JartonUpdateService::checkLauncherUpdate()
     if (m_launcherPrompted || m_manifest == nullptr || !m_manifest->ready()) {
         return;
     }
-    const QString manifestVersion = m_manifest->manifest().launcherVersion;
+    const QString manifestVersion = availableLauncherVersion(m_manifest->manifest());
     if (manifestVersion.isEmpty()) {
         return;
     }

@@ -23,14 +23,28 @@ Item {
 
     // the native webview composites above QML, so the timezone note can't overlay it —
     // reserve a thin strip below the page for it instead
+    // desktop-density zoom: the page renders noticeably larger in the native webview
+    // than in a browser. The toolbar Zoom action drives this via setZoom (persisted
+    // C++-side); applied per load, SPA route changes keep the style on the document.
+    property real pageZoom: 0.8
+
+    function setZoom(z) {
+        pageZoom = z
+        web.runJavaScript("document.documentElement.style.zoom = '" + z + "';")
+    }
+
     WebView {
         id: web
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         anchors.bottom: tzBar.top
         url: root.homeUrl
         onLoadingChanged: function (req) {
-            if (req.status === WebView.LoadFailedStatus) root.failed = true
-            else if (req.status === WebView.LoadSucceededStatus) root.failed = false
+            if (req.status === WebView.LoadFailedStatus) {
+                root.failed = true
+            } else if (req.status === WebView.LoadSucceededStatus) {
+                root.failed = false
+                web.runJavaScript("document.documentElement.style.zoom = '" + root.pageZoom + "';")
+            }
         }
     }
 

@@ -185,7 +185,7 @@ set(Launcher_LEGACY_FMLLIBS_BASE_URL "https://files.prismlauncher.org/fmllibs/" 
 ######## Set version numbers ########
 set(Launcher_VERSION_MAJOR 1)
 set(Launcher_VERSION_MINOR 1)
-set(Launcher_VERSION_PATCH 6)
+set(Launcher_VERSION_PATCH 7)
 
 set(Launcher_VERSION_NAME "${Launcher_VERSION_MAJOR}.${Launcher_VERSION_MINOR}.${Launcher_VERSION_PATCH}")
 set(Launcher_VERSION_NAME4 "${Launcher_VERSION_MAJOR}.${Launcher_VERSION_MINOR}.${Launcher_VERSION_PATCH}.0")
@@ -239,6 +239,10 @@ endif()
 
 # Java downloader
 option(Launcher_ENABLE_JAVA_DOWNLOADER "Build the java downloader feature" ${Launcher_ENABLE_JAVA_DOWNLOADER_DEFAULT})
+
+# Staff edition. Defined here rather than in launcher/ so the flag is already
+# set when buildconfig/ configures BuildConfig.cpp.
+option(Launcher_STAFF "Build the staff edition (embeds the Companion surfaces)" OFF)
 
 # Native libraries
 if(UNIX AND APPLE)

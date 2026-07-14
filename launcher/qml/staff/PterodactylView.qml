@@ -384,24 +384,4 @@ Item {
         }
     }
 
-    // pop this section out into its own window (or dock it back) — top-right, above everything
-    Rectangle {
-        anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12
-        z: 100
-        width: 30; height: 30; radius: 15
-        color: pteroPopArea.containsMouse ? "#26200f" : "#1b150e"
-        border.color: "#2a2114"; border.width: 1
-        opacity: 0.85
-        Image {
-            anchors.centerIn: parent
-            source: ProctorClient.pteroPopped ? "qrc:/jarton/staff/icons/ui/corner-down-left-cream.svg"
-                                              : "qrc:/jarton/staff/icons/ui/external-link-cream.svg"
-            width: 14; height: 14; sourceSize: Qt.size(28, 28)
-        }
-        MouseArea {
-            id: pteroPopArea
-            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: ProctorClient.requestSectionPop("ptero", !ProctorClient.pteroPopped)
-        }
-    }
 }

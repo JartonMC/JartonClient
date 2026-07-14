@@ -1259,7 +1259,8 @@ endif()
 ######## Staff edition (Companion-in-launcher) — opt-in build flavor ########
 # OFF for the public client; ON (-DLauncher_STAFF=ON) compiles in the staff module.
 # Staff code never ships in the public binary; both flavors build off the same tree.
-option(Launcher_STAFF "Build the staff edition (embeds the Companion surfaces)" OFF)
+# The option itself lives in the top-level CMakeLists so buildconfig/ (configured
+# before this directory) sees it.
 if(Launcher_STAFF)
     # Native system webview (WKWebView / WebView2) backs the embedded Swifty board.
     # Staff-only so the public client never pulls it in.

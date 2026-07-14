@@ -37,6 +37,7 @@ void ConsoleLogModel::append(const QString& html)
         m_lines.remove(0, overflow);
         endRemoveRows();
     }
+    emit lineAppended(html);
 }
 
 void ConsoleLogModel::clear()
@@ -47,6 +48,7 @@ void ConsoleLogModel::clear()
     beginResetModel();
     m_lines.clear();
     endResetModel();
+    emit cleared();
 }
 
 }  // namespace Jarton

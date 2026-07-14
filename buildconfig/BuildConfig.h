@@ -72,6 +72,9 @@ class Config {
     bool UPDATER_ENABLED = false;
     bool JAVA_DOWNLOADER_ENABLED = false;
 
+    /// True in the staff edition; the launcher follows the staff release channel.
+    bool JARTON_STAFF = false;
+
     /// A short string identifying this build's platform or distribution.
     QString BUILD_PLATFORM;
 

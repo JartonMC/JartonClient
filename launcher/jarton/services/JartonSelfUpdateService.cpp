@@ -19,8 +19,17 @@
 namespace Jarton {
 
 namespace {
-const char* const g_releasesUrl = "https://github.com/JartonMC/JartonClient/releases";
-const char* const g_downloadBase = "https://github.com/JartonMC/JartonClient/releases/download";
+// Derived from the configured updater repo so a staff build pointed at
+// JartonClient-Staff downloads from its own channel.
+QString releasesUrl()
+{
+    return BuildConfig.UPDATER_GITHUB_REPO + QLatin1String("/releases");
+}
+
+QString downloadBase()
+{
+    return releasesUrl() + QLatin1String("/download");
+}
 
 QString runningBundlePath()
 {
@@ -50,7 +59,7 @@ QString JartonSelfUpdateService::assetName(Asset asset, const QString& version)
 
 QString JartonSelfUpdateService::assetUrl(Asset asset, const QString& version)
 {
-    return QStringLiteral("%1/%2/%3").arg(QLatin1String(g_downloadBase), version, assetName(asset, version));
+    return QStringLiteral("%1/%2/%3").arg(downloadBase(), version, assetName(asset, version));
 }
 
 QString JartonSelfUpdateService::cachedAssetPath(const QString& dataRoot, Asset asset, const QString& version)
@@ -303,7 +312,7 @@ void JartonSelfUpdateService::offerReleasesPage()
     box.addButton(tr("Later"), QMessageBox::RejectRole);
     box.exec();
     if (box.clickedButton() == openBtn) {
-        DesktopServices::openUrl(QUrl(QString::fromLatin1(g_releasesUrl)));
+        DesktopServices::openUrl(QUrl(releasesUrl()));
     }
 }
 

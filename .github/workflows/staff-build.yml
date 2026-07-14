@@ -6,6 +6,11 @@ concurrency:
 
 on:
   workflow_dispatch:
+    inputs:
+      make_release:
+        description: Publish this build as a release on JartonMC/JartonClient-Staff
+        type: boolean
+        default: false
   push:
     branches: [wf/staff-edition]
     paths: [.github/workflows/staff-build.yml]
@@ -53,9 +58,15 @@ jobs:
           # Windows), qtwebsockets backs the live wings console
           qt-modules: qtimageformats qtnetworkauth qtwebview qtwebsockets
 
+      # BUILD_ARTIFACT stays the standard Windows-MSVC-Qt6 (explicit -D beats the
+      # preset's $penv{ARTIFACT_NAME}) so the in-app updater matches release assets
+      # the same way the public build does; the staff/public split happens through
+      # the repo URL, and the CI artifact name below stays staff-prefixed.
       - name: Configure project
         run: |
-          cmake --preset "$CMAKE_PRESET" -DLauncher_STAFF=ON
+          cmake --preset "$CMAKE_PRESET" -DLauncher_STAFF=ON \
+            -DLauncher_UPDATER_GITHUB_REPO=https://github.com/JartonMC/JartonClient-Staff \
+            -DLauncher_BUILD_ARTIFACT=Windows-MSVC-Qt6
 
       - name: Run build
         run: |
@@ -94,3 +105,41 @@ jobs:
         with:
           name: JartonClient-Staff-Windows-Portable-${{ steps.short-version.outputs.version }}-${{ env.BUILD_TYPE }}
           path: install/**
+
+      # Tag and asset name mirror release.yml's conventions on the public repo:
+      # bare version tag (no v prefix) because the launcher's self-updater builds
+      # releases/download/<version>/JartonClient-Windows-MSVC-Portable-<version>.zip
+      # straight from the manifest version string.
+      - name: Read launcher version
+        if: inputs.make_release
+        id: launcher-version
+        run: |
+          part() { sed -n "s/^set(Launcher_VERSION_$1 \([0-9]*\)).*/\1/p" CMakeLists.txt; }
+          echo "version=$(part MAJOR).$(part MINOR).$(part PATCH)" >> "$GITHUB_OUTPUT"
+
+      - name: Package staff release zip
+        if: inputs.make_release
+        env:
+          VERSION: ${{ steps.launcher-version.outputs.version }}
+        run: |
+          cd install
+          7z a -tzip "../JartonClient-Windows-MSVC-Portable-${VERSION}.zip" *
+
+      # STAFF_RELEASE_TOKEN is a PAT with repo scope on JartonMC/JartonClient-Staff;
+      # the job's own GITHUB_TOKEN can't write releases to another repo. Until the
+      # secret is added this step skips with a warning instead of failing the build.
+      - name: Create staff release
+        if: inputs.make_release
+        env:
+          GH_TOKEN: ${{ secrets.STAFF_RELEASE_TOKEN }}
+          VERSION: ${{ steps.launcher-version.outputs.version }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::STAFF_RELEASE_TOKEN secret is not set; skipping staff release upload."
+            exit 0
+          fi
+          gh release create "$VERSION" \
+            --repo JartonMC/JartonClient-Staff \
+            --title "Jarton Client Staff $VERSION" \
+            --notes "Staff Edition $VERSION (build ${GITHUB_SHA::7})" \
+            "JartonClient-Windows-MSVC-Portable-${VERSION}.zip"

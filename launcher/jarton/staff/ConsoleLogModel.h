@@ -24,6 +24,15 @@ class ConsoleLogModel : public QAbstractListModel {
     void append(const QString& html);
     void clear();
 
+    // the console view mirrors this model into a selectable TextEdit; these feed
+    // its initial fill and let it replicate the front-trim cap
+    Q_INVOKABLE QStringList allLines() const { return m_lines; }
+    Q_INVOKABLE int maxLines() const { return kMaxLines; }
+
+   signals:
+    void lineAppended(const QString& html);
+    void cleared();
+
    private:
     static constexpr int kMaxLines = 500;
     QStringList m_lines;

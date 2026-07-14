@@ -530,9 +530,10 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
             connect(proctor, SIGNAL(changed()), this, SLOT(onProctorStateChanged()));
         }
 
-        // Swifty's page is a native webview that covers (and eats input over) anything
-        // floated above its container, QML or widget alike — so its two controls live
-        // in the main toolbar, shown only while the docked Swifty section is frontmost.
+        // Section window controls live in the main toolbar, one universal spot for
+        // every staff section (Swifty's native webview eats input over anything
+        // floated above its container anyway, and Jar wants the location consistent).
+        // Reload + Zoom only mean something for the Swifty page; Pop out is generic.
         m_swiftyReloadAction = new QAction(QIcon(QStringLiteral(":/jarton/staff/icons/ui/refresh-cream.svg")), tr("Reload"), this);
         connect(m_swiftyReloadAction, &QAction::triggered, this, [this]() {
             SectionHost* host = sectionHost(QStringLiteral("swifty"));
@@ -540,17 +541,39 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
                 QMetaObject::invokeMethod(host->view->rootObject(), "reloadPage");
             }
         });
-        m_swiftyPopAction = new QAction(QIcon(QStringLiteral(":/jarton/staff/icons/ui/external-link-cream.svg")), tr("Pop out"), this);
-        m_swiftyPopAction->setToolTip(tr("Open Swifty in its own window"));
-        connect(m_swiftyPopAction, &QAction::triggered, this, [this]() {
+        m_swiftyZoomAction = new QAction(tr("Zoom 80%"), this);
+        m_swiftyZoomAction->setToolTip(tr("Cycle the Swifty page zoom"));
+        connect(m_swiftyZoomAction, &QAction::triggered, this, [this]() {
+            // 70 → 80 → 90 → 100 → 70; anything off-preset snaps to 80
+            static const QList<int> steps{ 70, 80, 90, 100 };
+            const int cur = static_cast<int>(APPLICATION->settings()->get("SwiftyPageZoom").toDouble() * 100 + 0.5);
+            const int idx = steps.indexOf(cur);
+            const int next = idx < 0 ? 80 : steps[(idx + 1) % steps.size()];
+            APPLICATION->settings()->set("SwiftyPageZoom", next / 100.0);
+            m_swiftyZoomAction->setText(tr("Zoom %1%").arg(next));
             SectionHost* host = sectionHost(QStringLiteral("swifty"));
-            onSectionPopRequested(QStringLiteral("swifty"), host == nullptr || !host->popped);
+            if (host != nullptr && host->view != nullptr && host->view->rootObject() != nullptr) {
+                QMetaObject::invokeMethod(host->view->rootObject(), "setZoom", Q_ARG(QVariant, next / 100.0));
+            }
+        });
+        m_sectionPopAction = new QAction(QIcon(QStringLiteral(":/jarton/staff/icons/ui/external-link-cream.svg")), tr("Pop out"), this);
+        m_sectionPopAction->setToolTip(tr("Open this section in its own window"));
+        connect(m_sectionPopAction, &QAction::triggered, this, [this]() {
+            if (auto* proctor = APPLICATION->jartonProctor()) {
+                const QString section = proctor->property("currentSection").toString();
+                SectionHost* host = sectionHost(section);
+                if (host != nullptr) {
+                    onSectionPopRequested(section, !host->popped);
+                }
+            }
         });
         m_swiftyReloadAction->setVisible(false);
-        m_swiftyPopAction->setVisible(false);
+        m_swiftyZoomAction->setVisible(false);
+        m_sectionPopAction->setVisible(false);
         // before the account button — the right-align spacer lands in front of it later
         ui->mainToolBar->insertAction(ui->actionAccountsButton, m_swiftyReloadAction);
-        ui->mainToolBar->insertAction(ui->actionAccountsButton, m_swiftyPopAction);
+        ui->mainToolBar->insertAction(ui->actionAccountsButton, m_swiftyZoomAction);
+        ui->mainToolBar->insertAction(ui->actionAccountsButton, m_sectionPopAction);
 #endif
     }
     // The cat background
@@ -1914,6 +1937,10 @@ void MainWindow::createSectionView(SectionHost& host)
         host.view->resize(m_centralBg->size());
     }
     host.view->setSource(QUrl(host.qmlSource));
+    // rebuilt views (and first visits) pick up the persisted page zoom
+    if (host.section == QLatin1String("swifty") && host.view->rootObject() != nullptr) {
+        host.view->rootObject()->setProperty("pageZoom", APPLICATION->settings()->get("SwiftyPageZoom").toDouble());
+    }
 }
 
 void MainWindow::showDockedSection(SectionHost& host)
@@ -1930,11 +1957,14 @@ void MainWindow::showDockedSection(SectionHost& host)
     host.container->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
     host.container->show();
     host.container->raise();
-    // The view can map with an unsized root when the container first appears
-    // (Swifty sat blank until a manual window resize) — SizeRootObjectToView
-    // only syncs on a resize event, so push the size through explicitly.
+    // The webview's native subview only re-syncs its frame on a real geometry change,
+    // and a view wrapped while hidden (dock-back from another section) or freshly
+    // created maps without one — it sat black/blank until a manual window resize.
+    // Walk the root through an off-by-one size so the change actually propagates.
     if (auto* root = host.view->rootObject()) {
-        root->setSize(QSizeF(host.container->size()));
+        const QSizeF target(host.container->size());
+        root->setSize(target - QSizeF(0, 1));
+        root->setSize(target);
     }
 }
 
@@ -2108,24 +2138,27 @@ void MainWindow::saveSectionWindowGeometry(SectionHost& host)
 
 void MainWindow::updateSwiftySectionActions()
 {
-    if (m_swiftyPopAction == nullptr || m_swiftyReloadAction == nullptr) {
+    if (m_sectionPopAction == nullptr || m_swiftyReloadAction == nullptr || m_swiftyZoomAction == nullptr) {
         return;
     }
-    SectionHost* host = sectionHost(QStringLiteral("swifty"));
     auto* proctor = APPLICATION->jartonProctor();
-    const bool onSwifty =
-        proctor != nullptr && proctor->property("currentSection").toString() == QLatin1String("swifty");
+    const QString section = proctor != nullptr ? proctor->property("currentSection").toString() : QString();
+    SectionHost* host = sectionHost(section);
     const bool popped = host != nullptr && host->popped;
-    const bool docked = host != nullptr && !popped && onSwifty && host->container != nullptr &&
-                        host->container->isVisible();
-    // Docked + active, or floating — the floating window has no chrome of its own,
-    // so the toolbar keeps serving it (Reload acts on the live view either way and
-    // the pop action flips to dock it back).
-    m_swiftyReloadAction->setVisible(docked || popped);
-    m_swiftyPopAction->setVisible(docked || popped);
-    m_swiftyPopAction->setText(popped ? tr("Dock back") : tr("Pop out"));
-    m_swiftyPopAction->setIcon(QIcon(popped ? QStringLiteral(":/jarton/staff/icons/ui/corner-down-left-cream.svg")
-                                            : QStringLiteral(":/jarton/staff/icons/ui/external-link-cream.svg")));
+    const bool docked = host != nullptr && !popped && host->container != nullptr && host->container->isVisible();
+    // Only while that section is actually selected — a "Dock back" floating on top of
+    // the instance grid reads as a bug. The floating window's own dock affordances are
+    // the placeholder's Bring back button and its close button. The docked staff
+    // section hides its container behind the proctor login gate, so no pop-out there.
+    m_sectionPopAction->setVisible(docked || popped);
+    m_sectionPopAction->setText(popped ? tr("Dock back") : tr("Pop out"));
+    m_sectionPopAction->setIcon(QIcon(popped ? QStringLiteral(":/jarton/staff/icons/ui/corner-down-left-cream.svg")
+                                             : QStringLiteral(":/jarton/staff/icons/ui/external-link-cream.svg")));
+    const bool onSwifty = section == QLatin1String("swifty");
+    m_swiftyReloadAction->setVisible(onSwifty && (docked || popped));
+    m_swiftyZoomAction->setVisible(onSwifty && (docked || popped));
+    const int zoom = static_cast<int>(APPLICATION->settings()->get("SwiftyPageZoom").toDouble() * 100 + 0.5);
+    m_swiftyZoomAction->setText(tr("Zoom %1%").arg(zoom));
 }
 
 #else

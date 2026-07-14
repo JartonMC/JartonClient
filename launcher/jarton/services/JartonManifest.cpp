@@ -26,6 +26,7 @@ Manifest Manifest::fromJson(const QJsonObject& root)
 {
     Manifest m;
     m.launcherVersion = readString(root, "launcher_version", m.parseWarnings);
+    m.staffLauncherVersion = readString(root, "staff_launcher_version", m.parseWarnings);
     m.minSupportedVersion = readString(root, "min_supported_version", m.parseWarnings);
 
     if (m.launcherVersion.isEmpty()) {
@@ -137,6 +138,9 @@ QJsonObject Manifest::toJson() const
 {
     QJsonObject root;
     root["launcher_version"] = launcherVersion;
+    if (!staffLauncherVersion.isEmpty()) {
+        root["staff_launcher_version"] = staffLauncherVersion;
+    }
     root["min_supported_version"] = minSupportedVersion;
 
     QJsonObject inst;

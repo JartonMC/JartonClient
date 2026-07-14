@@ -14,7 +14,8 @@ class JartonManifestService;
 // network-confirmed manifest is in.
 //
 // Launcher: compares the running BuildConfig version against
-// manifest.launcher_version and emits launcherUpdateAvailable; the host wires
+// manifest.launcher_version (staff builds: staff_launcher_version, and never
+// the public field) and emits launcherUpdateAvailable; the host wires
 // that into JartonSelfUpdateService, which downloads and applies the update.
 //
 // Instances: every instance carrying a jarton-pack.json (written at provision)

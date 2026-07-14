@@ -704,6 +704,15 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         m_settings->registerSetting("IconTheme", QString());
         m_settings->registerSetting("ApplicationTheme", QString());
         m_settings->registerSetting("BackgroundCat", QString("kitteh"));
+        // Jarton is dark-first: pull every existing install onto the dark widget theme
+        // once ("system" resolves to the grey light chrome on Windows), then leave the
+        // choice alone so an explicit pick in settings sticks.
+        m_settings->registerSetting("JartonDarkThemeApplied", false);
+        m_settings->registerSetting("SwiftyPageZoom", 0.8);
+        if (!m_settings->get("JartonDarkThemeApplied").toBool()) {
+            m_settings->set("ApplicationTheme", QStringLiteral("dark"));
+            m_settings->set("JartonDarkThemeApplied", true);
+        }
 
         // Remembered state
         m_settings->registerSetting("LastUsedGroupForNewInstance", QString());
@@ -1307,13 +1316,8 @@ bool Application::createSetupWizard()
     bool login = !m_accounts->anyAccountIsValid() && capabilities() & Application::SupportsMSA;
     bool themeInterventionRequired = !validWidgets || !validIcons;
 
-    auto defaultWidgetTheme = []() -> QString {
-#if defined(Q_OS_WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-        return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark ? QStringLiteral("dark") : QStringLiteral("bright");
-#else
-        return QStringLiteral("system");
-#endif
-    };
+    // dark-first brand — never fall back to the OS light chrome
+    auto defaultWidgetTheme = []() -> QString { return QStringLiteral("dark"); };
 
     // A returning install that already finished setup must never be dragged back
     // through the first-run wizard by an update. Silently repair anything an update

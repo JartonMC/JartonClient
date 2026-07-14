@@ -77,6 +77,8 @@ struct ManifestFeaturedCard {
 
 struct Manifest {
     QString launcherVersion;
+    // Staff edition release channel; empty when the manifest doesn't carry one.
+    QString staffLauncherVersion;
     QString minSupportedVersion;
     ManifestInstance instance;
     QVector<ManifestPack> packs;

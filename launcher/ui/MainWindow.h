@@ -288,11 +288,13 @@ class MainWindow : public QMainWindow {
     void popOutSection(SectionHost& host);
     void popInSection(SectionHost& host);
     void saveSectionWindowGeometry(SectionHost& host);
-    // Swifty's native webview covers anything floated over its container, so its
-    // reload/pop-out controls are toolbar actions, visible only while it's docked
-    // and frontmost.
+    // Section window controls in the main toolbar — one universal spot for every
+    // staff section. Pop out/Dock back tracks the active section; Reload and the
+    // zoom cycler only appear for Swifty (its native webview also eats input over
+    // anything floated above the container, so in-view chips were a dead end).
     QAction* m_swiftyReloadAction = nullptr;
-    QAction* m_swiftyPopAction = nullptr;
+    QAction* m_swiftyZoomAction = nullptr;
+    QAction* m_sectionPopAction = nullptr;
     void updateSwiftySectionActions();
     // The staff section is login-gated: swap between the panel's login form and the
     // docked content as ProctorClient's session state changes.
