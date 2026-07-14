@@ -263,9 +263,12 @@ class MainWindow : public QMainWindow {
     // top-level window when popped out (multi-monitor). Swifty NEEDS this hosting —
     // QtWebView's native view can't attach to the QQuickWidget's offscreen scene —
     // and ptero/staff ride the same rails so their views stay warm across section
-    // hops and pop transitions (live console sockets survive). Views are lazy-created
-    // on first visit and never destroyed; containers don't survive their window being
-    // released, so they're rebuilt on pop-in. Views stay null in the public build.
+    // hops and pop transitions (live console sockets survive) — on macOS. Windows
+    // can't reparent a QQuickView across the container boundary without killing its
+    // swapchain, so there the view is rebuilt on every pop transition and only the
+    // singleton-backed state survives. Views are lazy-created on first visit;
+    // containers don't survive their window being released, so they're rebuilt on
+    // pop-in. Views stay null in the public build.
     struct SectionHost {
         QString section;      // "ptero" | "staff" | "swifty"
         QString qmlSource;
@@ -279,16 +282,18 @@ class MainWindow : public QMainWindow {
     std::array<SectionHost, 3> m_sectionHosts;
     SectionHost* sectionHost(const QString& section);
     SectionHost* sectionHostForView(const QObject* obj);
+    void createSectionView(SectionHost& host);
     void showDockedSection(SectionHost& host);
     void hideDockedSections(const QString& exceptSection);
     void popOutSection(SectionHost& host);
     void popInSection(SectionHost& host);
     void saveSectionWindowGeometry(SectionHost& host);
-    // Swifty's content is a native WKWebView that composites above the QML scene, so an
-    // in-QML pop-out chip is occluded. This native sibling button rides above the webview
-    // container and is the pop-out affordance for Swifty only (ptero/staff use QML chips).
-    QPushButton* m_swiftyPopButton = nullptr;
-    void updateSwiftyPopButton();
+    // Swifty's native webview covers anything floated over its container, so its
+    // reload/pop-out controls are toolbar actions, visible only while it's docked
+    // and frontmost.
+    QAction* m_swiftyReloadAction = nullptr;
+    QAction* m_swiftyPopAction = nullptr;
+    void updateSwiftySectionActions();
     // The staff section is login-gated: swap between the panel's login form and the
     // docked content as ProctorClient's session state changes.
     void syncStaffSectionContent();

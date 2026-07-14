@@ -16,11 +16,10 @@ namespace Jarton {
 AnnouncementDialog::AnnouncementDialog(QWidget* parent) : QFrame(parent), m_qml(new QQuickWidget(this))
 {
     setObjectName("jartonAnnouncementCard");
-    // Translucent background lets the QSS border-radius paint properly —
-    // the area outside the rounded rectangle becomes transparent rather
-    // than being clipped to a square.
+    // Opaque on purpose: the setMask() in resizeEvent does the corner
+    // rounding, and translucent child compositing can't be relied on now
+    // that widgets stay non-native (AA_DontCreateNativeWidgetSiblings).
     setAttribute(Qt::WA_StyledBackground, true);
-    setAttribute(Qt::WA_TranslucentBackground, true);
     setStyleSheet(
         "#jartonAnnouncementCard {"
         "  background: #14100a;"
@@ -45,8 +44,7 @@ AnnouncementDialog::AnnouncementDialog(QWidget* parent) : QFrame(parent), m_qml(
     lay->setSpacing(0);
 
     m_qml->setResizeMode(QQuickWidget::SizeRootObjectToView);
-    m_qml->setAttribute(Qt::WA_TranslucentBackground);
-    m_qml->setClearColor(Qt::transparent);
+    m_qml->setClearColor(QColor(0x14, 0x10, 0x0a));
     m_qml->setSource(QUrl(QStringLiteral("qrc:/qt/qml/Jarton/AnnouncementPopup.qml")));
     lay->addWidget(m_qml);
 

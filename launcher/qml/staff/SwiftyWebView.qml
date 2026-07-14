@@ -12,6 +12,13 @@ Item {
     property url homeUrl: "https://swifty.jarton.me/app"
     property bool failed: false
 
+    // driven from the toolbar's Reload action (the webview eats clicks over itself,
+    // so there is no in-view reload affordance)
+    function reloadPage() {
+        root.failed = false
+        web.reload()
+    }
+
     Rectangle { anchors.fill: parent; color: "#0f0a06" }  // dark backstop while the page paints
 
     // the native webview composites above QML, so the timezone note can't overlay it —
@@ -28,7 +35,9 @@ Item {
     }
 
     // timezone disclaimer strip — Swifty renders its own times inside the web app,
-    // which the client can't reformat, so this is honest about that
+    // which the client can't reformat, so this is honest about that. The reload and
+    // pop-out controls are toolbar actions (MainWindow) — nothing floated over or
+    // beside the webview receives clicks reliably.
     Rectangle {
         id: tzBar
         anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
@@ -38,53 +47,13 @@ Item {
             text: "Swifty times are shown in the app's own timezone"
             color: "#6b5d3f"; font.pixelSize: 11
         }
-    }
-
-    // thin honey load bar across the top
-    Rectangle {
-        anchors.top: parent.top; anchors.left: parent.left
-        height: 2
-        width: parent.width * Math.max(0, Math.min(1, web.loadProgress / 100))
-        color: "#FFB81C"
-        visible: web.loading
-    }
-
-    // unobtrusive reload, bottom-right (matches the sign-out affordance elsewhere)
-    Rectangle {
-        anchors.bottom: parent.bottom; anchors.right: parent.right; anchors.margins: 12
-        width: 30; height: 30; radius: 15
-        color: reloadArea.containsMouse ? "#26200f" : "#1b150e"
-        border.color: "#2a2114"; border.width: 1
-        opacity: 0.85
-        Image {
-            anchors.centerIn: parent
-            source: "qrc:/jarton/staff/icons/ui/refresh-cream.svg"
-            width: 14; height: 14; sourceSize: Qt.size(28, 28)
-        }
-        MouseArea {
-            id: reloadArea
-            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: { root.failed = false; web.reload() }
-        }
-    }
-
-    // pop this view out into its own window (or dock it back) — top-right, above the page
-    Rectangle {
-        anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12
-        width: 30; height: 30; radius: 15
-        color: popArea.containsMouse ? "#26200f" : "#1b150e"
-        border.color: "#2a2114"; border.width: 1
-        opacity: 0.85
-        Image {
-            anchors.centerIn: parent
-            source: ProctorClient.swiftyPopped ? "qrc:/jarton/staff/icons/ui/corner-down-left-cream.svg"
-                                               : "qrc:/jarton/staff/icons/ui/external-link-cream.svg"
-            width: 14; height: 14; sourceSize: Qt.size(28, 28)
-        }
-        MouseArea {
-            id: popArea
-            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: ProctorClient.requestSectionPop("swifty", !ProctorClient.swiftyPopped)
+        // honey load bar rides the top edge of the strip
+        Rectangle {
+            anchors.top: parent.top; anchors.left: parent.left
+            height: 2
+            width: parent.width * Math.max(0, Math.min(1, web.loadProgress / 100))
+            color: "#FFB81C"
+            visible: web.loading
         }
     }
 

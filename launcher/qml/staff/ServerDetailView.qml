@@ -45,6 +45,8 @@ Item {
         tab = t
         if (t === "files" && filesServer !== PteroServer.serverId) {
             filesServer = PteroServer.serverId
+            filesTab.backStack = []
+            filesTab.fwdStack = []
             PteroFiles.start(PteroServer.serverId)
         }
     }
@@ -123,7 +125,7 @@ Item {
                         spacing: 3
                         Text { text: modelData.k; color: "#8a7a56"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 0.5 }
                         Text {
-                            text: modelData.players ? (tile.pl.online + " / " + tile.pl.max) : modelData.v
+                            text: modelData.players ? (tile.pl ? tile.pl.online + " / " + tile.pl.max : "—") : modelData.v
                             color: "#F2E8D0"; font.pixelSize: 14; font.bold: true
                         }
                     }
@@ -290,13 +292,47 @@ Item {
             property bool creatingFolder: false
             property string renaming: ""
 
+            // browser-style directory history: every navigation pushes the dir we
+            // left, mouse back/forward (and the editor's back) walk the stacks
+            property var backStack: []
+            property var fwdStack: []
+
+            function navPush() {
+                backStack.push(PteroFiles.cwd)
+                fwdStack = []
+            }
+            function goBack() {
+                if (PteroFiles.openPath !== "") { PteroFiles.closeFile(); return }
+                // list() silently no-ops while a listing is in flight — mutating the
+                // stacks then would desync history by one entry
+                if (PteroFiles.loading || backStack.length === 0) return
+                fwdStack.push(PteroFiles.cwd)
+                PteroFiles.list(backStack.pop())
+            }
+            function goForward() {
+                if (PteroFiles.openPath !== "" || PteroFiles.loading || fwdStack.length === 0) return
+                backStack.push(PteroFiles.cwd)
+                PteroFiles.list(fwdStack.pop())
+            }
+
+            // lowest z, only claims the side buttons — left clicks fall through to the
+            // rows/editor above, XButton presses nothing else accepts land here
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.BackButton | Qt.ForwardButton
+                onClicked: function (e) {
+                    if (e.button === Qt.BackButton) filesTab.goBack()
+                    else filesTab.goForward()
+                }
+            }
+
             Column {
                 id: fhead
                 anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
                 spacing: 8
                 Row {
                     width: parent.width; height: 34; spacing: 10
-                    SButton { text: "Up"; icon: "chevron-up"; variant: "secondary"; onClicked: PteroFiles.up() }
+                    SButton { text: "Up"; icon: "chevron-up"; variant: "secondary"; onClicked: { if (PteroFiles.loading) return; if (PteroFiles.cwd !== "/") filesTab.navPush(); PteroFiles.up() } }
                     Rectangle {
                         width: parent.width - 290; height: 34; radius: 9
                         color: "#15100a"; border.color: "#2a2114"; border.width: 1
@@ -366,7 +402,14 @@ Item {
                         id: fileArea
                         anchors.fill: parent; hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: isFile ? PteroFiles.openFile(name) : PteroFiles.enter(name)
+                        onClicked: {
+                            if (isFile) {
+                                PteroFiles.openFile(name)
+                            } else if (!PteroFiles.loading) {
+                                filesTab.navPush()
+                                PteroFiles.enter(name)
+                            }
+                        }
                     }
                     Text {
                         anchors.left: parent.left; anchors.leftMargin: 14
@@ -398,6 +441,12 @@ Item {
                 anchors.fill: parent
                 visible: PteroFiles.openPath !== ""
                 color: "#0f0a06"
+
+                Shortcut {
+                    sequences: [StandardKey.Save]
+                    enabled: filesTab.visible && PteroFiles.openPath !== "" && !PteroFiles.saving
+                    onActivated: PteroFiles.save(editor.text)
+                }
 
                 Row {
                     id: edBar

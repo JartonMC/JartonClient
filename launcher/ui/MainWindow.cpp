@@ -69,7 +69,6 @@
 #include <QProgressDialog>
 #include <QIcon>
 #include <QPushButton>
-#include <QQuickItem>
 #include <QQmlContext>
 #include <QQuickItem>
 #include <QQuickView>
@@ -324,8 +323,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     {
         auto* bar = new QQuickWidget();
         bar->setResizeMode(QQuickWidget::SizeRootObjectToView);
-        bar->setAttribute(Qt::WA_TranslucentBackground);
-        bar->setClearColor(Qt::transparent);
+        // opaque on purpose — the QML root paints the whole bar, and translucent
+        // child compositing is unreliable with AA_DontCreateNativeWidgetSiblings
+        bar->setClearColor(QColor(0x0f, 0x0a, 0x06));
         bar->setFixedHeight(38);
         bar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         bar->setSource(QUrl(QStringLiteral("qrc:/qt/qml/Jarton/AnnouncementBar.qml")));
@@ -420,18 +420,15 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
                                                         APPLICATION->jartonDiscord(),
                                                         m_centralBg);
 
-        // Announcement modal as a proper frameless QDialog — handles
-        // transparency reliably on macOS, modal show/hide, dismiss on X.
+        // Announcement modal as an opaque child QFrame — modal show/hide,
+        // dismiss on X; corners rounded via setMask.
         m_announcementDialog = new Jarton::AnnouncementDialog(this);
         // The staff sections live in native QQuickView window containers that
         // composite above ordinary widgets, so they'd render over this modal.
-        // Hide the docked containers (+ the native Swifty pop button) while the
-        // announcement is open, then restore the active section on close.
+        // Hide the docked containers while the announcement is open, then
+        // restore the active section on close.
         connect(m_announcementDialog, &Jarton::AnnouncementDialog::opened, this, [this]() {
             hideDockedSections(QString());  // no host matches "" → hides them all
-            if (m_swiftyPopButton != nullptr) {
-                m_swiftyPopButton->hide();
-            }
         });
         connect(m_announcementDialog, &Jarton::AnnouncementDialog::closed, this, [this]() {
             if (m_staffPanel != nullptr && m_staffPanel->isVisible() && !m_activeSection.isEmpty()) {
@@ -525,25 +522,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
                              { QStringLiteral("swifty"), QStringLiteral("qrc:/jarton/staff/SwiftyWebView.qml"),
                                tr("Swifty — Jarton Client"), QStringLiteral("SwiftyWindowGeometry") } } };
 
-        // Swifty's pop-out chip can't live in QML (the WKWebView paints over it), so it's
-        // a native sibling button raised above the webview container. Forced native so it
-        // z-orders above the (also native) window container instead of behind it.
-        m_swiftyPopButton = new QPushButton(m_centralBg);
-        m_swiftyPopButton->setObjectName(QStringLiteral("swiftyPopButton"));
-        m_swiftyPopButton->setAttribute(Qt::WA_NativeWindow);
-        m_swiftyPopButton->setCursor(Qt::PointingHandCursor);
-        m_swiftyPopButton->setFocusPolicy(Qt::NoFocus);
-        m_swiftyPopButton->setFixedSize(30, 30);
-        m_swiftyPopButton->setToolTip(tr("Open Swifty in its own window"));
-        m_swiftyPopButton->setIcon(QIcon(QStringLiteral(":/jarton/staff/icons/ui/external-link-cream.svg")));
-        m_swiftyPopButton->setIconSize(QSize(16, 16));
-        m_swiftyPopButton->setStyleSheet(QStringLiteral(
-            "QPushButton#swiftyPopButton{background:#1b150e;border:1px solid #3a2f14;border-radius:8px;}"
-            "QPushButton#swiftyPopButton:hover{background:#26200f;border-color:#4a3c1e;}"));
-        m_swiftyPopButton->hide();
-        connect(m_swiftyPopButton, &QPushButton::clicked, this,
-                [this]() { onSectionPopRequested(QStringLiteral("swifty"), true); });
-
         // Pop-out requests come from QML (each section's header chip / the docked
         // placeholder) through the shared ProctorClient singleton. The proctor session
         // state also drives whether the staff section shows its login form or content.
@@ -551,6 +529,28 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
             connect(proctor, SIGNAL(sectionPopRequested(QString, bool)), this, SLOT(onSectionPopRequested(QString, bool)));
             connect(proctor, SIGNAL(changed()), this, SLOT(onProctorStateChanged()));
         }
+
+        // Swifty's page is a native webview that covers (and eats input over) anything
+        // floated above its container, QML or widget alike — so its two controls live
+        // in the main toolbar, shown only while the docked Swifty section is frontmost.
+        m_swiftyReloadAction = new QAction(QIcon(QStringLiteral(":/jarton/staff/icons/ui/refresh-cream.svg")), tr("Reload"), this);
+        connect(m_swiftyReloadAction, &QAction::triggered, this, [this]() {
+            SectionHost* host = sectionHost(QStringLiteral("swifty"));
+            if (host != nullptr && host->view != nullptr && host->view->rootObject() != nullptr) {
+                QMetaObject::invokeMethod(host->view->rootObject(), "reloadPage");
+            }
+        });
+        m_swiftyPopAction = new QAction(QIcon(QStringLiteral(":/jarton/staff/icons/ui/external-link-cream.svg")), tr("Pop out"), this);
+        m_swiftyPopAction->setToolTip(tr("Open Swifty in its own window"));
+        connect(m_swiftyPopAction, &QAction::triggered, this, [this]() {
+            SectionHost* host = sectionHost(QStringLiteral("swifty"));
+            onSectionPopRequested(QStringLiteral("swifty"), host == nullptr || !host->popped);
+        });
+        m_swiftyReloadAction->setVisible(false);
+        m_swiftyPopAction->setVisible(false);
+        // before the account button — the right-align spacer lands in front of it later
+        ui->mainToolBar->insertAction(ui->actionAccountsButton, m_swiftyReloadAction);
+        ui->mainToolBar->insertAction(ui->actionAccountsButton, m_swiftyPopAction);
 #endif
     }
     // The cat background
@@ -1768,7 +1768,6 @@ void MainWindow::repositionFloatingOverlays()
             host.container->raise();
         }
     }
-    updateSwiftyPopButton();  // re-place + re-raise above the (just-raised) webview container
 }
 
 // Sidebar indices: -1 brand mark (opens About); 0 Home / 1 Instances /
@@ -1833,7 +1832,9 @@ void MainWindow::showStaffSection(const QString& section)
             m_changelogToggle->show();
         }
         applyChangelogVisibility(!m_changelogManuallyHidden && isMaximized());
-        updateSwiftyPopButton();  // back to the grid — hide the Swifty pop-out button
+#ifdef LAUNCHER_STAFF
+        updateSwiftySectionActions();
+#endif
         return;
     }
     // take over the central area: hide the instance grid + its floating overlays + the
@@ -1875,7 +1876,7 @@ void MainWindow::showStaffSection(const QString& section)
             showDockedSection(*host);
         }
     }
-    updateSwiftyPopButton();  // show over the webview only when Swifty is docked + active
+    updateSwiftySectionActions();
 #endif
 }
 
@@ -1900,16 +1901,28 @@ MainWindow::SectionHost* MainWindow::sectionHostForView(const QObject* obj)
     return nullptr;
 }
 
+void MainWindow::createSectionView(SectionHost& host)
+{
+    host.view = new QQuickView();
+    host.view->setResizeMode(QQuickView::SizeRootObjectToView);
+    host.view->setColor(QColor(0x0f, 0x0a, 0x06));
+    // Size the scene BEFORE loading: Swifty's webview spawns its native subview with
+    // the item's birth geometry, and a 0-sized birth never recovers until a real
+    // window resize (the section sat blank). The container re-syncs the exact size
+    // when it maps; this just guarantees a sane one at component completion.
+    if (m_centralBg != nullptr) {
+        host.view->resize(m_centralBg->size());
+    }
+    host.view->setSource(QUrl(host.qmlSource));
+}
+
 void MainWindow::showDockedSection(SectionHost& host)
 {
     if (m_centralBg == nullptr) {
         return;
     }
     if (host.view == nullptr) {
-        host.view = new QQuickView();
-        host.view->setResizeMode(QQuickView::SizeRootObjectToView);
-        host.view->setColor(QColor(0x0f, 0x0a, 0x06));
-        host.view->setSource(QUrl(host.qmlSource));
+        createSectionView(host);
     }
     if (host.container == nullptr) {
         host.container = QWidget::createWindowContainer(host.view, m_centralBg);
@@ -1917,6 +1930,12 @@ void MainWindow::showDockedSection(SectionHost& host)
     host.container->setGeometry(0, 0, m_centralBg->width(), m_centralBg->height());
     host.container->show();
     host.container->raise();
+    // The view can map with an unsized root when the container first appears
+    // (Swifty sat blank until a manual window resize) — SizeRootObjectToView
+    // only syncs on a resize event, so push the size through explicitly.
+    if (auto* root = host.view->rootObject()) {
+        root->setSize(QSizeF(host.container->size()));
+    }
 }
 
 void MainWindow::hideDockedSections(const QString& exceptSection)
@@ -1974,13 +1993,28 @@ void MainWindow::popOutSection(SectionHost& host)
     }
     // Release the window from its container BEFORE the container dies — the container
     // owns the window and would take it down otherwise. Containers can't be reused
-    // after their window leaves, so it's recreated on pop-in.
+    // after their window leaves, so it's recreated on pop-in. Hidden first so the
+    // detached view can't flash as a frameless top-level while it's in limbo.
+    host.view->hide();
     host.view->setParent(nullptr);
     if (host.container != nullptr) {
         host.container->hide();
         host.container->deleteLater();
         host.container = nullptr;
     }
+#ifdef Q_OS_WIN
+    // The flag-change surgery below doesn't survive Windows: the released view's
+    // swapchain keeps compositing stale frames instead of the scene, and WebView2's
+    // native child doesn't follow the flag change. Rebuild the view fresh as a real
+    // top-level instead — Swifty's session lives in the webview profile, the other
+    // sections rebuild from the shared singletons (live QML state doesn't survive).
+    host.view->deleteLater();
+    host.view = nullptr;
+    host.filterInstalled = false;
+    createSectionView(host);
+    host.view->setFlags(Qt::Window);
+    host.view->setTitle(host.title);
+#else
     host.view->setFlags(Qt::Window);
     host.view->setTitle(host.title);
     // Cocoa never converts the container's child NSView into an NSWindow on a flag
@@ -1989,6 +2023,7 @@ void MainWindow::popOutSection(SectionHost& host)
     // it as a real framed top-level; the scene graph re-initialises on expose and
     // the QML content lives in the view, not the platform window.
     host.view->destroy();
+#endif
 
     QRect r;
     const QStringList parts = APPLICATION->settings()->get(host.geometryKey).toString().split(',');
@@ -2018,7 +2053,7 @@ void MainWindow::popOutSection(SectionHost& host)
     if (auto* proctor = APPLICATION->jartonProctor()) {
         QMetaObject::invokeMethod(proctor, "setSectionPopped", Q_ARG(QString, host.section), Q_ARG(bool, true));
     }
-    updateSwiftyPopButton();  // popped now — hide the docked button
+    updateSwiftySectionActions();
 }
 
 void MainWindow::popInSection(SectionHost& host)
@@ -2029,6 +2064,14 @@ void MainWindow::popInSection(SectionHost& host)
     saveSectionWindowGeometry(host);
     host.view->hide();
     host.popped = false;
+#ifdef Q_OS_WIN
+    // Same story in reverse — wrapping the floating view back into a container keeps
+    // it painting its old top-level frames. Rebuild it docked (see popOutSection).
+    host.view->deleteLater();
+    host.view = nullptr;
+    host.filterInstalled = false;
+    createSectionView(host);
+#endif
     auto* proctor = APPLICATION->jartonProctor();
     if (m_centralBg != nullptr) {
         // Fresh container each time (see popOutSection). If a platform view ever comes
@@ -2050,7 +2093,7 @@ void MainWindow::popInSection(SectionHost& host)
     if (proctor != nullptr) {
         QMetaObject::invokeMethod(proctor, "setSectionPopped", Q_ARG(QString, host.section), Q_ARG(bool, false));
     }
-    updateSwiftyPopButton();  // docked back — show the button again if Swifty is active
+    updateSwiftySectionActions();
 }
 
 void MainWindow::saveSectionWindowGeometry(SectionHost& host)
@@ -2063,26 +2106,28 @@ void MainWindow::saveSectionWindowGeometry(SectionHost& host)
                                  QString("%1,%2,%3,%4").arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height()));
 }
 
-void MainWindow::updateSwiftyPopButton()
+void MainWindow::updateSwiftySectionActions()
 {
-    if (m_swiftyPopButton == nullptr || m_centralBg == nullptr) {
+    if (m_swiftyPopAction == nullptr || m_swiftyReloadAction == nullptr) {
         return;
     }
     SectionHost* host = sectionHost(QStringLiteral("swifty"));
     auto* proctor = APPLICATION->jartonProctor();
     const bool onSwifty =
         proctor != nullptr && proctor->property("currentSection").toString() == QLatin1String("swifty");
-    // Only while Swifty is the docked, active section — not when popped (the floating
-    // window is self-contained) and not while another section or the grid is showing.
-    const bool wanted = host != nullptr && !host->popped && onSwifty && host->container != nullptr &&
+    const bool popped = host != nullptr && host->popped;
+    const bool docked = host != nullptr && !popped && onSwifty && host->container != nullptr &&
                         host->container->isVisible();
-    m_swiftyPopButton->setVisible(wanted);
-    if (wanted) {
-        const int margin = 14;
-        m_swiftyPopButton->move(m_centralBg->width() - m_swiftyPopButton->width() - margin, margin);
-        m_swiftyPopButton->raise();
-    }
+    // Docked + active, or floating — the floating window has no chrome of its own,
+    // so the toolbar keeps serving it (Reload acts on the live view either way and
+    // the pop action flips to dock it back).
+    m_swiftyReloadAction->setVisible(docked || popped);
+    m_swiftyPopAction->setVisible(docked || popped);
+    m_swiftyPopAction->setText(popped ? tr("Dock back") : tr("Pop out"));
+    m_swiftyPopAction->setIcon(QIcon(popped ? QStringLiteral(":/jarton/staff/icons/ui/corner-down-left-cream.svg")
+                                            : QStringLiteral(":/jarton/staff/icons/ui/external-link-cream.svg")));
 }
+
 #else
 MainWindow::SectionHost* MainWindow::sectionHost(const QString&)
 {
@@ -2116,7 +2161,7 @@ void MainWindow::popInSection(SectionHost&)
 void MainWindow::saveSectionWindowGeometry(SectionHost&)
 {
 }
-void MainWindow::updateSwiftyPopButton()
+void MainWindow::updateSwiftySectionActions()
 {
 }
 #endif

@@ -22,6 +22,7 @@
         <file alias="AdminTab.qml">../../qml/staff/AdminTab.qml</file>
         <file alias="MoreTab.qml">../../qml/staff/MoreTab.qml</file>
         <file alias="STabBar.qml">../../qml/staff/STabBar.qml</file>
+        <file alias="StaffLoginChip.qml">../../qml/staff/StaffLoginChip.qml</file>
         <file alias="icons/ui/clock-cream.svg">icons/ui/clock-cream.svg</file>
         <file alias="icons/ui/play-dark.svg">icons/ui/play-dark.svg</file>
         <file alias="icons/ui/square-cream.svg">icons/ui/square-cream.svg</file>

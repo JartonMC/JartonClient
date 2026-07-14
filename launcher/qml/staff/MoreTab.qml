@@ -2,24 +2,16 @@ import QtQuick
 import Jarton
 
 // Staff "More": profile, per-staff notification toggles (the same set the Companion edits,
-// PATCH /proctor/me/notifications), the in-game login code, and sign-out. Read state from
-// /proctor/me; each toggle PATCHes one field and the response echoes the staff row back.
+// PATCH /proctor/me/notifications), and sign-out. Read state from /proctor/me; each
+// toggle PATCHes one field and the response echoes the staff row back. The in-game
+// login code moved to the section header (StaffLoginChip).
 Item {
     id: root
     property var staff: ({})
     property bool loaded: false
     property int reqMe: -1
     property var pending: ({})       // proctor write ids
-    property var pendingCode: ({})   // staff-login-code request ids
     property string banner: ""
-
-    // in-game staff login (Companion parity): POST /proctor/codes mints an 8-char
-    // code the staffer types as /staff login <code>. The broker expires it after
-    // 5 minutes; countdown runs off receipt time rather than parsing the server's
-    // tz-less datetime string.
-    property string loginCode: ""
-    property double codeExpiry: 0
-    property int codeLeft: 0
 
     onVisibleChanged: if (visible && !loaded) { loaded = true; load() }
 
@@ -29,13 +21,6 @@ Item {
         var body = {}; body[key] = value
         root.pending[ProctorApi.send("PATCH", "/proctor/me/notifications", JSON.stringify(body))] = true
     }
-    function requestCode() {
-        root.pendingCode[ProctorApi.send("POST", "/proctor/codes", JSON.stringify({ deviceName: "Jarton Client" }))] = true
-    }
-    function fmtLeft() {
-        var s = root.codeLeft
-        return Math.floor(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + (s % 60)
-    }
 
     Connections {
         target: ProctorApi
@@ -44,29 +29,12 @@ Item {
                 if (ok) { try { root.staff = JSON.parse(body).staff || {} } catch (e) { root.staff = {} } }
                 return
             }
-            if (root.pendingCode[id] !== undefined) {
-                delete root.pendingCode[id]
-                if (ok) {
-                    try {
-                        root.loginCode = JSON.parse(body).code || ""
-                        root.codeExpiry = Date.now() + 5 * 60 * 1000
-                        root.codeLeft = 300
-                    } catch (e) { root.banner = "Couldn't get a code." }
-                } else root.banner = "Couldn't get a code (" + status + ")."
-                return
-            }
             if (root.pending[id] !== undefined) {
                 delete root.pending[id]
                 if (ok) { try { root.staff = JSON.parse(body).staff || root.staff } catch (e) {} root.banner = "Saved." }
                 else root.banner = "Couldn't save (" + status + ")."
             }
         }
-    }
-
-    Timer {
-        interval: 500; repeat: true
-        running: root.loginCode.length > 0 && root.codeLeft > 0
-        onTriggered: root.codeLeft = Math.max(0, Math.round((root.codeExpiry - Date.now()) / 1000))
     }
     component NotifToggle: Item {
         id: t
@@ -148,56 +116,6 @@ Item {
                 width: parent.width
                 text: "Swifty board notifications are managed inside the Swifty tab."
                 color: "#6b5d3f"; font.pixelSize: 12; wrapMode: Text.WordWrap
-            }
-
-            // in-game staff login
-            Text { text: "IN-GAME"; color: "#8a7a56"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 0.5 }
-            Rectangle {
-                width: parent.width; radius: 14; color: "#15100a"; border.color: "#241c12"; border.width: 1
-                height: codeCol.height + 24
-                Column {
-                    id: codeCol
-                    anchors.top: parent.top; anchors.topMargin: 12
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.leftMargin: 16; anchors.rightMargin: 16
-                    spacing: 10
-                    Text {
-                        width: parent.width; wrapMode: Text.WordWrap
-                        textFormat: Text.PlainText   // keep AutoText from eating "<code>"
-                        text: "Generate a code, then type /staff login <code> in-game to enter staff mode. Codes expire after 5 minutes."
-                        color: "#8a7a56"; font.pixelSize: 12
-                    }
-                    Row {
-                        visible: root.loginCode.length > 0 && root.codeLeft > 0
-                        spacing: 14
-                        Text {
-                            text: root.loginCode
-                            color: "#FFE082"; font.family: "Menlo"; font.pixelSize: 30; font.letterSpacing: 6
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: root.fmtLeft()
-                            color: root.codeLeft < 60 ? "#e06c6c" : "#8a7a56"; font.family: "Menlo"; font.pixelSize: 14
-                        }
-                    }
-                    Text {
-                        visible: root.loginCode.length > 0 && root.codeLeft === 0
-                        text: "Code expired."
-                        color: "#e06c6c"; font.pixelSize: 12
-                    }
-                    Row {
-                        spacing: 8
-                        SButton {
-                            text: root.loginCode.length > 0 && root.codeLeft > 0 ? "New code" : "Get staff login code"
-                            variant: "secondary"; onClicked: root.requestCode()
-                        }
-                        SButton {
-                            visible: root.loginCode.length > 0 && root.codeLeft > 0
-                            text: "Copy"; icon: "copy"; variant: "ghost"
-                            onClicked: ProctorClient.copyToClipboard(root.loginCode)
-                        }
-                    }
-                }
             }
 
             // account

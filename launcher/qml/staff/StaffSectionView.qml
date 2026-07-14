@@ -24,7 +24,7 @@ Item {
         id: tabs
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         anchors.margins: 16
-        anchors.rightMargin: 56  // clears the floating pop-out chip
+        anchors.rightMargin: 56 + loginChip.width + 10  // clears the login chip + pop-out chip
         current: section.subtab
         onSelected: (id) => section.subtab = id
         model: {
@@ -55,6 +55,15 @@ Item {
         AlertsTab       { anchors.fill: parent; visible: section.subtab === "alerts" }
         StaffAdminTab   { anchors.fill: parent; visible: section.subtab === "staff" }
         MoreTab         { anchors.fill: parent; visible: section.subtab === "more" }
+    }
+
+    // in-game login code, always in reach next to the pop-out chip (Spiked: no more
+    // digging through More for it)
+    StaffLoginChip {
+        id: loginChip
+        anchors.top: parent.top; anchors.right: parent.right
+        anchors.topMargin: 12; anchors.rightMargin: 54
+        z: 100
     }
 
     // pop this section out into its own window (or dock it back) — top-right, above everything

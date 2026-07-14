@@ -333,6 +333,12 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         isANSIColorConsole = true;
     }
 
+    // The staff sections embed QQuickViews via createWindowContainer, which makes
+    // every overlapping sibling native too unless this is set. On Windows that
+    // native-ness breaks the translucent InstanceView/wallpaper stack — the central
+    // area stops repainting and smears stale frames over itself.
+    setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
+
     setOrganizationName(BuildConfig.LAUNCHER_NAME);
     setOrganizationDomain(BuildConfig.LAUNCHER_DOMAIN);
     setApplicationName(BuildConfig.LAUNCHER_NAME);
