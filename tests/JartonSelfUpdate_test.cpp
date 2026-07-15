@@ -1,4 +1,5 @@
 #include <QTest>
+#include "BuildConfig.h"
 #include "jarton/services/JartonSelfUpdateService.h"
 
 using Jarton::JartonSelfUpdateService;
@@ -19,8 +20,11 @@ class JartonSelfUpdateTest : public QObject {
                  QStringLiteral("JartonClient-Windows-MSVC-Setup-1.2.0.exe"));
     }
     void url_points_at_version_tag() {
-        QCOMPARE(JartonSelfUpdateService::assetUrl(Asset::MacZip, "1.2.0"),
-                 QStringLiteral("https://github.com/JartonMC/JartonClient/releases/download/1.2.0/JartonClient-macOS-1.2.0.zip"));
+        // Base tracks the configured updater repo (public vs staff channel), so
+        // build it the same way the service does instead of hardcoding one repo.
+        const QString expected = BuildConfig.UPDATER_GITHUB_REPO
+            + QStringLiteral("/releases/download/1.2.0/JartonClient-macOS-1.2.0.zip");
+        QCOMPARE(JartonSelfUpdateService::assetUrl(Asset::MacZip, "1.2.0"), expected);
     }
     void cache_lives_under_updates_per_version() {
         QCOMPARE(JartonSelfUpdateService::cachedAssetPath("/data", Asset::MacZip, "1.2.0"),
