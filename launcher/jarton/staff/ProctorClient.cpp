@@ -111,6 +111,7 @@ void ProctorClient::signOut()
     m_token.clear();
     m_connected = false;
     m_displayName.clear();
+    m_mcUuid.clear();
     m_rank.clear();
     m_admin = false;
     m_allowApplications = true;
@@ -128,6 +129,7 @@ void ProctorClient::copyToClipboard(const QString& text)
 void ProctorClient::applyStaff(const QJsonObject& staff)
 {
     m_displayName = staff.value("displayName").toString();
+    m_mcUuid = staff.value("mcUuid").toString();
     m_rank = staff.value("rank").toString();
     m_admin = staff.value("proctorAdmin").toBool();
     m_allowApplications = staff.value("allowApplications").toBool(true);

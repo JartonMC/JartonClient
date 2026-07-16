@@ -24,6 +24,7 @@ class ProctorClient : public QObject {
     Q_PROPERTY(bool restoring READ restoring NOTIFY changed)
     Q_PROPERTY(QString loginError READ loginError NOTIFY changed)
     Q_PROPERTY(QString displayName READ displayName NOTIFY changed)
+    Q_PROPERTY(QString mcUuid READ mcUuid NOTIFY changed)
     Q_PROPERTY(QString rank READ rank NOTIFY changed)
     Q_PROPERTY(bool admin READ admin NOTIFY changed)
     Q_PROPERTY(bool allowApplications READ allowApplications NOTIFY changed)
@@ -50,6 +51,7 @@ class ProctorClient : public QObject {
     bool restoring() const { return m_restoring; }
     QString loginError() const { return m_loginError; }
     QString displayName() const { return m_displayName; }
+    QString mcUuid() const { return m_mcUuid; }
     QString rank() const { return m_rank; }
     bool admin() const { return m_admin; }
     bool allowApplications() const { return m_allowApplications; }
@@ -98,6 +100,7 @@ class ProctorClient : public QObject {
     bool m_restoring = false;
     QString m_loginError;
     QString m_displayName;
+    QString m_mcUuid;
     QString m_rank;
     bool m_admin = false;
     bool m_allowApplications = true;

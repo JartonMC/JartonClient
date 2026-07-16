@@ -1271,8 +1271,9 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         installEventFilter(new ToolTipFilter);
     }
 
+    // applyCurrentlySelectedTheme stacks the Jarton overlay itself now — every
+    // theme apply does, so wizard-path re-applies can't strip the brand sheet.
     m_themeManager->applyCurrentlySelectedTheme(true);
-    applyJartonStyleOverlay();
     // Style the app and register the Jarton QML singletons + data services before
     // createSetupWizard() can short-circuit first-launch startup. A window that
     // loads QML during or after the wizard must find these already in place, or it
@@ -1315,6 +1316,14 @@ bool Application::createSetupWizard()
     bool validIcons = m_themeManager->isValidIconTheme(settings()->get("IconTheme").toString());
     bool login = !m_accounts->anyAccountIsValid() && capabilities() & Application::SupportsMSA;
     bool themeInterventionRequired = !validWidgets || !validIcons;
+
+    // Spiked has reported "wizard didn't run" twice with no way to tell whether the
+    // config was genuinely fresh — leave the whole decision in the log so the next
+    // report is a paste instead of a guessing game.
+    qDebug() << "SetupWizard decision: completed=" << settings()->get("SetupWizardCompleted").toBool()
+             << "java=" << javaRequired << "askjava=" << askjava << "language=" << languageRequired
+             << "paste=" << pasteInterventionRequired << "theme=" << themeInterventionRequired << "login=" << login
+             << "dataDir=" << QDir::currentPath();
 
     // dark-first brand — never fall back to the OS light chrome
     auto defaultWidgetTheme = []() -> QString { return QStringLiteral("dark"); };
@@ -1816,6 +1825,13 @@ void Application::importJartonPack(const QString& packUrl,
 
 void Application::applyJartonStyleOverlay()
 {
+    // Native system themes short-circuit ITheme::apply on the initial pass without
+    // clearing the stylesheet, so this can be called with the overlay already
+    // stacked — the sentinel keeps the sheet from duplicating.
+    static const QString sentinel = QStringLiteral("/*jarton-overlay*/");
+    if (styleSheet().contains(sentinel)) {
+        return;
+    }
     QFile jartonStyle(QStringLiteral(":/jarton/theme/jarton-theme.qss"));
     if (!jartonStyle.open(QFile::ReadOnly | QFile::Text)) {
         qWarning() << "Failed to load Jarton stylesheet:" << jartonStyle.errorString();
@@ -1823,7 +1839,7 @@ void Application::applyJartonStyleOverlay()
     }
     const QString jartonSheet = QString::fromUtf8(jartonStyle.readAll());
     // Append (don't replace) so the user-selectable Prism theme stays the base layer.
-    setStyleSheet(styleSheet() + QStringLiteral("\n") + jartonSheet);
+    setStyleSheet(styleSheet() + QStringLiteral("\n") + sentinel + QStringLiteral("\n") + jartonSheet);
 }
 
 bool Application::openJsonEditor(const QString& filename)

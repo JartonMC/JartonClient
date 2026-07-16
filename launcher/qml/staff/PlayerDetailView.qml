@@ -12,6 +12,10 @@ Item {
     property string name: ""
     signal closed()
 
+    // the broker refuses self-punishment too — this just keeps the buttons honest
+    readonly property bool isSelf: ProctorClient.mcUuid.length > 0
+        && uuid.replace(/-/g, "").toLowerCase() === ProctorClient.mcUuid.replace(/-/g, "").toLowerCase()
+
     // ---- punish state (live-bridge routed, mirrors the app) ----
     property string route: ""
     property var sections: []
@@ -177,12 +181,14 @@ Item {
     }
     function applyOffenses() {
         if (!selected.length) return
+        if (isSelf) { banner = "You can't punish yourself"; return }
         trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "punish-offense", args: { target: uuid, categories: selected } })))
         banner = "Applied " + selected.length + " offence" + (selected.length === 1 ? "" : "s") + " to " + name
         selected = []
     }
     function pressAction(a) {
         if (a.un) { sendUn(a.action); return }
+        if (isSelf) { banner = "You can't punish yourself"; return }
         if (a.action === "kick" || a.action === "warn") { pendingAction = a.action; pendingNode = a.node; pendingTemp = false }
         else { pendingAction = a.action; pendingNode = a.node; pendingTemp = a.temp }
     }
@@ -270,8 +276,15 @@ Item {
             // on the shared session (pollers, other tabs) is none of our business
             if (root.pendingWrites[id] !== undefined) {
                 var p = root.pendingWrites; delete p[id]; root.pendingWrites = p
-                if (!ok) root.banner = "Action failed (" + status + ")."
-                else PlayerHistoryModel.load(root.uuid, root.name)
+                if (!ok) {
+                    // the broker's refusals carry the actual reason ("you can't
+                    // punish yourself", rank wall) — show it, not just the code
+                    var why = ""
+                    try { why = JSON.parse(body).error || "" } catch (e) {}
+                    root.banner = why.length ? why : "Action failed (" + status + ")."
+                } else {
+                    PlayerHistoryModel.load(root.uuid, root.name)
+                }
             }
         }
     }
@@ -391,11 +404,13 @@ Item {
                     model: root.visibleActions()
                     delegate: Rectangle {
                         required property var modelData
+                        readonly property bool blocked: root.isSelf && !modelData.un
                         width: (detailCol.width - 8) / 2; height: 52; radius: 12
-                        color: aHover.containsMouse ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(1, 1, 1, 0.05)
+                        opacity: blocked ? 0.35 : 1
+                        color: aHover.containsMouse && !blocked ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(1, 1, 1, 0.05)
                         Behavior on color { ColorAnimation { duration: 100 } }
                         Text { anchors.centerIn: parent; text: modelData.label; color: modelData.color; font.pixelSize: 15; font.bold: true }
-                        MouseArea { id: aHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.pressAction(modelData) }
+                        MouseArea { id: aHover; anchors.fill: parent; hoverEnabled: true; cursorShape: parent.blocked ? Qt.ArrowCursor : Qt.PointingHandCursor; onClicked: root.pressAction(modelData) }
                     }
                 }
             }

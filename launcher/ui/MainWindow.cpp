@@ -170,6 +170,17 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
 {
     ui->setupUi(this);
 
+    // squeezed any thinner the toolbar collapses and the staff panels wedge (Dylan's
+    // ticket) — 900 keeps every toolbar action reachable with the 64px sidebar up.
+    // Clamped to the screen so a scaled 1366x768 laptop can still fit the window.
+    {
+        QSize minSize(900, 560);
+        if (QScreen* s = QGuiApplication::primaryScreen()) {
+            minSize = minSize.boundedTo(s->availableSize() - QSize(40, 60));
+        }
+        setMinimumSize(minSize);
+    }
+
     setWindowIcon(APPLICATION->logo());
     setWindowTitle(APPLICATION->applicationDisplayName());
 #ifndef QT_NO_ACCESSIBILITY
@@ -628,6 +639,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     // Add "manage accounts" button, right align
     QWidget* spacer = new QWidget();
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    // the global QWidget rule paints this #0f0a06 against the toolbar's #1a140e —
+    // reads as a random sunken black bar (Dylan's ticket screenshot)
+    spacer->setStyleSheet(QStringLiteral("background: transparent;"));
     ui->mainToolBar->insertWidget(ui->actionAccountsButton, spacer);
 
     // Use undocumented property... https://stackoverflow.com/questions/7121718/create-a-scrollbar-in-a-submenu-qt
@@ -2071,6 +2085,8 @@ void MainWindow::popOutSection(SectionHost& host)
                                                                                   : QGuiApplication::primaryScreen();
         r.moveCenter(screen->availableGeometry().center());
     }
+    // below this the section layouts wedge — player actions clip with no way to reach them
+    host.view->setMinimumSize(QSize(400, 300));
     host.view->setGeometry(r);
 
     if (!host.filterInstalled) {

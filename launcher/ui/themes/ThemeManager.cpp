@@ -259,6 +259,12 @@ void ThemeManager::setApplicationTheme(const QString& name, bool initial)
         auto& theme = themeIter->second;
         themeDebugLog() << "applying theme" << theme->name();
         theme->apply(initial);
+        // ITheme::apply() replaces the whole app stylesheet, so the Jarton brand
+        // sheet has to be re-stacked here, on every path that applies a theme.
+        // It used to live in applyCurrentlySelectedTheme() behind an !initial
+        // guard, which left the wizard/startup-repair paths and the View->Themes
+        // menu (which calls this directly) running plain grey Fusion chrome.
+        APPLICATION->applyJartonStyleOverlay();
         setTitlebarColorOfAllWindowsOnMac(qApp->palette().window().color());
 
         m_logColors = theme->logColorScheme();
@@ -278,12 +284,6 @@ void ThemeManager::applyCurrentlySelectedTheme(bool initial)
     }
     setApplicationTheme(applicationTheme, initial);
     themeDebugLog() << "<> Application theme set.";
-
-    // Re-stack the Jarton brand sheet on top — ITheme::apply() above just clobbered it.
-    // Guarded for initial startup, where the overlay is applied once after this returns.
-    if (!initial) {
-        APPLICATION->applyJartonStyleOverlay();
-    }
 }
 
 QString ThemeManager::getCatPack(QString catName)
