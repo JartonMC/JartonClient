@@ -59,7 +59,10 @@ QString JartonSelfUpdateService::assetName(Asset asset, const QString& version)
 
 QString JartonSelfUpdateService::assetUrl(Asset asset, const QString& version)
 {
-    return QStringLiteral("%1/%2/%3").arg(downloadBase(), version, assetName(asset, version));
+    QString url = QStringLiteral("%1/%2/%3").arg(downloadBase(), version, assetName(asset, version));
+    if (!BuildConfig.JARTON_UPDATE_KEY.isEmpty())
+        url += QStringLiteral("?k=") + BuildConfig.JARTON_UPDATE_KEY;
+    return url;
 }
 
 QString JartonSelfUpdateService::cachedAssetPath(const QString& dataRoot, Asset asset, const QString& version)

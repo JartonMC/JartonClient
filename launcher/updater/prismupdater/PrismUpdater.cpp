@@ -1132,8 +1132,15 @@ bool PrismUpdaterApp::loadPrismVersionFromExe(const QString& exe_path)
 void PrismUpdaterApp::loadReleaseList()
 {
     auto github_repo = m_prismRepoUrl;
-    if (github_repo.host() != "github.com")
-        return fail("updating from a non github url is not supported");
+    if (github_repo.host() != "github.com") {
+        // Staff channel: a non-github base is the Jarton update worker, which
+        // mirrors the GitHub releases API under <base>/api/releases.
+        if (BuildConfig.JARTON_UPDATE_KEY.isEmpty())
+            return fail("updating from a non github url is not supported");
+        auto api_url = m_prismRepoUrl.toString(QUrl::StripTrailingSlash) + QStringLiteral("/api/releases");
+        qDebug() << "Fetching release list from" << api_url;
+        return downloadReleasePage(api_url, 1);
+    }
 
     auto path_parts = github_repo.path().split('/');
     path_parts.removeFirst();  // empty segment from leading /
@@ -1150,6 +1157,8 @@ void PrismUpdaterApp::downloadReleasePage(const QString& api_url, int page)
 {
     int per_page = 30;
     auto page_url = QString("%1?per_page=%2&page=%3").arg(api_url).arg(QString::number(per_page)).arg(QString::number(page));
+    if (!BuildConfig.JARTON_UPDATE_KEY.isEmpty())
+        page_url += QStringLiteral("&k=") + BuildConfig.JARTON_UPDATE_KEY;
     auto [download, response] = Net::Download::makeByteArray(page_url);
     download->setNetwork(m_network.get());
     m_current_url = page_url;

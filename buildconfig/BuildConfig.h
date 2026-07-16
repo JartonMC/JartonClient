@@ -75,6 +75,10 @@ class Config {
     /// True in the staff edition; the launcher follows the staff release channel.
     bool JARTON_STAFF = false;
 
+    /// Access key for the staff update channel (updates.jarton.me). Empty in
+    /// public builds; non-empty switches the updater onto the custom channel.
+    QString JARTON_UPDATE_KEY;
+
     /// A short string identifying this build's platform or distribution.
     QString BUILD_PLATFORM;
 

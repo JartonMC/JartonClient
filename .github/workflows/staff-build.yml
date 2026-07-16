@@ -65,7 +65,8 @@ jobs:
       - name: Configure project
         run: |
           cmake --preset "$CMAKE_PRESET" -DLauncher_STAFF=ON \
-            -DLauncher_UPDATER_GITHUB_REPO=https://github.com/JartonMC/JartonClient-Staff \
+            -DLauncher_UPDATER_GITHUB_REPO=https://updates.jarton.me/staff \
+            -DLauncher_JARTON_UPDATE_KEY=${{ secrets.JARTON_UPDATE_KEY }} \
             -DLauncher_BUILD_ARTIFACT=Windows-MSVC-Qt6
 
       - name: Run build
