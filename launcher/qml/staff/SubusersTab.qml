@@ -151,13 +151,14 @@ Item {
                     Flickable {
                         id: permFlick
                         anchors.fill: parent; anchors.rightMargin: 10
-                        clip: true; contentHeight: permCol.height
+                        clip: true
+                        // contentWidth is mandatory — without it the content region is
+                        // zero-wide, so children render but clicks hit-test outside it
+                        // and get eaten (hover/layout look fine, taps never land). This
+                        // was the real reason the checkboxes didn't respond.
+                        contentWidth: width
+                        contentHeight: permCol.height
                         boundsBehavior: Flickable.StopAtBounds
-                        // pressDelay 0 + interactive-only-on-overflow so the Flickable
-                        // never swallows a checkbox tap (the reason clicks weren't
-                        // registering — a fitting form still armed the flick grab)
-                        pressDelay: 0
-                        interactive: contentHeight > height
                         flickableDirection: Flickable.VerticalFlick
                         Column {
                             id: permCol; width: parent.width; spacing: 10
