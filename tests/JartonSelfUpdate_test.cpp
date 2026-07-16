@@ -22,8 +22,11 @@ class JartonSelfUpdateTest : public QObject {
     void url_points_at_version_tag() {
         // Base tracks the configured updater repo (public vs staff channel), so
         // build it the same way the service does instead of hardcoding one repo.
-        const QString expected = BuildConfig.UPDATER_GITHUB_REPO
+        // Staff builds carry the channel key as a query param.
+        QString expected = BuildConfig.UPDATER_GITHUB_REPO
             + QStringLiteral("/releases/download/1.2.0/JartonClient-macOS-1.2.0.zip");
+        if (!BuildConfig.JARTON_UPDATE_KEY.isEmpty())
+            expected += QStringLiteral("?k=") + BuildConfig.JARTON_UPDATE_KEY;
         QCOMPARE(JartonSelfUpdateService::assetUrl(Asset::MacZip, "1.2.0"), expected);
     }
     void cache_lives_under_updates_per_version() {
