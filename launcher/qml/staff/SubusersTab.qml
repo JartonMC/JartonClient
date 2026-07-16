@@ -189,7 +189,7 @@ Item {
                                                 color: on ? "#FFB81C" : "transparent"
                                                 border.color: on ? "#FFB81C" : "#4a3c1e"; border.width: 1.5
                                                 Text { anchors.centerIn: parent; text: "✓"; visible: parent.on; color: "#1a1a1a"; font.pixelSize: 12; font.bold: true }
-                                                MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleGroup(modelData.keys) }
+                                                MouseArea { anchors.fill: parent; anchors.margins: -4; preventStealing: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleGroup(modelData.keys) }
                                             }
                                         }
                                         Text {
@@ -232,7 +232,7 @@ Item {
                                                         color: "#8a7a56"; font.pixelSize: 11; wrapMode: Text.WordWrap
                                                     }
                                                 }
-                                                MouseArea { id: rowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggle(modelData.key) }
+                                                MouseArea { id: rowMa; anchors.fill: parent; hoverEnabled: true; preventStealing: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggle(modelData.key) }
                                             }
                                         }
                                     }
