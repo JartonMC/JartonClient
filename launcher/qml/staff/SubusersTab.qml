@@ -153,6 +153,12 @@ Item {
                         anchors.fill: parent; anchors.rightMargin: 10
                         clip: true; contentHeight: permCol.height
                         boundsBehavior: Flickable.StopAtBounds
+                        // pressDelay 0 + interactive-only-on-overflow so the Flickable
+                        // never swallows a checkbox tap (the reason clicks weren't
+                        // registering — a fitting form still armed the flick grab)
+                        pressDelay: 0
+                        interactive: contentHeight > height
+                        flickableDirection: Flickable.VerticalFlick
                         Column {
                             id: permCol; width: parent.width; spacing: 10
                             Repeater {
