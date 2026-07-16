@@ -265,6 +265,15 @@ void ThemeManager::setApplicationTheme(const QString& name, bool initial)
         // guard, which left the wizard/startup-repair paths and the View->Themes
         // menu (which calls this directly) running plain grey Fusion chrome.
         APPLICATION->applyJartonStyleOverlay();
+        // Selection colors are painted from the palette (InstanceDelegate), and the
+        // stock dark palette pairs a pale highlight with black text — a selected
+        // instance read as a white pill with black text. Deep honey + white text.
+        {
+            QPalette pal = QApplication::palette();
+            pal.setColor(QPalette::Highlight, QColor(0x8B, 0x6F, 0x2A));
+            pal.setColor(QPalette::HighlightedText, Qt::white);
+            QApplication::setPalette(pal);
+        }
         setTitlebarColorOfAllWindowsOnMac(qApp->palette().window().color());
 
         m_logColors = theme->logColorScheme();
