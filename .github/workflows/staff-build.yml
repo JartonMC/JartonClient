@@ -112,11 +112,38 @@ jobs:
       # releases/download/<version>/JartonClient-Windows-MSVC-Portable-<version>.zip
       # straight from the manifest version string.
       - name: Read launcher version
-        if: inputs.make_release
         id: launcher-version
         run: |
           part() { sed -n "s/^set(Launcher_VERSION_$1 \([0-9]*\)).*/\1/p" CMakeLists.txt; }
           echo "version=$(part MAJOR).$(part MINOR).$(part PATCH)" >> "$GITHUB_OUTPUT"
+
+      # Installer asset name must contain "Windows-MSVC" and not "Portable" — the
+      # in-app updater picks the .exe for installed copies and the zip for portable.
+      - name: Package staff installer
+        shell: pwsh
+        env:
+          NSCURL_VERSION: "v24.9.26.122"
+          NSCURL_SHA256: "AEE6C4BE3CB6455858E9C1EE4B3AFE0DB9960FA03FE99CCDEDC28390D57CCBB0"
+          VERSION: ${{ steps.launcher-version.outputs.version }}
+        run: |
+          New-Item -Name NSISPlugins -ItemType Directory
+          Invoke-Webrequest https://github.com/negrutiu/nsis-nscurl/releases/download/"${{ env.NSCURL_VERSION }}"/NScurl.zip -OutFile NSISPlugins\NScurl.zip
+          $nscurl_hash = Get-FileHash NSISPlugins\NScurl.zip -Algorithm Sha256 | Select-Object -ExpandProperty Hash
+          if ( $nscurl_hash -ne "${{ env.NSCURL_SHA256 }}") {
+            echo "::error:: NSCurl.zip sha256 mismatch"
+            exit 1
+          }
+          Expand-Archive -Path NSISPlugins\NScurl.zip -DestinationPath NSISPlugins\NScurl
+          cd install
+          makensis -NOCD "${{ github.workspace }}/build/program_info/win_install.nsi"
+          cd ..
+          Move-Item JartonClientStaff-Setup.exe "JartonClientStaff-Windows-MSVC-Setup-$env:VERSION.exe"
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: JartonClient-Staff-Windows-Setup-${{ steps.short-version.outputs.version }}-${{ env.BUILD_TYPE }}
+          path: JartonClientStaff-Windows-MSVC-Setup-*.exe
 
       - name: Package staff release zip
         if: inputs.make_release

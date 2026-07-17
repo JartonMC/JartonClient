@@ -5,6 +5,8 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QImage>
+#include <QImageReader>
 #include <QSaveFile>
 #include <QLoggingCategory>
 #include <QNetworkAccessManager>
@@ -79,7 +81,10 @@ QString WallpaperService::resolvedUrl(int index) const
     }
     QString remote = m_activeUrls.at(index);
     const QString local = localPathFor(remote);
-    if (QFileInfo::exists(local)) {
+    // canRead, not exists — a cached file that stopped being a decodable image
+    // (bad download, disk corruption) would otherwise black out the background
+    // on every launch with no way to recover.
+    if (QFileInfo::exists(local) && QImageReader(local).canRead()) {
         return QUrl::fromLocalFile(local).toString();
     }
     // Not yet cached. Show the bundled fallback rather than handing the native
@@ -143,7 +148,12 @@ void WallpaperService::enqueueDownloads()
 {
     m_downloadQueue.clear();
     for (const QString& url : m_activeUrls) {
-        if (!QFileInfo::exists(localPathFor(url))) {
+        const QString local = localPathFor(url);
+        if (QFileInfo::exists(local) && !QImageReader(local).canRead()) {
+            qCWarning(jartonWallpaper) << "removing unreadable cached wallpaper" << local;
+            QFile::remove(local);
+        }
+        if (!QFileInfo::exists(local)) {
             m_downloadQueue.append(url);
         }
     }
@@ -177,6 +187,13 @@ void WallpaperService::onDownloadFinished()
     const QString url = reply->request().url().toString();
     if (reply->error() == QNetworkReply::NoError) {
         const QByteArray bytes = reply->readAll();
+        // A 200 with a non-image body (rate-limit page, truncated transfer) must not
+        // reach the cache — resolvedUrl would keep serving it forever.
+        if (QImage::fromData(bytes).isNull()) {
+            qCWarning(jartonWallpaper) << "discarding non-image wallpaper payload (" << bytes.size() << "bytes) url=" << url;
+            startNextDownload();
+            return;
+        }
         // QSaveFile writes to a temp sibling and atomically renames on commit, so a
         // crash mid-write can't leave a truncated image that exists() then trusts forever.
         QSaveFile out(localPathFor(url));

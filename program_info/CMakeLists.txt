@@ -10,6 +10,12 @@ endif()
 
 set(Launcher_CommonName "JartonClient")
 set(Launcher_DisplayName "Jarton Client")
+if(Launcher_STAFF)
+    # Staff edition installs beside the public client on the same machine —
+    # separate install dir, uninstall key, Start-menu entry, and data dir.
+    set(Launcher_CommonName "JartonClientStaff")
+    set(Launcher_DisplayName "Jarton Client Staff")
+endif()
 set(Launcher_AppID "me.jarton.client.JartonClient")
 set(Launcher_Domain "jarton.me")
 set(Launcher_Git "https://github.com/JartonMC/JartonClient")
@@ -35,7 +41,8 @@ set(Launcher_MetaInfo "program_info/${Launcher_AppID}.metainfo.xml" PARENT_SCOPE
 set(Launcher_PNG_256 "program_info/${Launcher_AppID}_256.png" PARENT_SCOPE)
 set(Launcher_SVG "program_info/${Launcher_SVGFileName}" PARENT_SCOPE)
 set(Launcher_Branding_ICNS "program_info/${Launcher_APP_BINARY_NAME}.icns" PARENT_SCOPE)
-set(Launcher_Branding_MAC_ICON "program_info/${Launcher_CommonName}.icon" PARENT_SCOPE)
+# Both editions share the JartonClient.icon asset catalog (icon artwork is identical)
+set(Launcher_Branding_MAC_ICON "program_info/JartonClient.icon" PARENT_SCOPE)
 set(Launcher_Branding_ICO "program_info/${Launcher_APP_BINARY_NAME}.ico")
 set(Launcher_Branding_ICO "${Launcher_Branding_ICO}" PARENT_SCOPE)
 set(Launcher_Branding_WindowsRC "program_info/${Launcher_APP_BINARY_NAME}.rc" PARENT_SCOPE)

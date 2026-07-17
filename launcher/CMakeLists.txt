@@ -1473,7 +1473,7 @@ if(APPLE)
     # has to land there too — not only at `cmake --install` time.
     add_custom_command(TARGET ${Launcher_Name} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_BUNDLE_CONTENT_DIR:${Launcher_Name}>/Resources"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/${Launcher_Branding_ICNS}" "$<TARGET_BUNDLE_CONTENT_DIR:${Launcher_Name}>/Resources/${Launcher_Name}.icns"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/${Launcher_Branding_ICNS}" "$<TARGET_BUNDLE_CONTENT_DIR:${Launcher_Name}>/Resources/${Launcher_Bundle_Icon_Name}.icns"
     )
     if(TARGET compile_assets)
         add_dependencies(${Launcher_Name} compile_assets)

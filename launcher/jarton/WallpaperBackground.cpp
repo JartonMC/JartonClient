@@ -84,6 +84,12 @@ void WallpaperBackground::setWallpaperUrl(const QString& url)
     reader.setAutoTransform(true);
     QImage img = reader.read();
     if (img.isNull()) {
+        qWarning() << "wallpaper failed to decode:" << readerPath << reader.errorString();
+        // Never leave the window black over one bad file — retry with the bundled
+        // fallback unless that's what just failed.
+        if (!readerPath.startsWith(QLatin1Char(':'))) {
+            setWallpaperUrl(QStringLiteral("qrc:/jarton/wallpapers/fallback.jpg"));
+        }
         return;
     }
     if (m_current.isNull()) {

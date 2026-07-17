@@ -21,9 +21,9 @@
     <key>CFBundleGetInfoString</key>
     <string>${MACOSX_BUNDLE_INFO_STRING}</string>
     <key>CFBundleIconFile</key>
-    <string>${Launcher_Name}</string>
+    <string>${Launcher_Bundle_Icon_Name}</string>
     <key>CFBundleIconName</key>
-    <string>${Launcher_Name}</string>
+    <string>${Launcher_Bundle_Icon_Name}</string>
     <key>CFBundleIdentifier</key>
     <string>${MACOSX_BUNDLE_GUI_IDENTIFIER}</string>
     <key>CFBundleInfoDictionaryVersion</key>
