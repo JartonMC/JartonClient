@@ -1401,6 +1401,21 @@ if(DEFINED Launcher_APP_BINARY_DEFS)
     target_compile_definitions(Launcher_logic PRIVATE ${Launcher_APP_BINARY_DEFS})
 endif()
 
+if(APPLE)
+    # Staff zips are packaged straight from the build-tree bundle, so the icon
+    # has to land there too — not only at `cmake --install` time.
+    add_custom_command(TARGET ${Launcher_Name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_BUNDLE_CONTENT_DIR:${Launcher_Name}>/Resources"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/${Launcher_Branding_ICNS}" "$<TARGET_BUNDLE_CONTENT_DIR:${Launcher_Name}>/Resources/${Launcher_Name}.icns"
+    )
+    if(TARGET compile_assets)
+        add_dependencies(${Launcher_Name} compile_assets)
+        add_custom_command(TARGET ${Launcher_Name} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_BINARY_DIR}/program_info/Assets.car" "$<TARGET_BUNDLE_CONTENT_DIR:${Launcher_Name}>/Resources/Assets.car"
+        )
+    endif()
+endif()
+
 install(TARGETS ${Launcher_Name}
     RUNTIME_DEPENDENCY_SET LAUNCHER_DEPENDENCY_SET
     BUNDLE DESTINATION "." COMPONENT Runtime
