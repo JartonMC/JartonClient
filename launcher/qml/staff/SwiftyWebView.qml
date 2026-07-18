@@ -28,9 +28,25 @@ Item {
     // C++-side); applied per load, SPA route changes keep the style on the document.
     property real pageZoom: 0.8
 
+    // WebKit (macOS) implements legacy `zoom`: the layout viewport grows so the page
+    // reflows and fills the container. Chromium (WebView2 on Windows) implements
+    // spec'd `zoom`, which just shrinks the <html> box and letterboxes it with grey
+    // margins. On Chromium we instead scale the root and widen it by 1/z so the page
+    // lays out wider, then fits the viewport exactly after scaling — same visual
+    // result as WebKit. Kept as one injected function so SPA route changes reapply it.
+    function zoomScript(z) {
+        return "(function(z){var d=document.documentElement;"
+             + "var wk=/AppleWebKit/.test(navigator.userAgent)&&!/Chrome|Chromium|Edg/.test(navigator.userAgent);"
+             + "if(wk){d.style.transform='';d.style.transformOrigin='';d.style.width='';d.style.height='';d.style.zoom=z;}"
+             + "else{d.style.zoom='';"
+             + "if(z==1){d.style.transform='';d.style.transformOrigin='';d.style.width='';d.style.height='';}"
+             + "else{d.style.transformOrigin='0 0';d.style.transform='scale('+z+')';d.style.width=(100/z)+'vw';d.style.height=(100/z)+'vh';}"
+             + "}})(" + z + ");"
+    }
+
     function setZoom(z) {
         pageZoom = z
-        web.runJavaScript("document.documentElement.style.zoom = '" + z + "';")
+        web.runJavaScript(zoomScript(z))
     }
 
     WebView {
@@ -43,7 +59,7 @@ Item {
                 root.failed = true
             } else if (req.status === WebView.LoadSucceededStatus) {
                 root.failed = false
-                web.runJavaScript("document.documentElement.style.zoom = '" + root.pageZoom + "';")
+                web.runJavaScript(root.zoomScript(root.pageZoom))
             }
         }
     }
