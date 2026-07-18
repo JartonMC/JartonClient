@@ -30,17 +30,23 @@ Item {
 
     // WebKit (macOS) implements legacy `zoom`: the layout viewport grows so the page
     // reflows and fills the container. Chromium (WebView2 on Windows) implements
-    // spec'd `zoom`, which just shrinks the <html> box and letterboxes it with grey
-    // margins. On Chromium we instead scale the root and widen it by 1/z so the page
-    // lays out wider, then fits the viewport exactly after scaling — same visual
-    // result as WebKit. Kept as one injected function so SPA route changes reapply it.
+    // spec'd `zoom`, which just shrinks the <html> box and letterboxes it. On Chromium
+    // we scale the root and widen it by 1/z so content lays out wider then fits after
+    // scaling — but Swifty's board background is `<main class="h-screen">` with an
+    // absolute-inset-0 image layer, and `h-screen` (100vh) is anchored to the visual
+    // viewport, so it stays 100vh and scales down to leave a black band below the board.
+    // Forcing `main` to (100/z)vh makes that layer fill after the scale. Verified on
+    // Chromium against a repro of Swifty's exact board markup. One injected function so
+    // SPA route changes reapply it.
     function zoomScript(z) {
         return "(function(z){var d=document.documentElement;"
              + "var wk=/AppleWebKit/.test(navigator.userAgent)&&!/Chrome|Chromium|Edg/.test(navigator.userAgent);"
-             + "if(wk){d.style.transform='';d.style.transformOrigin='';d.style.width='';d.style.height='';d.style.zoom=z;}"
+             + "var sid='swifty-zoom-fill';var s=document.getElementById(sid);"
+             + "if(!s){s=document.createElement('style');s.id=sid;document.head.appendChild(s);}"
+             + "if(wk){d.style.transform='';d.style.transformOrigin='';d.style.width='';d.style.height='';d.style.zoom=z;s.textContent='';}"
              + "else{d.style.zoom='';"
-             + "if(z==1){d.style.transform='';d.style.transformOrigin='';d.style.width='';d.style.height='';}"
-             + "else{d.style.transformOrigin='0 0';d.style.transform='scale('+z+')';d.style.width=(100/z)+'vw';d.style.height=(100/z)+'vh';}"
+             + "if(z==1){d.style.transform='';d.style.transformOrigin='';d.style.width='';d.style.height='';s.textContent='';}"
+             + "else{d.style.transformOrigin='0 0';d.style.transform='scale('+z+')';d.style.width=(100/z)+'vw';d.style.height=(100/z)+'vh';s.textContent='main{height:'+(100/z)+'vh!important}';}"
              + "}})(" + z + ");"
     }
 
