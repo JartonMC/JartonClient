@@ -139,15 +139,17 @@ QHash<int, QByteArray> PlayerHistoryModel::roleNames() const
 
 void PlayerHistoryModel::recomputeStatus()
 {
-    // history is most-recent-first; first match per family wins
-    static const QSet<QString> banKinds = { "ban", "temp-ban", "ban-ip", "temp-ban-ip" };
+    // history is most-recent-first; first match per family wins. IP bans are their
+    // own family: a plain unban clears both, but unban-ip never touches a name ban.
+    static const QSet<QString> banKinds = { "ban", "temp-ban" };
+    static const QSet<QString> ipBanKinds = { "ban-ip", "temp-ban-ip" };
     static const QSet<QString> muteKinds = { "mute", "temp-mute" };
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
 
-    auto activeIn = [&](const QSet<QString>& kinds, const QString& removal) -> bool {
+    auto activeIn = [&](const QSet<QString>& kinds, const QSet<QString>& removals) -> bool {
         for (const Record& r : m_rows) {
             const QString a = norm(r.action);
-            if (a == removal) {
+            if (removals.contains(a)) {
                 return false;
             }
             if (kinds.contains(a)) {
@@ -159,8 +161,9 @@ void PlayerHistoryModel::recomputeStatus()
         }
         return false;
     };
-    m_banned = activeIn(banKinds, "unban");
-    m_muted = activeIn(muteKinds, "unmute");
+    m_banned = activeIn(banKinds, { "unban" });
+    m_ipBanned = activeIn(ipBanKinds, { "unban-ip", "unban" });
+    m_muted = activeIn(muteKinds, { "unmute" });
 }
 
 void PlayerHistoryModel::load(const QString& uuid, const QString& name)

@@ -50,12 +50,14 @@ Item {
     property string confirmLabel: ""
     property bool invBusy: false
     property var pendingInv: ({})
+    property string invDanger: ""
 
     // ---- adjust resources ----
     property bool adjOpen: false
     property int adjIndex: 0
     property int adjPending: 0
     property bool adjBusy: false
+    property bool zeroConfirm: false
     readonly property var adjSpecs: [
         { key: "playtime", label: "Playtime", steps: [600, 3600, 86400] },
         { key: "gold", label: "Gold", steps: [100, 1000, 10000] },
@@ -79,12 +81,14 @@ Item {
     readonly property var rawActions: [
         { label: "Ban",        action: "ban",       node: "ban",      color: "#ff6b6b", temp: false },
         { label: "Temp-ban",   action: "temp-ban",  node: "tempban",  color: "#ff6b6b", temp: true  },
+        { label: "Ban IP",     action: "ban-ip",    node: "banip",    color: "#ff6b6b", temp: false },
         { label: "Mute",       action: "mute",      node: "mute",     color: "#f0a85a", temp: false },
         { label: "Temp-mute",  action: "temp-mute", node: "tempmute", color: "#f0a85a", temp: true  },
         { label: "Kick",       action: "kick",      node: "kick",     color: "#ffd24a", temp: false },
         { label: "Warn",       action: "warn",      node: "warn",     color: "#ffd24a", temp: false },
         { label: "Unban",      action: "unban",     node: "unban",    color: "#5ad17a", temp: false, un: true },
-        { label: "Unmute",     action: "unmute",    node: "unmute",   color: "#5ad17a", temp: false, un: true }
+        { label: "Unmute",     action: "unmute",    node: "unmute",   color: "#5ad17a", temp: false, un: true },
+        { label: "Revoke IP ban", action: "unban-ip", node: "unban",  color: "#5ad17a", temp: false, un: true }
     ]
 
     Component.onCompleted: {
@@ -165,7 +169,15 @@ Item {
         }
     }
     function canDo(node) { if (node.indexOf("un") === 0) return true; var a = allowed(); return a === null || a.indexOf(node) !== -1 }
-    function visibleActions() { var out = []; for (var i = 0; i < rawActions.length; i++) if (canDo(rawActions[i].node)) out.push(rawActions[i]); return out }
+    function visibleActions() {
+        var out = []
+        for (var i = 0; i < rawActions.length; i++) {
+            var a = rawActions[i]
+            if (a.action === "unban-ip" && !PlayerHistoryModel.ipBanned) continue
+            if (canDo(a.node)) out.push(a)
+        }
+        return out
+    }
     function toggle(id) { var s = selected.slice(); var i = s.indexOf(id); if (i === -1) s.push(id); else s.splice(i, 1); selected = s }
     function trackWrite(id) { var p = pendingWrites; p[id] = true; pendingWrites = p }
     function sendRaw(reason, durationMs) {
@@ -214,6 +226,27 @@ Item {
         p[StaffApi.send("POST", "/invplus/adjust", JSON.stringify({ player: name, resource: spec.key, amount: adjPending }))] =
             "Applied " + adjLabel() + " " + spec.label.toLowerCase() + " to " + name + "."
         pendingInv = p
+    }
+    function zeroResource() {
+        if (adjBusy) return
+        adjBusy = true
+        var spec = adjSpecs[adjIndex]
+        var p = pendingInv
+        p[StaffApi.send("POST", "/invplus/zero", JSON.stringify({ player: name, resource: spec.key }))] =
+            "Removed all " + spec.label.toLowerCase() + " from " + name + "."
+        pendingInv = p
+        zeroConfirm = false
+    }
+    function runInvDanger() {
+        if (invBusy) return
+        invBusy = true
+        var p = pendingInv
+        if (invDanger === "clear")
+            p[StaffApi.send("POST", "/invplus/clear", JSON.stringify({ player: name }))] = "Cleared " + name + "'s inventory."
+        else
+            p[StaffApi.send("POST", "/invplus/wipe", JSON.stringify({ player: name }))] = "Wipe queued for " + name + "."
+        pendingInv = p
+        invDanger = ""
     }
     function adjLabel() {
         var spec = adjSpecs[adjIndex]
@@ -310,10 +343,17 @@ Item {
     component InfoRow: Item {
         property string k: ""
         property string v: ""
+        property bool copyable: false
         visible: v.length > 0
         width: parent ? parent.width : 0; height: 20
         Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: k; color: "#8a7a56"; font.pixelSize: 12 }
-        Text { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: v; color: "#F2E8D0"; font.pixelSize: 13 }
+        Text {
+            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: v; color: "#F2E8D0"; font.pixelSize: 13
+            MouseArea {
+                anchors.fill: parent; visible: copyable; cursorShape: Qt.PointingHandCursor
+                onClicked: { ProctorClient.copyToClipboard(v); root.banner = "Copied " + v }
+            }
+        }
     }
 
     component SectionHeader: Rectangle {
@@ -370,11 +410,15 @@ Item {
                                 Text { id: bb; anchors.centerIn: parent; text: "Banned"; color: "#ff6b6b"; font.pixelSize: 10; font.bold: true }
                             }
                             Rectangle {
+                                visible: PlayerHistoryModel.ipBanned; width: ib.width + 14; height: 18; radius: 9; color: Qt.rgba(1, 0.22, 0.22, 0.26)
+                                Text { id: ib; anchors.centerIn: parent; text: "IP Banned"; color: "#ff4d4d"; font.pixelSize: 10; font.bold: true }
+                            }
+                            Rectangle {
                                 visible: PlayerHistoryModel.muted; width: mb.width + 14; height: 18; radius: 9; color: Qt.rgba(0.94, 0.66, 0.35, 0.16)
                                 Text { id: mb; anchors.centerIn: parent; text: "Muted"; color: "#f0a85a"; font.pixelSize: 10; font.bold: true }
                             }
                             Rectangle {
-                                visible: !PlayerHistoryModel.banned && !PlayerHistoryModel.muted; width: cb.width + 14; height: 18; radius: 9; color: Qt.rgba(0.35, 0.82, 0.48, 0.16)
+                                visible: !PlayerHistoryModel.banned && !PlayerHistoryModel.ipBanned && !PlayerHistoryModel.muted; width: cb.width + 14; height: 18; radius: 9; color: Qt.rgba(0.35, 0.82, 0.48, 0.16)
                                 Text { id: cb; anchors.centerIn: parent; text: "Clean"; color: "#5ad17a"; font.pixelSize: 10; font.bold: true }
                             }
                             Rectangle {
@@ -556,6 +600,28 @@ Item {
                             }
                         }
                     }
+                    Row {
+                        visible: root.invDanger.length === 0
+                        spacing: 7
+                        SButton { text: "Clear inventory"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "clear" }
+                        SButton { text: "Wipe player"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "wipe" }
+                    }
+                    Column {
+                        visible: root.invDanger.length > 0
+                        width: parent.width; spacing: 6
+                        Text {
+                            width: parent.width; wrapMode: Text.WordWrap
+                            text: root.invDanger === "clear"
+                                  ? "Empty inventory, armor + ender chest? Snapshot taken first; applies on next join if offline."
+                                  : "Full reset — items, vaults, XP, gold, playtime, nectar, advancements, spawn. Snapshot first; applies on next join if offline."
+                            color: "#FFE082"; font.pixelSize: 12
+                        }
+                        Row {
+                            spacing: 8
+                            SButton { text: root.invDanger === "clear" ? "Clear" : "Wipe"; variant: "danger"; compact: true; busy: root.invBusy; onClicked: root.runInvDanger() }
+                            SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.invDanger = "" }
+                        }
+                    }
                 }
             }
 
@@ -588,7 +654,7 @@ Item {
                                     color: active ? "#3a2f14" : "transparent"
                                     border.color: active ? "#FFB81C" : "#2a2114"; border.width: 1
                                     Text { id: rTxt; anchors.centerIn: parent; text: modelData.label; color: active ? "#FFE082" : "#8a7a56"; font.pixelSize: 12 }
-                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.adjIndex = index; root.adjPending = 0 } }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.adjIndex = index; root.adjPending = 0; root.zeroConfirm = false } }
                                 }
                             }
                         }
@@ -624,8 +690,17 @@ Item {
                         }
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
+                            visible: !root.zeroConfirm
                             SButton { text: "Reset"; variant: "ghost"; compact: true; enabled: root.adjPending !== 0 && !root.adjBusy; onClicked: root.adjPending = 0 }
                             SButton { text: "Apply"; variant: "primary"; compact: true; busy: root.adjBusy; enabled: root.adjPending !== 0; onClicked: root.applyAdjust() }
+                            SButton { text: "Remove all"; variant: "danger"; compact: true; enabled: !root.adjBusy; onClicked: root.zeroConfirm = true }
+                        }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
+                            visible: root.zeroConfirm
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: "Remove ALL " + root.adjSpecs[root.adjIndex].label.toLowerCase() + " from " + root.name + "? Applies on next join if offline."; color: "#FFE082"; font.pixelSize: 12 }
+                            SButton { text: "Remove"; variant: "danger"; compact: true; busy: root.adjBusy; onClicked: root.zeroResource() }
+                            SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.zeroConfirm = false }
                         }
                         Item { width: 1; height: 2 }
                     }
@@ -680,9 +755,9 @@ Item {
                         anchors.right: parent.right; anchors.rightMargin: 14
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 5
-                        InfoRow { k: "IP"; v: root.joinInfo ? (root.joinInfo.ip || "") : "" }
+                        InfoRow { k: "IP"; v: root.joinInfo ? (root.joinInfo.ip || "") : ""; copyable: true }
                         InfoRow {
-                            k: "Location"
+                            k: "Location"; copyable: true
                             v: {
                                 if (!root.joinInfo) return ""
                                 var bits = []
@@ -692,7 +767,7 @@ Item {
                                 return bits.join(", ")
                             }
                         }
-                        InfoRow { k: "ISP"; v: root.joinInfo ? (root.joinInfo.isp || "") : "" }
+                        InfoRow { k: "ISP"; v: root.joinInfo ? (root.joinInfo.isp || "") : ""; copyable: true }
                         Row {
                             spacing: 6
                             visible: root.joinInfo !== null && (root.joinInfo.proxy || root.joinInfo.hosting || root.joinInfo.mobile)
@@ -728,6 +803,10 @@ Item {
                                     return names.join(", ")
                                 }
                                 color: "#F2E8D0"; font.pixelSize: 13; elide: Text.ElideRight
+                                MouseArea {
+                                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: { ProctorClient.copyToClipboard(parent.text); root.banner = "Copied alt list" }
+                                }
                             }
                         }
                     }
@@ -761,6 +840,10 @@ Item {
                                 Row {
                                     anchors.left: parent.left; spacing: 6
                                     Text { text: action.toUpperCase() + (fmtDur(duration).length ? "  ·  " + fmtDur(duration) : ""); color: "#FFB833"; font.pixelSize: 12; font.bold: true }
+                                    Rectangle {
+                                        visible: { var a = action.toLowerCase().replace(/ /g, "-"); return a === "ban-ip" || a === "temp-ban-ip" }
+                                        width: ipv.width + 12; height: 16; radius: 8; color: Qt.rgba(1, 0.28, 0.28, 0.2); anchors.verticalCenter: parent.verticalCenter
+                                        Text { id: ipv; anchors.centerIn: parent; text: "IP"; color: "#ff6b6b"; font.pixelSize: 9; font.bold: true } }
                                     Rectangle { visible: active; width: av.width + 12; height: 16; radius: 8; color: Qt.rgba(1, 0.72, 0.2, 0.18); anchors.verticalCenter: parent.verticalCenter
                                         Text { id: av; anchors.centerIn: parent; text: "active"; color: "#FFB81C"; font.pixelSize: 9; font.bold: true } }
                                     Rectangle { visible: typeof server !== "undefined" && server !== null && String(server).length > 0; width: sv.width + 12; height: 16; radius: 8; color: Qt.rgba(1, 1, 1, 0.06); anchors.verticalCenter: parent.verticalCenter

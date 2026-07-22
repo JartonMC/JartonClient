@@ -50,6 +50,7 @@ class PlayerHistoryModel : public QAbstractListModel {
     Q_PROPERTY(QString playerName READ playerName NOTIFY changed)
     Q_PROPERTY(QString playerUuid READ playerUuid NOTIFY changed)
     Q_PROPERTY(bool banned READ banned NOTIFY changed)
+    Q_PROPERTY(bool ipBanned READ ipBanned NOTIFY changed)
     Q_PROPERTY(bool muted READ muted NOTIFY changed)
 
    public:
@@ -65,6 +66,7 @@ class PlayerHistoryModel : public QAbstractListModel {
     QString playerName() const { return m_playerName; }
     QString playerUuid() const { return m_playerUuid; }
     bool banned() const { return m_banned; }
+    bool ipBanned() const { return m_ipBanned; }
     bool muted() const { return m_muted; }
 
     Q_INVOKABLE void load(const QString& uuid, const QString& name);
@@ -90,6 +92,7 @@ class PlayerHistoryModel : public QAbstractListModel {
     QString m_playerName;
     QString m_playerUuid;
     bool m_banned = false;
+    bool m_ipBanned = false;
     bool m_muted = false;
 };
 
