@@ -52,6 +52,8 @@ class PlayerHistoryModel : public QAbstractListModel {
     Q_PROPERTY(bool banned READ banned NOTIFY changed)
     Q_PROPERTY(bool ipBanned READ ipBanned NOTIFY changed)
     Q_PROPERTY(bool muted READ muted NOTIFY changed)
+    Q_PROPERTY(bool shadowBanned READ shadowBanned NOTIFY changed)
+    Q_PROPERTY(bool shadowMuted READ shadowMuted NOTIFY changed)
 
    public:
     enum Roles : uint16_t { ActionRole = Qt::UserRole + 1, ReasonRole, StaffRole, TimestampRole, DurationRole, ActiveRole, ServerRole };
@@ -68,6 +70,8 @@ class PlayerHistoryModel : public QAbstractListModel {
     bool banned() const { return m_banned; }
     bool ipBanned() const { return m_ipBanned; }
     bool muted() const { return m_muted; }
+    bool shadowBanned() const { return m_shadowBanned; }
+    bool shadowMuted() const { return m_shadowMuted; }
 
     Q_INVOKABLE void load(const QString& uuid, const QString& name);
 
@@ -94,6 +98,8 @@ class PlayerHistoryModel : public QAbstractListModel {
     bool m_banned = false;
     bool m_ipBanned = false;
     bool m_muted = false;
+    bool m_shadowBanned = false;
+    bool m_shadowMuted = false;
 };
 
 }  // namespace Jarton

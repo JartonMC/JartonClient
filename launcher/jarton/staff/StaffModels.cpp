@@ -144,6 +144,8 @@ void PlayerHistoryModel::recomputeStatus()
     static const QSet<QString> banKinds = { "ban", "temp-ban" };
     static const QSet<QString> ipBanKinds = { "ban-ip", "temp-ban-ip" };
     static const QSet<QString> muteKinds = { "mute", "temp-mute" };
+    static const QSet<QString> shadowBanKinds = { "shadowban" };
+    static const QSet<QString> shadowMuteKinds = { "shadowmute" };
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
 
     auto activeIn = [&](const QSet<QString>& kinds, const QSet<QString>& removals) -> bool {
@@ -161,9 +163,11 @@ void PlayerHistoryModel::recomputeStatus()
         }
         return false;
     };
-    m_banned = activeIn(banKinds, { "unban" });
-    m_ipBanned = activeIn(ipBanKinds, { "unban-ip", "unban" });
-    m_muted = activeIn(muteKinds, { "unmute" });
+    m_banned = activeIn(banKinds, { "unban", "clear-punishments" });
+    m_ipBanned = activeIn(ipBanKinds, { "unban-ip", "unban", "clear-punishments" });
+    m_muted = activeIn(muteKinds, { "unmute", "clear-punishments" });
+    m_shadowBanned = activeIn(shadowBanKinds, { "unshadowban", "clear-punishments" });
+    m_shadowMuted = activeIn(shadowMuteKinds, { "unshadowmute", "clear-punishments" });
 }
 
 void PlayerHistoryModel::load(const QString& uuid, const QString& name)

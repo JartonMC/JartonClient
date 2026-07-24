@@ -89,7 +89,11 @@ Item {
         { label: "Warn",       action: "warn",      node: "warn",     color: "#ffd24a", temp: false },
         { label: "Unban",      action: "unban",     node: "unban",    color: "#5ad17a", temp: false, un: true },
         { label: "Unmute",     action: "unmute",    node: "unmute",   color: "#5ad17a", temp: false, un: true },
-        { label: "Revoke IP ban", action: "unban-ip", node: "unban",  color: "#5ad17a", temp: false, un: true }
+        { label: "Revoke IP ban", action: "unban-ip", node: "unban",  color: "#5ad17a", temp: false, un: true },
+        { label: "Shadowban",  action: "shadowban", node: "shadowban", color: "#8a7bff", temp: false, simple: true },
+        { label: "Shadowmute", action: "shadowmute", node: "shadowmute", color: "#8a7bff", temp: false, simple: true },
+        { label: "Unshadowban", action: "unshadowban", node: "unshadowban", color: "#5ad17a", temp: false, simple: true },
+        { label: "Unshadowmute", action: "unshadowmute", node: "unshadowmute", color: "#5ad17a", temp: false, simple: true }
     ]
 
     Component.onCompleted: {
@@ -176,6 +180,10 @@ Item {
             var a = rawActions[i]
             if (a.action === "unban" && !PlayerHistoryModel.banned) continue
             if (a.action === "unban-ip" && !PlayerHistoryModel.ipBanned) continue
+            if (a.action === "shadowban" && PlayerHistoryModel.shadowBanned) continue
+            if (a.action === "unshadowban" && !PlayerHistoryModel.shadowBanned) continue
+            if (a.action === "shadowmute" && PlayerHistoryModel.shadowMuted) continue
+            if (a.action === "unshadowmute" && !PlayerHistoryModel.shadowMuted) continue
             if (canDo(a.node)) out.push(a)
         }
         return out
@@ -193,6 +201,10 @@ Item {
         trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "unpunish", args: { target: uuid, targetName: name, action: action } })))
         banner = action + " sent"
     }
+    function sendSimple(action) {
+        trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: action, args: { target: uuid, targetName: name } })))
+        banner = action + " sent for " + name
+    }
     function sendClearAll() {
         trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "clear-punishments", args: { target: uuid, targetName: name } })))
         banner = "Cleared all punishments for " + name
@@ -207,6 +219,10 @@ Item {
     }
     function pressAction(a) {
         if (a.un) { sendUn(a.action); return }
+        if (a.simple) {
+            if (isSelf && a.action.indexOf("un") !== 0) { banner = "You can't punish yourself"; return }
+            sendSimple(a.action); return
+        }
         if (isSelf) { banner = "You can't punish yourself"; return }
         if (a.action === "kick" || a.action === "warn") { pendingAction = a.action; pendingNode = a.node; pendingTemp = false }
         else { pendingAction = a.action; pendingNode = a.node; pendingTemp = a.temp }
@@ -503,6 +519,7 @@ Item {
             Column {
                 width: parent.width; spacing: 6
                 visible: PlayerHistoryModel.banned || PlayerHistoryModel.ipBanned || PlayerHistoryModel.muted
+                         || PlayerHistoryModel.shadowBanned || PlayerHistoryModel.shadowMuted
                 SButton { visible: !root.clearAllConfirm; text: "Clear all punishments"; variant: "danger"; compact: true; onClicked: root.clearAllConfirm = true }
                 Column {
                     visible: root.clearAllConfirm
