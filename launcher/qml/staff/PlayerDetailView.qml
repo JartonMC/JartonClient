@@ -173,6 +173,7 @@ Item {
         var out = []
         for (var i = 0; i < rawActions.length; i++) {
             var a = rawActions[i]
+            if (a.action === "unban" && !PlayerHistoryModel.banned) continue
             if (a.action === "unban-ip" && !PlayerHistoryModel.ipBanned) continue
             if (canDo(a.node)) out.push(a)
         }
@@ -535,11 +536,38 @@ Item {
                 Column {
                     width: parent.width; spacing: 6; visible: root.invOpen
                     Text { visible: root.invError.length > 0; text: root.invError; color: "#e06c6c"; font.pixelSize: 13 }
+                    Row {
+                        visible: root.invDanger.length === 0
+                        spacing: 7
+                        SButton { text: "Clear inventory"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "clear" }
+                        SButton { text: "Wipe player"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "wipe" }
+                    }
+                    Column {
+                        visible: root.invDanger.length > 0
+                        width: parent.width; spacing: 6
+                        Text {
+                            width: parent.width; wrapMode: Text.WordWrap
+                            text: root.invDanger === "clear"
+                                  ? "Empty inventory, armor + ender chest? Snapshot taken first; applies on next join if offline."
+                                  : "Full reset — items, vaults, XP, gold, playtime, nectar, advancements, spawn. Snapshot first; applies on next join if offline."
+                            color: "#FFE082"; font.pixelSize: 12
+                        }
+                        Row {
+                            spacing: 8
+                            SButton { text: root.invDanger === "clear" ? "Clear" : "Wipe"; variant: "danger"; compact: true; busy: root.invBusy; onClicked: root.runInvDanger() }
+                            SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.invDanger = "" }
+                        }
+                    }
                     Text {
                         visible: root.invError.length === 0 && root.invLoaded && root.snapshots.length === 0
                         text: "No snapshots for this player yet."; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13
                     }
-                    Repeater {
+                    ListView {
+                        width: parent.width
+                        visible: root.snapshots.length > 0
+                        height: Math.min(contentHeight, 300)
+                        clip: true; spacing: 6
+                        boundsBehavior: Flickable.StopAtBounds
                         model: root.snapshots
                         delegate: Rectangle {
                             id: snapCard
@@ -598,28 +626,6 @@ Item {
                                     SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.confirmScope = "" }
                                 }
                             }
-                        }
-                    }
-                    Row {
-                        visible: root.invDanger.length === 0
-                        spacing: 7
-                        SButton { text: "Clear inventory"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "clear" }
-                        SButton { text: "Wipe player"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "wipe" }
-                    }
-                    Column {
-                        visible: root.invDanger.length > 0
-                        width: parent.width; spacing: 6
-                        Text {
-                            width: parent.width; wrapMode: Text.WordWrap
-                            text: root.invDanger === "clear"
-                                  ? "Empty inventory, armor + ender chest? Snapshot taken first; applies on next join if offline."
-                                  : "Full reset — items, vaults, XP, gold, playtime, nectar, advancements, spawn. Snapshot first; applies on next join if offline."
-                            color: "#FFE082"; font.pixelSize: 12
-                        }
-                        Row {
-                            spacing: 8
-                            SButton { text: root.invDanger === "clear" ? "Clear" : "Wipe"; variant: "danger"; compact: true; busy: root.invBusy; onClicked: root.runInvDanger() }
-                            SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.invDanger = "" }
                         }
                     }
                 }
