@@ -28,6 +28,7 @@ Item {
     property string pendingAction: ""
     property string pendingNode: ""
     property bool pendingTemp: false
+    property bool clearAllConfirm: false
 
     property int reqServers: -1
     property int reqGuide: -1
@@ -191,6 +192,11 @@ Item {
     function sendUn(action) {
         trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "unpunish", args: { target: uuid, targetName: name, action: action } })))
         banner = action + " sent"
+    }
+    function sendClearAll() {
+        trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "clear-punishments", args: { target: uuid, targetName: name } })))
+        banner = "Cleared all punishments for " + name
+        clearAllConfirm = false
     }
     function applyOffenses() {
         if (!selected.length) return
@@ -493,6 +499,27 @@ Item {
                 }
             }
 
+            // ---- clear all punishments ----
+            Column {
+                width: parent.width; spacing: 6
+                visible: PlayerHistoryModel.banned || PlayerHistoryModel.ipBanned || PlayerHistoryModel.muted
+                SButton { visible: !root.clearAllConfirm; text: "Clear all punishments"; variant: "danger"; compact: true; onClicked: root.clearAllConfirm = true }
+                Column {
+                    visible: root.clearAllConfirm
+                    width: parent.width; spacing: 6
+                    Text {
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: "Clear ALL punishments for " + root.name + "? Lifts bans, IP bans, mutes, freeze, shadow-ban/mute, inventory locks."
+                        color: "#FFE082"; font.pixelSize: 12
+                    }
+                    Row {
+                        spacing: 8
+                        SButton { text: "Clear all"; variant: "danger"; compact: true; onClicked: root.sendClearAll() }
+                        SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.clearAllConfirm = false }
+                    }
+                }
+            }
+
             // ---- offences ----
             Column {
                 width: parent.width; spacing: 8
@@ -536,28 +563,6 @@ Item {
                 Column {
                     width: parent.width; spacing: 6; visible: root.invOpen
                     Text { visible: root.invError.length > 0; text: root.invError; color: "#e06c6c"; font.pixelSize: 13 }
-                    Row {
-                        visible: root.invDanger.length === 0
-                        spacing: 7
-                        SButton { text: "Clear inventory"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "clear" }
-                        SButton { text: "Wipe player"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "wipe" }
-                    }
-                    Column {
-                        visible: root.invDanger.length > 0
-                        width: parent.width; spacing: 6
-                        Text {
-                            width: parent.width; wrapMode: Text.WordWrap
-                            text: root.invDanger === "clear"
-                                  ? "Empty inventory, armor + ender chest? Snapshot taken first; applies on next join if offline."
-                                  : "Full reset — items, vaults, XP, gold, playtime, nectar, advancements, spawn. Snapshot first; applies on next join if offline."
-                            color: "#FFE082"; font.pixelSize: 12
-                        }
-                        Row {
-                            spacing: 8
-                            SButton { text: root.invDanger === "clear" ? "Clear" : "Wipe"; variant: "danger"; compact: true; busy: root.invBusy; onClicked: root.runInvDanger() }
-                            SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.invDanger = "" }
-                        }
-                    }
                     Text {
                         visible: root.invError.length === 0 && root.invLoaded && root.snapshots.length === 0
                         text: "No snapshots for this player yet."; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13
@@ -608,6 +613,8 @@ Item {
                                     visible: snapCard.expanded && root.confirmScope.length === 0
                                     spacing: 7
                                     SButton { text: "Items"; variant: "secondary"; compact: true; enabled: !root.invBusy; onClicked: { root.confirmScope = "items"; root.confirmLabel = "Items" } }
+                                    SButton { text: "Ender chest"; variant: "secondary"; compact: true; enabled: !root.invBusy; onClicked: { root.confirmScope = "ender"; root.confirmLabel = "Ender chest" } }
+                                    SButton { text: "Vaults"; variant: "secondary"; compact: true; enabled: !root.invBusy; onClicked: { root.confirmScope = "vaults"; root.confirmLabel = "Vaults" } }
                                     SButton { text: "XP"; variant: "secondary"; compact: true; enabled: !root.invBusy; onClicked: { root.confirmScope = "xp"; root.confirmLabel = "XP" } }
                                     SButton { text: "Gold"; variant: "secondary"; compact: true; enabled: !root.invBusy; onClicked: { root.confirmScope = "gold"; root.confirmLabel = "Gold" } }
                                     SButton {
@@ -626,6 +633,28 @@ Item {
                                     SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.confirmScope = "" }
                                 }
                             }
+                        }
+                    }
+                    Row {
+                        visible: root.invDanger.length === 0
+                        spacing: 7
+                        SButton { text: "Clear inventory"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "clear" }
+                        SButton { text: "Wipe player"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "wipe" }
+                    }
+                    Column {
+                        visible: root.invDanger.length > 0
+                        width: parent.width; spacing: 6
+                        Text {
+                            width: parent.width; wrapMode: Text.WordWrap
+                            text: root.invDanger === "clear"
+                                  ? "Empty inventory, armor + ender chest? Snapshot taken first; applies on next join if offline."
+                                  : "Full reset — items, vaults, XP, gold, playtime, nectar, advancements, spawn. Snapshot first; applies on next join if offline."
+                            color: "#FFE082"; font.pixelSize: 12
+                        }
+                        Row {
+                            spacing: 8
+                            SButton { text: root.invDanger === "clear" ? "Clear" : "Wipe"; variant: "danger"; compact: true; busy: root.invBusy; onClicked: root.runInvDanger() }
+                            SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.invDanger = "" }
                         }
                     }
                 }
