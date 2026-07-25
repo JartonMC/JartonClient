@@ -191,9 +191,13 @@ Item {
     function toggle(id) { var s = selected.slice(); var i = s.indexOf(id); if (i === -1) s.push(id); else s.splice(i, 1); selected = s }
     function trackWrite(id) { var p = pendingWrites; p[id] = true; pendingWrites = p }
     function sendRaw(reason, durationMs) {
-        var args = { target: uuid, targetName: name, action: pendingAction, reason: reason }
-        if (durationMs > 0) args.durationMs = durationMs
-        trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "punish", args: args })))
+        // shadow actions are their own bridge types; the reason rides along for the history
+        // trail only — the player never sees it
+        var isShadow = pendingAction === "shadowban" || pendingAction === "shadowmute"
+        var args = isShadow ? { target: uuid, targetName: name, reason: reason }
+                            : { target: uuid, targetName: name, action: pendingAction, reason: reason }
+        if (!isShadow && durationMs > 0) args.durationMs = durationMs
+        trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: isShadow ? pendingAction : "punish", args: args })))
         banner = pendingAction + " sent for " + name
         pendingAction = ""
     }
@@ -220,8 +224,10 @@ Item {
     function pressAction(a) {
         if (a.un) { sendUn(a.action); return }
         if (a.simple) {
-            if (isSelf && a.action.indexOf("un") !== 0) { banner = "You can't punish yourself"; return }
-            sendSimple(a.action); return
+            if (a.action.indexOf("un") === 0) { sendSimple(a.action); return }
+            if (isSelf) { banner = "You can't punish yourself"; return }
+            pendingAction = a.action; pendingNode = a.node; pendingTemp = false
+            return
         }
         if (isSelf) { banner = "You can't punish yourself"; return }
         if (a.action === "kick" || a.action === "warn") { pendingAction = a.action; pendingNode = a.node; pendingTemp = false }
@@ -491,6 +497,11 @@ Item {
                     anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
                     anchors.margins: 12; spacing: 8
                     Text { text: "Confirm " + root.pendingAction; color: "#FFE082"; font.pixelSize: 13; font.bold: true }
+                    Text {
+                        visible: root.pendingAction === "shadowban" || root.pendingAction === "shadowmute"
+                        text: "The player never sees this — logged to JartonGuard for staff only."
+                        color: Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 11
+                    }
                     Rectangle {
                         width: parent.width; height: 30; radius: 8; color: Qt.rgba(1, 1, 1, 0.06)
                         TextInput {
