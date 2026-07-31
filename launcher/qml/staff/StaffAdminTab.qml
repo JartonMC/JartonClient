@@ -89,6 +89,9 @@ Item {
         if (rank) for (var i = 0; i < ranks.length; i++) if (ranks[i].rank === rank && ranks[i].color) return ranks[i].color
         return "#FFB833"
     }
+    // extra roles selected in the add form — sent alongside the primary rank
+    property var newRoles: []
+    function toggleRole(r) { var a = newRoles.slice(); var i = a.indexOf(r); if (i === -1) a.push(r); else a.splice(i, 1); newRoles = a }
 
     Connections {
         target: ProctorApi
@@ -217,6 +220,27 @@ Item {
                     StaffField { id: fMc; ph: "minecraft name"; w: (parent.width - 8) / 2 }
                     RankField { id: fRank; w: (parent.width - 8) / 2 }
                 }
+                Column {
+                    width: parent.width; spacing: 4
+                    Text { text: "Extra roles (optional — add their permissions; the primary rank still shows)"; color: "#9a8a66"; font.pixelSize: 11 }
+                    Flow {
+                        width: parent.width; spacing: 6
+                        Repeater {
+                            model: root.ranks
+                            delegate: Rectangle {
+                                required property var modelData
+                                readonly property bool sel: root.newRoles.indexOf(modelData.rank) !== -1
+                                readonly property color rc: root.colorForRank(modelData.rank)
+                                visible: modelData.rank !== fRank.value
+                                width: rlbl.width + 20; height: 22; radius: 11
+                                color: sel ? Qt.rgba(rc.r, rc.g, rc.b, 0.22) : Qt.rgba(1, 1, 1, 0.05)
+                                border.color: sel ? rc : "transparent"; border.width: 1
+                                Text { id: rlbl; anchors.centerIn: parent; text: modelData.rank; color: sel ? rc : Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 11; font.bold: sel }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleRole(modelData.rank) }
+                            }
+                        }
+                    }
+                }
                 Row {
                     width: parent.width; spacing: 8
                     StaffField { id: fPass; ph: "password (min 8)"; pw: true; w: (parent.width - 8) / 2 }
@@ -233,9 +257,9 @@ Item {
                         text: "Create"; variant: "primary"
                         onClicked: {
                             if (fUser.value.length === 0 || fMc.value.length === 0 || fRank.value.length === 0 || fPass.value.length < 8) { root.banner = "Need username, MC name, rank, 8+ char password."; return }
-                            root.createStaff({ username: fUser.value, displayName: fDisplay.value, mcName: fMc.value, rank: fRank.value, password: fPass.value, autoOp: tOp.on, proctorAdmin: tAdmin.on, allowApplications: tApps.on })
+                            root.createStaff({ username: fUser.value, displayName: fDisplay.value, mcName: fMc.value, rank: fRank.value, roles: [fRank.value].concat(root.newRoles), password: fPass.value, autoOp: tOp.on, proctorAdmin: tAdmin.on, allowApplications: tApps.on })
                             root.adding = false
-                            fUser.clear(); fDisplay.clear(); fMc.clear(); fRank.clear(); fPass.clear()
+                            fUser.clear(); fDisplay.clear(); fMc.clear(); fRank.clear(); fPass.clear(); root.newRoles = []
                         }
                     }
                     SButton { text: "Cancel"; variant: "ghost"; onClicked: root.adding = false }
@@ -291,6 +315,15 @@ Item {
                                 anchors.right: chev.left; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; spacing: 6
                                 Rectangle { property color rc: root.colorForRank(modelData.rank); width: rkT.width + 16; height: 20; radius: 10; color: Qt.rgba(rc.r, rc.g, rc.b, 0.16); anchors.verticalCenter: parent.verticalCenter
                                     Text { id: rkT; anchors.centerIn: parent; text: modelData.rank ? modelData.rank : "staff"; color: parent.rc; font.pixelSize: 11; font.bold: true } }
+                                Repeater {
+                                    model: modelData.roles ? modelData.roles.slice(1) : []
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        readonly property color rc: root.colorForRank(modelData)
+                                        width: exT.width + 12; height: 18; radius: 9; color: Qt.rgba(rc.r, rc.g, rc.b, 0.1); anchors.verticalCenter: parent.verticalCenter
+                                        Text { id: exT; anchors.centerIn: parent; text: modelData; color: rc; font.pixelSize: 9; font.bold: true }
+                                    }
+                                }
                                 Rectangle { visible: modelData.proctorAdmin === true; width: adT.width + 14; height: 20; radius: 10; color: Qt.rgba(0.35, 0.82, 0.48, 0.16); anchors.verticalCenter: parent.verticalCenter
                                     Text { id: adT; anchors.centerIn: parent; text: "admin"; color: "#5ad17a"; font.pixelSize: 10; font.bold: true } }
                                 Rectangle { visible: modelData.active === true; width: 8; height: 8; radius: 4; color: "#5ad17a"; anchors.verticalCenter: parent.verticalCenter }
