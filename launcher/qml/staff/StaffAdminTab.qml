@@ -238,10 +238,11 @@ Item {
             }
         }
 
-        // ---- roster: fixed-height scroll, ~3 cards visible, scroll for the rest ----
+        // ---- roster: grows to fit every card so the whole list is visible without a
+        //      peephole scroll; only caps (and scrolls) if it would crowd out the rest ----
         Rectangle {
             width: parent.width
-            height: root.adding ? 120 : 244
+            height: root.adding ? 120 : Math.min(rosterList.contentHeight, Math.max(160, root.height - 280))
             radius: 12; color: "transparent"
             ListView {
                 id: rosterList
