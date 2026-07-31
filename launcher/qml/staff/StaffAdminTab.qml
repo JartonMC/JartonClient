@@ -84,6 +84,11 @@ Item {
     function patchStaff(id, body) { track(ProctorApi.send("PATCH", "/proctor/staff/" + id, JSON.stringify(body))); say("Saving…") }
     function removeStaff(id) { track(ProctorApi.send("DELETE", "/proctor/staff/" + id)); say("Removing…") }
     function resetPw(id, pw) { track(ProctorApi.send("POST", "/proctor/staff/" + id + "/password", JSON.stringify({ password: pw }))); say("Resetting password…") }
+    // rank tint straight from the in-game LP prefix colour (served by /proctor/ranks); honey fallback
+    function colorForRank(rank) {
+        if (rank) for (var i = 0; i < ranks.length; i++) if (ranks[i].rank === rank && ranks[i].color) return ranks[i].color
+        return "#FFB833"
+    }
 
     Connections {
         target: ProctorApi
@@ -284,8 +289,8 @@ Item {
                             }
                             Row {
                                 anchors.right: chev.left; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; spacing: 6
-                                Rectangle { width: rkT.width + 16; height: 20; radius: 10; color: Qt.rgba(1, 0.72, 0.2, 0.16); anchors.verticalCenter: parent.verticalCenter
-                                    Text { id: rkT; anchors.centerIn: parent; text: modelData.rank ? modelData.rank : "staff"; color: "#FFB833"; font.pixelSize: 11; font.bold: true } }
+                                Rectangle { property color rc: root.colorForRank(modelData.rank); width: rkT.width + 16; height: 20; radius: 10; color: Qt.rgba(rc.r, rc.g, rc.b, 0.16); anchors.verticalCenter: parent.verticalCenter
+                                    Text { id: rkT; anchors.centerIn: parent; text: modelData.rank ? modelData.rank : "staff"; color: parent.rc; font.pixelSize: 11; font.bold: true } }
                                 Rectangle { visible: modelData.proctorAdmin === true; width: adT.width + 14; height: 20; radius: 10; color: Qt.rgba(0.35, 0.82, 0.48, 0.16); anchors.verticalCenter: parent.verticalCenter
                                     Text { id: adT; anchors.centerIn: parent; text: "admin"; color: "#5ad17a"; font.pixelSize: 10; font.bold: true } }
                                 Rectangle { visible: modelData.active === true; width: 8; height: 8; radius: 4; color: "#5ad17a"; anchors.verticalCenter: parent.verticalCenter }
