@@ -110,8 +110,7 @@ Item {
         reqDiscord = ProctorApi.send("GET", "/proctor/players/discord?uuid=" + uuid)
         reqPlaytime = ProctorApi.send("GET", "/proctor/players/playtime?uuid=" + uuid)
         reqReports = ProctorApi.send("GET", "/proctor/players/reports?uuid=" + uuid)
-        if (ProctorClient.allowJoinInfo)
-            reqInfo = ProctorApi.send("GET", "/proctor/players/info?uuid=" + uuid)
+        reqInfo = ProctorApi.send("GET", "/proctor/players/info?uuid=" + uuid)
     }
 
     function resolveReport(id) {
@@ -945,11 +944,20 @@ Item {
                 }
             }
 
-            // ---- join info (per-account gated; the broker 403s regardless) ----
+            // ---- join info (broker decides masked vs full by rank) ----
             Column {
-                width: parent.width; spacing: 8; visible: ProctorClient.allowJoinInfo && root.joinInfo !== null
+                width: parent.width; spacing: 8; visible: root.joinInfo !== null
                 Text { text: "Join info"; color: "#FFFFFF"; font.pixelSize: 14; font.bold: true }
                 Text { text: "First seen shown in your local time (" + TimeFmt.zoneLabel + ")"; color: "#6b5d3f"; font.pixelSize: 11 }
+                Row {
+                    visible: root.joinInfo && root.joinInfo.masked === true
+                    spacing: 6
+                    Rectangle {
+                        width: mtag.width + 12; height: 16; radius: 8; color: Qt.rgba(1, 1, 1, 0.08)
+                        Text { id: mtag; anchors.centerIn: parent; text: "MASKED"; color: Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 9; font.bold: true }
+                    }
+                    Text { height: 16; verticalAlignment: Text.AlignVCenter; text: "Full IP and alts are restricted to admins and above."; color: "#6b5d3f"; font.pixelSize: 11 }
+                }
                 Rectangle {
                     width: parent.width; height: jiCol.height + 20; radius: 11; color: Qt.rgba(1, 1, 1, 0.04)
                     Column {
