@@ -29,6 +29,14 @@ Item {
     property string pendingNode: ""
     property bool pendingTemp: false
     property bool clearAllConfirm: false
+    property bool offenceConfirm: false
+    property bool offenceSilent: false
+    readonly property var offSummary: offenceConfirm ? selectedRungs() : []
+    readonly property var offStacked: offenceConfirm ? stackedActions() : []
+    property bool clearHistoryConfirm: false
+    // deleting the record log is owner/manager only — mirrors the broker's historyManagerGuard
+    readonly property bool canManageHistory: ProctorClient.admin
+        || ["manager", "owner", "founder"].indexOf((ProctorClient.rank || "").toLowerCase()) !== -1
 
     property int reqServers: -1
     property int reqGuide: -1
@@ -164,6 +172,61 @@ Item {
     }
     function rungLabel(off) { var r = rung(off); return r ? ("next: " + r.label) : "" }
     function flatOffences() { var out = []; for (var i = 0; i < sections.length; i++) for (var j = 0; j < sections[i].offenses.length; j++) out.push(sections[i].offenses[j]); return out }
+    function offenceById(id) { var f = flatOffences(); for (var i = 0; i < f.length; i++) if (f[i].id === id) return f[i]; return null }
+    // per-offence resolved rung, for the confirm summary
+    function selectedRungs() {
+        var out = []
+        for (var i = 0; i < selected.length; i++) {
+            var off = offenceById(selected[i]); if (!off) continue
+            var r = rung(off); if (!r) continue
+            out.push({ display: off.display, label: r.label })
+        }
+        return out
+    }
+    function durText(ms) {
+        if (ms <= 0) return "Permanent"
+        var rem = ms, parts = []
+        var d = Math.floor(rem / 86400000); rem -= d * 86400000
+        var h = Math.floor(rem / 3600000); rem -= h * 3600000
+        var m = Math.floor(rem / 60000)
+        if (d > 0) parts.push(d + "d"); if (h > 0) parts.push(h + "h"); if (m > 0) parts.push(m + "m")
+        return parts.length ? parts.join(" ") : "0m"
+    }
+    function describeStep(type, ms) {
+        if (type === "WARN") return "Warn"
+        if (type === "KICK") return "Kick"
+        var action = type
+        if (type === "MUTE" || type === "TEMP_MUTE") action = "Mute"
+        else if (type === "BAN" || type === "TEMP_BAN") action = "Ban"
+        else if (type === "IP_BAN" || type === "TEMP_IP_BAN") action = "IP Ban"
+        return ms <= 0 ? ("Permanent " + action) : (durText(ms) + " " + action)
+    }
+    // mirror of JartonGuard's PunishmentStacker: durations add within a family, permanent wins,
+    // kick/warn pass through. Preview only — the plugin receipt stays authoritative.
+    function stackedActions() {
+        var ban = { on: false, perm: false, dur: 0 }, ip = { on: false, perm: false, dur: 0 }, mute = { on: false, perm: false, dur: 0 }
+        var kick = false, warn = false
+        for (var i = 0; i < selected.length; i++) {
+            var off = offenceById(selected[i]); if (!off) continue
+            var s = rung(off); if (!s) continue
+            var ms = s.durationMs || 0, fam = null
+            if (s.type === "BAN" || s.type === "TEMP_BAN") fam = ban
+            else if (s.type === "IP_BAN" || s.type === "TEMP_IP_BAN") fam = ip
+            else if (s.type === "MUTE" || s.type === "TEMP_MUTE") fam = mute
+            else if (s.type === "KICK") { kick = true; continue }
+            else if (s.type === "WARN") { warn = true; continue }
+            else continue
+            fam.on = true
+            if (ms <= 0) fam.perm = true; else fam.dur += ms
+        }
+        var out = []
+        if (ban.on) out.push(describeStep(ban.perm ? "BAN" : "TEMP_BAN", ban.perm ? 0 : ban.dur))
+        if (ip.on) out.push(describeStep(ip.perm ? "IP_BAN" : "TEMP_IP_BAN", ip.perm ? 0 : ip.dur))
+        if (mute.on) out.push(describeStep(mute.perm ? "MUTE" : "TEMP_MUTE", mute.perm ? 0 : mute.dur))
+        if (kick) out.push("Kick")
+        if (warn) out.push("Warn")
+        return out
+    }
     function allowed() {
         if (ProctorClient.admin) return null
         var helper = ["warn"], jrmod = helper.concat(["kick", "mute", "tempmute"]), mod = jrmod.concat(["tempban"]),
@@ -214,12 +277,21 @@ Item {
         banner = "Cleared all punishments for " + name
         clearAllConfirm = false
     }
+    function sendClearHistory() {
+        trackWrite(ProctorApi.send("POST", "/proctor/players/history/clear", JSON.stringify({ uuid: uuid })))
+        banner = "Cleared punishment history for " + name
+        clearHistoryConfirm = false
+    }
     function applyOffenses() {
         if (!selected.length) return
         if (isSelf) { banner = "You can't punish yourself"; return }
-        trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "punish-offense", args: { target: uuid, categories: selected } })))
+        var args = { target: uuid, categories: selected }
+        var reason = offReasonIn.text.trim()
+        if (reason.length) args.reason = reason
+        if (offenceSilent) args.silent = true
+        trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "punish-offense", args: args })))
         banner = "Applied " + selected.length + " offence" + (selected.length === 1 ? "" : "s") + " to " + name
-        selected = []
+        selected = []; offenceConfirm = false; offenceSilent = false; offReasonIn.text = ""
     }
     function pressAction(a) {
         if (a.un) { sendUn(a.action); return }
@@ -414,9 +486,25 @@ Item {
     }
 
     Flickable {
+        id: detailFlick
         anchors.fill: parent
         contentWidth: width; contentHeight: detailCol.height + 16; clip: true
         boundsBehavior: Flickable.StopAtBounds
+        flickDeceleration: 2600
+        maximumFlickVelocity: 6000
+        property real accel: 1
+        property real lastWheel: 0
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse
+            onWheel: function (e) {
+                var now = Date.now()
+                detailFlick.accel = (now - detailFlick.lastWheel < 90) ? Math.min(detailFlick.accel + 0.7, 7) : 1.4
+                detailFlick.lastWheel = now
+                var maxY = Math.max(0, detailFlick.contentHeight - detailFlick.height)
+                detailFlick.contentY = Math.max(0, Math.min(maxY, detailFlick.contentY - (e.angleDelta.y / 120) * 64 * detailFlick.accel))
+                e.accepted = true
+            }
+        }
 
         Column {
             id: detailCol
@@ -576,7 +664,59 @@ Item {
                         }
                     }
                     Text { visible: root.sections.length === 0; text: "Loading offences…"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13 }
-                    SButton { visible: root.selected.length > 0; text: "Apply " + root.selected.length + " offence" + (root.selected.length === 1 ? "" : "s"); variant: "primary"; onClicked: root.applyOffenses() }
+                    SButton {
+                        visible: root.selected.length > 0 && !root.offenceConfirm
+                        text: "Review " + root.selected.length + " offence" + (root.selected.length === 1 ? "" : "s"); variant: "primary"
+                        onClicked: root.offenceConfirm = true
+                    }
+
+                    // ---- offence confirm summary (what stacks, what the player receives) ----
+                    Rectangle {
+                        visible: root.offenceConfirm && root.selected.length > 0
+                        width: detailCol.width; height: offConfirmCol.implicitHeight + 24; radius: 12
+                        color: Qt.rgba(1, 1, 1, 0.05); border.color: "#FFB833"; border.width: 1
+                        Column {
+                            id: offConfirmCol
+                            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                            anchors.margins: 12; spacing: 8
+                            Text { text: "Applying to " + root.name; color: "#FFE082"; font.pixelSize: 13; font.bold: true }
+                            Column {
+                                width: parent.width; spacing: 4
+                                Repeater {
+                                    model: root.offSummary
+                                    delegate: Row {
+                                        required property var modelData
+                                        width: offConfirmCol.width; spacing: 8
+                                        Text { text: modelData.display; color: Qt.rgba(1, 1, 1, 0.85); font.pixelSize: 12; width: parent.width * 0.55; elide: Text.ElideRight }
+                                        Text { text: modelData.label; color: Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 12; horizontalAlignment: Text.AlignRight; width: parent.width * 0.45 - 8; elide: Text.ElideRight }
+                                    }
+                                }
+                            }
+                            Rectangle { width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
+                            Text { text: "Player receives"; color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11 }
+                            Column {
+                                width: parent.width; spacing: 3
+                                Repeater {
+                                    model: root.offStacked
+                                    delegate: Text { required property var modelData; text: modelData; color: "#FFB833"; font.pixelSize: 14; font.bold: true }
+                                }
+                            }
+                            Rectangle {
+                                width: parent.width; height: 30; radius: 8; color: Qt.rgba(1, 1, 1, 0.06)
+                                TextInput {
+                                    id: offReasonIn; anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
+                                    verticalAlignment: TextInput.AlignVCenter; color: "#FFFFFF"; font.pixelSize: 13; clip: true
+                                    Text { anchors.verticalCenter: parent.verticalCenter; text: "Reason (optional)…"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13; visible: offReasonIn.text.length === 0 }
+                                }
+                            }
+                            Row {
+                                spacing: 8
+                                SButton { text: root.offenceSilent ? "Silent: on" : "Silent: off"; variant: root.offenceSilent ? "secondary" : "ghost"; compact: true; onClicked: root.offenceSilent = !root.offenceSilent }
+                                SButton { text: "Confirm & apply"; variant: "primary"; compact: true; onClicked: root.applyOffenses() }
+                                SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: { root.offenceConfirm = false; root.offenceSilent = false; offReasonIn.text = "" } }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -921,6 +1061,28 @@ Item {
                             Text { width: parent.width; text: reason; color: "#F2E8D0"; font.pixelSize: 12; elide: Text.ElideRight }
                             Text { text: "by " + staffName; color: Qt.rgba(1, 1, 1, 0.4); font.pixelSize: 11 }
                         }
+                    }
+                }
+            }
+
+            // ---- clear punishment history (owner/manager only — wipes the record log,
+            //      leaves active punishments alone; broker enforces via historyManagerGuard) ----
+            Column {
+                width: parent.width; spacing: 6
+                visible: root.canManageHistory && PlayerHistoryModel.count > 0
+                SButton { visible: !root.clearHistoryConfirm; text: "Clear player history"; variant: "danger"; compact: true; onClicked: root.clearHistoryConfirm = true }
+                Column {
+                    visible: root.clearHistoryConfirm
+                    width: parent.width; spacing: 6
+                    Text {
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: "Delete ALL punishment history for " + root.name + "? Removes the record log permanently — this cannot be undone. Active punishments are unaffected."
+                        color: "#FFE082"; font.pixelSize: 12
+                    }
+                    Row {
+                        spacing: 8
+                        SButton { text: "Delete history"; variant: "danger"; compact: true; onClicked: root.sendClearHistory() }
+                        SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.clearHistoryConfirm = false }
                     }
                 }
             }
