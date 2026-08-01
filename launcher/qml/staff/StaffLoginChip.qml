@@ -59,6 +59,18 @@ Rectangle {
         }
     }
 
+    // a successful login burns the code server-side, but the chip would otherwise keep showing it
+    // as "active" for the rest of the 5 min and just re-copy that dead code on the next click.
+    // Clear it the moment we're connected so a later re-login always mints a fresh, valid code.
+    Connections {
+        target: ProctorClient
+        function onChanged() {
+            if (ProctorClient.connected && chip.code.length > 0) {
+                chip.code = ""; chip.secsLeft = 0; chip.expiry = 0
+            }
+        }
+    }
+
     Timer {
         interval: 500; repeat: true; running: chip.code.length > 0 && chip.secsLeft > 0
         onTriggered: chip.secsLeft = Math.max(0, Math.round((chip.expiry - Date.now()) / 1000))
