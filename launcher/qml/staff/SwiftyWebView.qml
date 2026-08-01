@@ -28,26 +28,24 @@ Item {
     // C++-side); applied per load, SPA route changes keep the style on the document.
     property real pageZoom: 0.8
 
-    // WebKit (macOS) implements legacy `zoom`: the layout viewport grows so the page
-    // reflows and fills the container. Chromium (WebView2 on Windows) implements
-    // spec'd `zoom`, which just shrinks the <html> box and letterboxes it. On Chromium
-    // we scale the root and widen it by 1/z so content lays out wider then fits after
-    // scaling — but Swifty's board background is `<main class="h-screen">` with an
-    // absolute-inset-0 image layer, and `h-screen` (100vh) is anchored to the visual
-    // viewport, so it stays 100vh and scales down to leave a black band below the board.
-    // Forcing `main` to (100/z)vh makes that layer fill after the scale. Verified on
-    // Chromium against a repro of Swifty's exact board markup. One injected function so
-    // SPA route changes reapply it.
+    // Zoom via the CSS `zoom` property on BOTH engines — never `transform: scale()`. `zoom`
+    // is coordinate-safe: pointer events, hit-testing and getBoundingClientRect all account
+    // for it, which the board's drag-and-drop needs. The old Chromium path used a transform,
+    // which left the dragged card offset from the cursor, clipped the board when dragging to
+    // the edge, and tore the background during drag repaints — all fixed by using `zoom`.
+    // WebKit (macOS) reflows to fill on its own. Chromium doesn't, so we widen the root by 1/z
+    // and force Swifty's `main` (h-screen) layer to (100/z)vh so the board still covers after
+    // zooming. One injected function so SPA route changes reapply it.
     function zoomScript(z) {
         return "(function(z){var d=document.documentElement;"
              + "var wk=/AppleWebKit/.test(navigator.userAgent)&&!/Chrome|Chromium|Edg/.test(navigator.userAgent);"
              + "var sid='swifty-zoom-fill';var s=document.getElementById(sid);"
              + "if(!s){s=document.createElement('style');s.id=sid;document.head.appendChild(s);}"
-             + "if(wk){d.style.transform='';d.style.transformOrigin='';d.style.width='';d.style.height='';d.style.zoom=z;s.textContent='';}"
-             + "else{d.style.zoom='';"
-             + "if(z==1){d.style.transform='';d.style.transformOrigin='';d.style.width='';d.style.height='';s.textContent='';}"
-             + "else{d.style.transformOrigin='0 0';d.style.transform='scale('+z+')';d.style.width=(100/z)+'vw';d.style.height=(100/z)+'vh';s.textContent='main{height:'+(100/z)+'vh!important}';}"
-             + "}})(" + z + ");"
+             + "d.style.transform='';d.style.transformOrigin='';"  // undo the old transform hack
+             + "if(z==1){d.style.zoom='';d.style.width='';d.style.height='';s.textContent='';}"
+             + "else if(wk){d.style.zoom=z;d.style.width='';d.style.height='';s.textContent='';}"
+             + "else{d.style.zoom=z;d.style.width=(100/z)+'vw';d.style.height=(100/z)+'vh';s.textContent='main{height:'+(100/z)+'vh!important}';}"
+             + "})(" + z + ");"
     }
 
     function setZoom(z) {
