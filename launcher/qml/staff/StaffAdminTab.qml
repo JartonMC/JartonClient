@@ -192,13 +192,18 @@ Item {
                 }
             }
         }
-        // AdminTab renders one filtered feed; only mount it while this view is open so its
-        // pollers don't run in the background against every staffer you've ever clicked
+        // AdminTab renders one filtered feed; mount it fresh when the view opens (so its feeds
+        // load() with the right staffFilter already set) and unmount on Back so its pollers
+        // don't run against every staffer you've ever clicked
         Loader {
             anchors.top: actTabs.bottom; anchors.topMargin: 8
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
             active: root.activityStaffId >= 0
-            sourceComponent: AdminTab {
+            sourceComponent: activityFeedComp
+        }
+        Component {
+            id: activityFeedComp
+            AdminTab {
                 forceView: root.activityFeed
                 staffFilter: root.activityStaffId
                 staffMap: root.staffMap
