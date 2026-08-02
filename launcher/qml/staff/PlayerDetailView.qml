@@ -152,7 +152,7 @@ Item {
     function loadNotes() { reqNotes = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "notes", args: { target: uuid } })) }
     function addNote(text) {
         if (!text || !text.length) return
-        reqNoteAdd = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "note-add", args: { target: uuid, text: text } }))
+        reqNoteAdd = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "note-add", args: { target: uuid, targetName: name, text: text } }))
         banner = "Note added"
     }
     function removeNote(noteId) {
