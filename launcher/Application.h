@@ -281,7 +281,8 @@ class Application : public QApplication {
                           const QString& instanceName,
                           const QString& mcVersion,
                           const QString& packVersion,
-                          std::function<void()> onFinished);
+                          std::function<void()> onFinished,
+                          const QString& groupName = QString{});
 
     // sets the fatal error message and m_status to Failed.
     void showFatalErrorMessage(const QString& title, const QString& content);

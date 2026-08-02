@@ -13,6 +13,8 @@ Item {
     // displayName / username → { name, uuid } fallback so faces resolve even before the
     // broker mc_name join lands; supplied by the host (the staff roster it already has)
     property var staffMap: ({})
+    // when >= 0 the session/command/presence feeds scope to this one staffer (roster drill-in)
+    property int staffFilter: -1
 
     readonly property string current: embedded ? forceView : view
 
@@ -138,6 +140,7 @@ Item {
             property string emptyText: "Nothing here yet."
             property int limit: 100
             property bool paged: false
+            property string extra: ""                    // extra query string (e.g. &staffId=) appended to every fetch
             property bool zoneNote: false               // dim "times shown in your local time" line
             property bool showHeader: !root.embedded   // the drill-in host draws its own header
             property Component row
@@ -151,7 +154,7 @@ Item {
             property string lastRaw: ""
 
             function url(before) {
-                var q = "?limit=" + limit
+                var q = "?limit=" + limit + feed.extra
                 if (paged && before) q += "&before=" + before
                 return path + q
             }
@@ -262,6 +265,7 @@ Item {
         Feed {
             anchors.fill: parent; visible: root.current === "sessions"
             path: "/proctor/sessions"; key: "sessions"; title: "Session History"; emptyText: "No sessions yet."; paged: true; zoneNote: true
+            extra: root.staffFilter >= 0 ? "&staffId=" + root.staffFilter : ""
             row: Card {
                 height: 62
                 Avatar { id: sAv; anchors.left: parent.left; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter
@@ -283,6 +287,7 @@ Item {
         Feed {
             anchors.fill: parent; visible: root.current === "commands"
             path: "/proctor/commands"; key: "commands"; title: "Command Logs"; emptyText: "No commands logged."; paged: true
+            extra: root.staffFilter >= 0 ? "&staffId=" + root.staffFilter : ""
             row: Card {
                 height: 52
                 Avatar { id: cAv; anchors.left: parent.left; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter
@@ -302,6 +307,7 @@ Item {
         Feed {
             anchors.fill: parent; visible: root.current === "presence"
             path: "/proctor/presence"; key: "presence"; title: "Join / Leave"; emptyText: "No presence events yet."; paged: true; zoneNote: true
+            extra: root.staffFilter >= 0 ? "&staffId=" + root.staffFilter : ""
             row: Card {
                 height: 48
                 Avatar { id: pAv; anchors.left: parent.left; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter

@@ -281,6 +281,10 @@ Item {
         banner = "Cleared punishment history for " + name
         clearHistoryConfirm = false
     }
+    function deleteHistoryEntry(id) {
+        trackWrite(ProctorApi.send("POST", "/proctor/players/history/delete", JSON.stringify({ id: id })))
+        banner = "Removed history entry"
+    }
     function applyOffenses() {
         if (!selected.length) return
         if (isSelf) { banner = "You can't punish yourself"; return }
@@ -803,10 +807,15 @@ Item {
                         }
                     }
                     Row {
-                        visible: root.invDanger.length === 0
+                        visible: root.invDanger.length === 0 && StaffAuth.canPanel
                         spacing: 7
                         SButton { text: "Clear inventory"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "clear" }
                         SButton { text: "Wipe player"; variant: "danger"; compact: true; enabled: !root.invBusy; onClicked: root.invDanger = "wipe" }
+                    }
+                    Text {
+                        visible: !StaffAuth.canPanel
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: "You don't have permission to clear or wipe inventories."; color: "#6b5d3f"; font.pixelSize: 12
                     }
                     Column {
                         visible: root.invDanger.length > 0
@@ -834,8 +843,13 @@ Item {
                     title: "Adjust resources"; open: root.adjOpen
                     onToggled: root.adjOpen = !root.adjOpen
                 }
+                Text {
+                    visible: root.adjOpen && !StaffAuth.canPanel
+                    width: parent.width; wrapMode: Text.WordWrap
+                    text: "You don't have permission to adjust player resources."; color: "#6b5d3f"; font.pixelSize: 12
+                }
                 Rectangle {
-                    width: parent.width; visible: root.adjOpen
+                    width: parent.width; visible: root.adjOpen && StaffAuth.canPanel
                     height: adjCol.height + 24; radius: 11
                     color: Qt.rgba(1, 1, 1, 0.04)
                     Column {
@@ -1043,9 +1057,21 @@ Item {
                             if (h < 48) return h + "h"
                             return Math.round(h / 24) + "d"
                         }
+                        // per-entry delete (owner/manager tier) — removes just this record via history/delete
+                        Image {
+                            id: histX
+                            visible: root.canManageHistory
+                            anchors.right: parent.right; anchors.rightMargin: 12; anchors.top: parent.top; anchors.topMargin: 12
+                            source: "qrc:/jarton/staff/icons/ui/x-cream.svg"
+                            width: 11; height: 11; sourceSize: Qt.size(22, 22)
+                            opacity: histXHover.containsMouse ? 0.9 : 0.35
+                            MouseArea { id: histXHover; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.deleteHistoryEntry(model.id) }
+                        }
                         Column {
                             id: hc
-                            anchors.left: parent.left; anchors.leftMargin: 14; anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 3
+                            anchors.left: parent.left; anchors.leftMargin: 14
+                            anchors.right: root.canManageHistory ? histX.left : parent.right; anchors.rightMargin: root.canManageHistory ? 8 : 14
+                            anchors.verticalCenter: parent.verticalCenter; spacing: 3
                             Item {
                                 width: parent.width; height: 16
                                 Row {

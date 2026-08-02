@@ -1721,9 +1721,9 @@ void Application::initJartonServices()
     connect(m_jartonDefaultInstance, &Jarton::DefaultInstanceService::provisionRequested, this,
             [this](const QString& packUrl) {
                 const Jarton::ManifestInstance& mi = m_jartonManifest->manifest().instance;
-                importJartonPack(packUrl, QStringLiteral("Jarton"), mi.minecraftVersion, mi.packVersion, [this] {
-                    m_jartonDefaultInstance->onProvisionFinished();
-                });
+                importJartonPack(
+                    packUrl, QStringLiteral("Jarton"), mi.minecraftVersion, mi.packVersion,
+                    [this] { m_jartonDefaultInstance->onProvisionFinished(); }, QStringLiteral("Your Instances"));
             });
 
     // Per-version provisioning ("Create Jarton Instance"): imports the chosen version's
@@ -1732,7 +1732,7 @@ void Application::initJartonServices()
     // Creation-time only — once made, the instance is the user's to edit.
     connect(m_jartonProvision, &Jarton::JartonProvisionService::provisionRequested, this,
             [this](const QString& packUrl, const QString& instanceName, const QString& mcVersion, const QString& packVersion) {
-                importJartonPack(packUrl, instanceName, mcVersion, packVersion, {});
+                importJartonPack(packUrl, instanceName, mcVersion, packVersion, {}, QStringLiteral("Updated Instances"));
             });
 
     // Launcher updates: detection lives in JartonUpdateService, everything from
@@ -1754,8 +1754,12 @@ void Application::initJartonServices()
                                                               mcVersion, packVersion, network());
                 task->setParent(this);
                 const QString name = inst->name();
-                connect(task, &Task::succeeded, this,
-                        [name] { qInfo() << "[jarton.update] updated:" << name; });
+                connect(task, &Task::succeeded, this, [this, name, instanceId] {
+                    qInfo() << "[jarton.update] updated:" << name;
+                    // an updated instance moves into the Updated Instances group; the ones the
+                    // player hasn't taken updates on stay put, so the two are easy to tell apart
+                    instances()->setInstanceGroup(instanceId, QStringLiteral("Updated Instances"));
+                });
                 connect(task, &Task::failed, this, [name](const QString& reason) {
                     qWarning() << "[jarton.update] failed:" << name << reason;
                     QMessageBox::warning(nullptr, tr("Jarton update failed"),
@@ -1784,7 +1788,8 @@ void Application::importJartonPack(const QString& packUrl,
                                    const QString& instanceName,
                                    const QString& mcVersion,
                                    const QString& packVersion,
-                                   std::function<void()> onFinished)
+                                   std::function<void()> onFinished,
+                                   const QString& groupName)
 {
     qInfo() << "[jarton.instance] importing pack" << instanceName << "from" << packUrl;
     auto* importTask = new InstanceImportTask(QUrl(packUrl), nullptr);
@@ -1797,7 +1802,7 @@ void Application::importJartonPack(const QString& packUrl,
     // app so it outlives this call, and self-delete on finish.
     Task* staged = instances()->wrapInstanceTask(importTask);
     staged->setParent(this);
-    connect(staged, &Task::succeeded, this, [this, instanceName, mcVersion, packVersion] {
+    connect(staged, &Task::succeeded, this, [this, instanceName, mcVersion, packVersion, groupName] {
         qInfo() << "[jarton.instance] pack import succeeded:" << instanceName;
         // Baseline for the pack-update edit gate: record what this pack installed.
         for (int i = 0; i < instances()->count(); ++i) {
@@ -1808,6 +1813,11 @@ void Application::importJartonPack(const QString& packUrl,
             const auto rec = Jarton::PackRecord::capture(inst->gameRoot(), mcVersion, packVersion);
             if (!rec.valid || !rec.write(inst->instanceRoot())) {
                 qWarning() << "[jarton.instance] couldn't write pack record for" << instanceName;
+            }
+            // file it under its Prism group so the version instances stay tidy and
+            // collapsible instead of scattering across the flat list
+            if (!groupName.isEmpty()) {
+                instances()->setInstanceGroup(inst->id(), groupName);
             }
             break;
         }

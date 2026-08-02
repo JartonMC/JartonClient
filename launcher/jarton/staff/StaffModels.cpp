@@ -123,6 +123,8 @@ QVariant PlayerHistoryModel::data(const QModelIndex& index, int role) const
             return r.active;
         case ServerRole:
             return r.server;
+        case IdRole:
+            return QVariant::fromValue(r.id);
         default:
             return {};
     }
@@ -133,7 +135,7 @@ QHash<int, QByteArray> PlayerHistoryModel::roleNames() const
     return {
         { ActionRole, "action" }, { ReasonRole, "reason" },     { StaffRole, "staffName" },
         { TimestampRole, "ts" },  { DurationRole, "duration" }, { ActiveRole, "active" },
-        { ServerRole, "server" },
+        { ServerRole, "server" }, { IdRole, "id" },
     };
 }
 
@@ -190,6 +192,7 @@ void PlayerHistoryModel::load(const QString& uuid, const QString& name)
             for (const auto& v : arr) {
                 const QJsonObject o = v.toObject();
                 Record rec;
+                rec.id = static_cast<qint64>(o.value("id").toDouble());
                 rec.action = o.value("action").toString();
                 rec.reason = o.value("reason").toString();
                 rec.staff = o.value("staffName").toString();

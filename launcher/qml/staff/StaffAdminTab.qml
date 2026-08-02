@@ -21,6 +21,10 @@ Item {
     property int openId: -1
     property string searchText: ""
     property string drill: ""          // "" = roster home, else a feed id (active/sessions/…)
+    // per-staffer activity drill: >= 0 shows one staffer's own session/command/presence log
+    property int activityStaffId: -1
+    property string activityStaffName: ""
+    property string activityFeed: "commands"
 
     onVisibleChanged: if (visible && !loadedOnce) { loadedOnce = true; load(); reqRanks = ProctorApi.send("GET", "/proctor/ranks") }
 
@@ -161,9 +165,58 @@ Item {
         }
     }
 
+    // ================= PER-STAFFER ACTIVITY =================
+    Item {
+        anchors.fill: parent; anchors.margins: 4; visible: root.activityStaffId >= 0
+        Item {
+            id: actHead
+            width: parent.width; height: 34
+            SButton { id: actBack; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                text: "Back"; icon: "chevron-left"; variant: "ghost"; onClicked: root.activityStaffId = -1 }
+            Text { anchors.left: actBack.right; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter
+                text: root.activityStaffName + " · activity"; color: "#F2E8D0"; font.pixelSize: 18; font.bold: true }
+        }
+        Row {
+            id: actTabs
+            anchors.top: actHead.bottom; anchors.topMargin: 6; spacing: 8
+            Repeater {
+                model: [ { id: "commands", label: "Commands" }, { id: "sessions", label: "Sessions" }, { id: "presence", label: "Join / Leave" } ]
+                delegate: Rectangle {
+                    required property var modelData
+                    readonly property bool on: root.activityFeed === modelData.id
+                    width: atl.width + 22; height: 28; radius: 8
+                    color: on ? "#3a2f14" : "#0f0a06"
+                    border.color: on ? "#FFB81C" : "#2a2114"; border.width: 1
+                    Text { id: atl; anchors.centerIn: parent; text: modelData.label; color: on ? "#FFE082" : "#8a7a56"; font.pixelSize: 12; font.bold: on }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.activityFeed = modelData.id }
+                }
+            }
+        }
+        // AdminTab renders one filtered feed; only mount it while this view is open so its
+        // pollers don't run in the background against every staffer you've ever clicked
+        Loader {
+            anchors.top: actTabs.bottom; anchors.topMargin: 8
+            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            active: root.activityStaffId >= 0
+            sourceComponent: AdminTab {
+                forceView: root.activityFeed
+                staffFilter: root.activityStaffId
+                staffMap: root.staffMap
+            }
+        }
+    }
+
     // ================= ROSTER HOME =================
+    // whole page scrolls; the roster renders full-height inline so there's no nested
+    // scroll fighting the page wheel
+    Flickable {
+        id: rosterScroll
+        anchors.fill: parent; anchors.margins: 4; visible: root.drill.length === 0 && root.activityStaffId < 0
+        contentWidth: width; contentHeight: homeCol.height + 8
+        clip: true; boundsBehavior: Flickable.StopAtBounds
     Column {
-        anchors.fill: parent; anchors.margins: 4; spacing: 12; visible: root.drill.length === 0
+        id: homeCol
+        width: parent.width; spacing: 12
 
         Item {
             width: parent.width; height: 32
@@ -267,21 +320,26 @@ Item {
             }
         }
 
-        // ---- roster: grows to fit every card so the whole list is visible without a
-        //      peephole scroll; only caps (and scrolls) if it would crowd out the rest ----
+        // ---- roster: renders every card at full height inline; the page Flickable owns
+        //      the scroll, so the list itself never scrolls (no wheel tug-of-war) ----
         Rectangle {
             width: parent.width
-            height: root.adding ? 120 : Math.min(rosterList.contentHeight, Math.max(160, root.height - 280))
+            height: rosterList.contentHeight
             radius: 12; color: "transparent"
             ListView {
                 id: rosterList
                 anchors.fill: parent
+                interactive: false
                 clip: true; spacing: 8
                 model: root.shownStaff
                 delegate: Rectangle {
                     id: sCard
                     required property var modelData
                     readonly property bool open: root.openId === modelData.id
+                    // extra roles being edited on this card — seeded from the current set each time it opens
+                    property var editRoles: []
+                    onOpenChanged: if (open) editRoles = modelData.roles ? modelData.roles.slice(1) : []
+                    function toggleEdit(r) { var a = editRoles.slice(); var i = a.indexOf(r); if (i === -1) a.push(r); else a.splice(i, 1); editRoles = a }
                     width: rosterList.width; height: sCol.height + 22; radius: 12
                     color: "#16110a"; border.color: sCard.open ? "#3a2f14" : "#241c12"; border.width: 1
                     opacity: modelData.enabled === false ? 0.55 : 1.0
@@ -346,7 +404,34 @@ Item {
                                 width: parent.width; spacing: 8
                                 z: erank.open ? 10 : 0
                                 RankField { id: erank; w: (parent.width - 8) / 2; preset: modelData.rank ? modelData.rank : "" }
-                                SButton { anchors.top: parent.top; anchors.topMargin: 0; height: 32; text: "Save rank"; variant: "secondary"; onClicked: if (erank.value.length) root.patchStaff(modelData.id, { rank: erank.value }) }
+                                SButton { anchors.top: parent.top; anchors.topMargin: 0; height: 32; text: "Save roles"; variant: "secondary"
+                                    onClicked: {
+                                        if (!erank.value.length) return
+                                        var extras = sCard.editRoles.filter(function (r) { return r !== erank.value })
+                                        root.patchStaff(modelData.id, { roles: [erank.value].concat(extras) })
+                                    }
+                                }
+                            }
+                            Column {
+                                width: parent.width; spacing: 4
+                                Text { text: "Extra roles — add or drop their permissions; the primary rank still shows"; color: "#9a8a66"; font.pixelSize: 11 }
+                                Flow {
+                                    width: parent.width; spacing: 6
+                                    Repeater {
+                                        model: root.ranks
+                                        delegate: Rectangle {
+                                            required property var modelData
+                                            readonly property bool sel: sCard.editRoles.indexOf(modelData.rank) !== -1
+                                            readonly property color rc: root.colorForRank(modelData.rank)
+                                            visible: modelData.rank !== erank.value
+                                            width: erlbl.width + 20; height: 22; radius: 11
+                                            color: sel ? Qt.rgba(rc.r, rc.g, rc.b, 0.22) : Qt.rgba(1, 1, 1, 0.05)
+                                            border.color: sel ? rc : "transparent"; border.width: 1
+                                            Text { id: erlbl; anchors.centerIn: parent; text: modelData.rank; color: sel ? rc : Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 11; font.bold: sel }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sCard.toggleEdit(modelData.rank) }
+                                        }
+                                    }
+                                }
                             }
                             Row {
                                 spacing: 7
@@ -354,6 +439,16 @@ Item {
                                 SButton { compact: true; text: modelData.autoOp ? "Disable auto-op" : "Enable auto-op"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { autoOp: !modelData.autoOp }) }
                                 SButton { compact: true; text: modelData.allowApplications === false ? "Allow applications" : "Block applications"; variant: "secondary"; onClicked: root.patchStaff(modelData.id, { allowApplications: modelData.allowApplications === false }) }
                                 SButton { compact: true; text: modelData.enabled === false ? "Enable" : "Disable"; variant: modelData.enabled === false ? "primary" : "ghost"; onClicked: root.patchStaff(modelData.id, { enabled: modelData.enabled === false }) }
+                            }
+                            Row {
+                                spacing: 7
+                                SButton { compact: true; text: "View activity"; variant: "secondary"
+                                    onClicked: {
+                                        root.activityStaffName = modelData.displayName ? modelData.displayName : modelData.username
+                                        root.activityFeed = "commands"
+                                        root.activityStaffId = modelData.id
+                                    }
+                                }
                             }
                             Row {
                                 width: parent.width; spacing: 7
@@ -455,6 +550,7 @@ Item {
                 NavCard { anchors.horizontalCenter: parent.horizontalCenter; item: root.navItems[4] }
             }
         }
+    }
     }
 
     // ---- small inline field + toggle components ----

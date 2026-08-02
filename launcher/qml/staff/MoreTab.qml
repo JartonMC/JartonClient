@@ -100,7 +100,7 @@ Item {
                     anchors.left: parent.left; anchors.right: parent.right
                     anchors.leftMargin: 16; anchors.rightMargin: 16
                     NotifToggle { width: parent.width; label: "Tickets"; icon: "ticket"; value: root.on("notify_tickets", "notifyTickets"); onToggled: (v) => root.setNotif("tickets", v) }
-                    NotifToggle { width: parent.width; label: "Applications"; icon: "file-text"; value: root.on("notify_applications", "notifyApplications"); onToggled: (v) => root.setNotif("applications", v) }
+                    NotifToggle { visible: ProctorClient.allowApplications; width: parent.width; label: "Applications"; icon: "file-text"; value: root.on("notify_applications", "notifyApplications"); onToggled: (v) => root.setNotif("applications", v) }
                     NotifToggle { width: parent.width; label: "Reports"; icon: "flag"; value: root.on("notify_reports", "notifyReports"); onToggled: (v) => root.setNotif("reports", v) }
                     NotifToggle { width: parent.width; label: "Punishments"; icon: "shield"; value: root.on("notify_punish", "notifyPunish"); onToggled: (v) => root.setNotif("punish", v) }
                     NotifToggle { width: parent.width; label: "Ban evaders"; icon: "users"; value: root.on("notify_evader", "notifyEvader"); onToggled: (v) => root.setNotif("evader", v) }
