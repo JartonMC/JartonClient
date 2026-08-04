@@ -113,6 +113,8 @@ QVariant PlayerHistoryModel::data(const QModelIndex& index, int role) const
             return r.action;
         case ReasonRole:
             return r.reason;
+        case NoteRole:
+            return r.note;
         case StaffRole:
             return r.staff;
         case TimestampRole:
@@ -133,9 +135,9 @@ QVariant PlayerHistoryModel::data(const QModelIndex& index, int role) const
 QHash<int, QByteArray> PlayerHistoryModel::roleNames() const
 {
     return {
-        { ActionRole, "action" }, { ReasonRole, "reason" },     { StaffRole, "staffName" },
-        { TimestampRole, "ts" },  { DurationRole, "duration" }, { ActiveRole, "active" },
-        { ServerRole, "server" }, { IdRole, "id" },
+        { ActionRole, "action" }, { ReasonRole, "reason" },     { NoteRole, "note" },
+        { StaffRole, "staffName" }, { TimestampRole, "ts" },  { DurationRole, "duration" },
+        { ActiveRole, "active" }, { ServerRole, "server" }, { IdRole, "id" },
     };
 }
 
@@ -195,6 +197,7 @@ void PlayerHistoryModel::load(const QString& uuid, const QString& name)
                 rec.id = static_cast<qint64>(o.value("id").toDouble());
                 rec.action = o.value("action").toString();
                 rec.reason = o.value("reason").toString();
+                rec.note = o.value("note").toString();
                 rec.staff = o.value("staffName").toString();
                 rec.timestamp = static_cast<qint64>(o.value("timestamp").toDouble());
                 rec.duration = static_cast<qint64>(o.value("duration").toDouble());

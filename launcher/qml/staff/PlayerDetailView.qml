@@ -289,8 +289,9 @@ Item {
         if (!selected.length) return
         if (isSelf) { banner = "You can't punish yourself"; return }
         var args = { target: uuid, categories: selected }
-        var reason = offReasonIn.text.trim()
-        if (reason.length) args.reason = reason
+        // the offences are the reason now; this field is an optional staff note kept on the record
+        var note = offReasonIn.text.trim()
+        if (note.length) args.note = note
         if (offenceSilent) args.silent = true
         trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "punish-offense", args: args })))
         banner = "Applied " + selected.length + " offence" + (selected.length === 1 ? "" : "s") + " to " + name
@@ -709,7 +710,7 @@ Item {
                                 TextInput {
                                     id: offReasonIn; anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
                                     verticalAlignment: TextInput.AlignVCenter; color: "#FFFFFF"; font.pixelSize: 13; clip: true
-                                    Text { anchors.verticalCenter: parent.verticalCenter; text: "Reason (optional)…"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13; visible: offReasonIn.text.length === 0 }
+                                    Text { anchors.verticalCenter: parent.verticalCenter; text: "Note (optional, staff-only)…"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13; visible: offReasonIn.text.length === 0 }
                                 }
                             }
                             Row {
@@ -1093,6 +1094,7 @@ Item {
                                 }
                             }
                             Text { width: parent.width; text: reason; color: "#F2E8D0"; font.pixelSize: 12; elide: Text.ElideRight }
+                            Text { width: parent.width; text: note ? "“" + note + "”" : ""; color: Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 11; font.italic: true; wrapMode: Text.WordWrap; visible: text.length > 0 }
                             Text { text: "by " + staffName; color: Qt.rgba(1, 1, 1, 0.4); font.pixelSize: 11 }
                         }
                     }
