@@ -41,6 +41,7 @@ Item {
     property int reqServers: -1
     property int reqGuide: -1
     property int reqCounts: -1
+    property int reqPunishOff: -1
     property int reqNotes: -1
     property int reqNoteAdd: -1
     // punish/unpunish/offence writes this screen issued — only these refresh
@@ -170,6 +171,17 @@ Item {
         return off.ladder[Math.min(n, off.ladder.length - 1)]
     }
     function rungLabel(off) { var r = rung(off); return r ? ("next: " + r.label) : "" }
+    // severity colour of an offence's NEXT step, matching JartonGuard's palette:
+    // ban = red, mute = orange, warn = yellow, kick = light
+    function severityColor(off) {
+        var r = rung(off); var l = r ? String(r.label).toLowerCase() : ""
+        if (l.indexOf("ban") !== -1) return "#FF4C4C"
+        if (l.indexOf("mute") !== -1) return "#FFB347"
+        if (l.indexOf("warn") !== -1) return "#FFC107"
+        if (l.indexOf("kick") !== -1) return "#FFD98A"
+        return Qt.rgba(1, 1, 1, 0.2)
+    }
+    function severityBg(off, a) { var c = Qt.color(severityColor(off)); return Qt.rgba(c.r, c.g, c.b, a) }
     function flatOffences() { var out = []; for (var i = 0; i < sections.length; i++) for (var j = 0; j < sections[i].offenses.length; j++) out.push(sections[i].offenses[j]); return out }
     function offenceById(id) { var f = flatOffences(); for (var i = 0; i < f.length; i++) if (f[i].id === id) return f[i]; return null }
     // per-offence resolved rung, for the confirm summary
@@ -293,9 +305,13 @@ Item {
         var note = offReasonIn.text.trim()
         if (note.length) args.note = note
         if (offenceSilent) args.silent = true
-        trackWrite(ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "punish-offense", args: args })))
+        var pid = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "punish-offense", args: args }))
+        trackWrite(pid); reqPunishOff = pid
         banner = "Applied " + selected.length + " offence" + (selected.length === 1 ? "" : "s") + " to " + name
         selected = []; offenceConfirm = false; offenceSilent = false; offReasonIn.text = ""
+    }
+    function refreshCounts() {
+        reqCounts = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: route, type: "offense-counts", args: { target: uuid, categories: allIds() } }))
     }
     function pressAction(a) {
         if (a.un) { sendUn(a.action); return }
@@ -422,6 +438,13 @@ Item {
                     root.banner = why.length ? why : "Action failed (" + status + ")."
                 } else {
                     PlayerHistoryModel.load(root.uuid, root.name)
+                    if (id === root.reqPunishOff) {
+                        // a laddered punish landed — collapse the offences list and pull fresh counts
+                        // so each offence now shows its NEXT step for this player
+                        root.offencesOpen = false
+                        root.refreshCounts()
+                        root.reqPunishOff = -1
+                    }
                 }
             }
         }
@@ -655,8 +678,8 @@ Item {
                         delegate: Rectangle {
                             required property var modelData
                             width: detailCol.width; height: Math.max(48, oCol.height + 18); radius: 10
-                            color: root.selected.indexOf(modelData.id) !== -1 ? Qt.rgba(1, 0.72, 0.2, 0.12) : (oa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.04))
-                            border.color: root.selected.indexOf(modelData.id) !== -1 ? "#FFB833" : "transparent"; border.width: 1
+                            color: root.selected.indexOf(modelData.id) !== -1 ? root.severityBg(modelData, 0.22) : (oa.containsMouse ? root.severityBg(modelData, 0.16) : root.severityBg(modelData, 0.09))
+                            border.color: root.selected.indexOf(modelData.id) !== -1 ? root.severityColor(modelData) : Qt.rgba(1, 1, 1, 0.05); border.width: root.selected.indexOf(modelData.id) !== -1 ? 1.5 : 1
                             Column {
                                 id: oCol
                                 anchors.left: parent.left; anchors.leftMargin: 14; anchors.right: chk.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; spacing: 2
