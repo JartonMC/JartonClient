@@ -23,7 +23,7 @@ Item {
     property var selected: []
     property var notes: []
     property string banner: ""
-    property bool offencesOpen: false
+    property bool offencesPanelOpen: false
 
     property string pendingAction: ""
     property string pendingNode: ""
@@ -439,9 +439,9 @@ Item {
                 } else {
                     PlayerHistoryModel.load(root.uuid, root.name)
                     if (id === root.reqPunishOff) {
-                        // a laddered punish landed — collapse the offences list and pull fresh counts
+                        // a laddered punish landed — collapse the offences panel and pull fresh counts
                         // so each offence now shows its NEXT step for this player
-                        root.offencesOpen = false
+                        root.offencesPanelOpen = false
                         root.refreshCounts()
                         root.reqPunishOff = -1
                     }
@@ -663,87 +663,13 @@ Item {
                 }
             }
 
-            // ---- offences ----
+            // ---- offences (tap the header to open the slide-out panel) ----
             Column {
                 width: parent.width; spacing: 8
                 SectionHeader {
-                    title: "Offences"; open: root.offencesOpen
+                    title: "Offences"; open: root.offencesPanelOpen
                     badge: root.selected.length > 0 ? root.selected.length + " selected" : ""
-                    onToggled: root.offencesOpen = !root.offencesOpen
-                }
-                Column {
-                    width: parent.width; spacing: 6; visible: root.offencesOpen
-                    Repeater {
-                        model: root.offencesOpen ? root.flatOffences() : []
-                        delegate: Rectangle {
-                            required property var modelData
-                            width: detailCol.width; height: Math.max(48, oCol.height + 18); radius: 10
-                            color: root.selected.indexOf(modelData.id) !== -1 ? root.severityBg(modelData, 0.22) : (oa.containsMouse ? root.severityBg(modelData, 0.16) : root.severityBg(modelData, 0.09))
-                            border.color: root.selected.indexOf(modelData.id) !== -1 ? root.severityColor(modelData) : Qt.rgba(1, 1, 1, 0.05); border.width: root.selected.indexOf(modelData.id) !== -1 ? 1.5 : 1
-                            Column {
-                                id: oCol
-                                anchors.left: parent.left; anchors.leftMargin: 14; anchors.right: chk.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                                Text { text: modelData.display; color: "#FFFFFF"; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight; width: parent.width }
-                                Text { text: root.rungLabel(modelData); color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11; visible: text.length > 0; width: parent.width; wrapMode: Text.WordWrap }
-                            }
-                            Text { id: chk; anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; text: root.selected.indexOf(modelData.id) !== -1 ? "✓" : ""; color: "#FFB833"; font.pixelSize: 16; font.bold: true }
-                            MouseArea { id: oa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggle(modelData.id) }
-                        }
-                    }
-                    Text { visible: root.sections.length === 0; text: "Loading offences…"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13 }
-                    SButton {
-                        visible: root.selected.length > 0 && !root.offenceConfirm
-                        text: "Review " + root.selected.length + " offence" + (root.selected.length === 1 ? "" : "s"); variant: "primary"
-                        onClicked: root.offenceConfirm = true
-                    }
-
-                    // ---- offence confirm summary (what stacks, what the player receives) ----
-                    Rectangle {
-                        visible: root.offenceConfirm && root.selected.length > 0
-                        width: detailCol.width; height: offConfirmCol.implicitHeight + 24; radius: 12
-                        color: Qt.rgba(1, 1, 1, 0.05); border.color: "#FFB833"; border.width: 1
-                        Column {
-                            id: offConfirmCol
-                            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-                            anchors.margins: 12; spacing: 8
-                            Text { text: "Applying to " + root.name; color: "#FFE082"; font.pixelSize: 13; font.bold: true }
-                            Column {
-                                width: parent.width; spacing: 4
-                                Repeater {
-                                    model: root.offSummary
-                                    delegate: Row {
-                                        required property var modelData
-                                        width: offConfirmCol.width; spacing: 8
-                                        Text { text: modelData.display; color: Qt.rgba(1, 1, 1, 0.85); font.pixelSize: 12; width: parent.width * 0.55; elide: Text.ElideRight }
-                                        Text { text: modelData.label; color: Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 12; horizontalAlignment: Text.AlignRight; width: parent.width * 0.45 - 8; elide: Text.ElideRight }
-                                    }
-                                }
-                            }
-                            Rectangle { width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
-                            Text { text: "Player receives"; color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11 }
-                            Column {
-                                width: parent.width; spacing: 3
-                                Repeater {
-                                    model: root.offStacked
-                                    delegate: Text { required property var modelData; text: modelData; color: "#FFB833"; font.pixelSize: 14; font.bold: true }
-                                }
-                            }
-                            Rectangle {
-                                width: parent.width; height: 30; radius: 8; color: Qt.rgba(1, 1, 1, 0.06)
-                                TextInput {
-                                    id: offReasonIn; anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
-                                    verticalAlignment: TextInput.AlignVCenter; color: "#FFFFFF"; font.pixelSize: 13; clip: true
-                                    Text { anchors.verticalCenter: parent.verticalCenter; text: "Note (optional, staff-only)…"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13; visible: offReasonIn.text.length === 0 }
-                                }
-                            }
-                            Row {
-                                spacing: 8
-                                SButton { text: root.offenceSilent ? "Silent: on" : "Silent: off"; variant: root.offenceSilent ? "secondary" : "ghost"; compact: true; onClicked: root.offenceSilent = !root.offenceSilent }
-                                SButton { text: "Confirm & apply"; variant: "primary"; compact: true; onClicked: root.applyOffenses() }
-                                SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: { root.offenceConfirm = false; root.offenceSilent = false; offReasonIn.text = "" } }
-                            }
-                        }
-                    }
+                    onToggled: root.offencesPanelOpen = !root.offencesPanelOpen
                 }
             }
 
@@ -1231,6 +1157,118 @@ Item {
                             width: 11; height: 11; sourceSize: Qt.size(22, 22)
                             opacity: xHover.containsMouse ? 0.9 : 0.35
                             MouseArea { id: xHover; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.removeNote(modelData.id) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ==== Offences slide-out panel (overlay sibling of the scroll view, for room) ====
+    Rectangle {
+        id: offScrim
+        anchors.fill: parent
+        color: Qt.rgba(0, 0, 0, 0.55)
+        visible: opacity > 0.01
+        opacity: root.offencesPanelOpen ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 150 } }
+        MouseArea { anchors.fill: parent; onClicked: root.offencesPanelOpen = false }
+    }
+    Rectangle {
+        id: offPanel
+        width: Math.min(430, root.width)
+        anchors.top: parent.top; anchors.bottom: parent.bottom
+        x: root.offencesPanelOpen ? (root.width - width) : root.width
+        Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        color: "#141414"
+        Rectangle { anchors.left: parent.left; width: 1; height: parent.height; color: Qt.rgba(1, 1, 1, 0.08) }
+
+        Item {
+            id: offPanelHeader
+            anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; height: 52
+            Text { anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter; text: "Offences"; color: "#FFFFFF"; font.pixelSize: 16; font.bold: true }
+            Text {
+                anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
+                text: "✕"; color: offCloseHover.containsMouse ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 16
+                MouseArea { id: offCloseHover; anchors.fill: parent; anchors.margins: -8; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.offencesPanelOpen = false }
+            }
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
+        }
+
+        Flickable {
+            anchors.top: offPanelHeader.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            anchors.margins: 14
+            contentWidth: width; contentHeight: offPanelInner.height + 12; clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            Column {
+                id: offPanelInner
+                width: parent.width; spacing: 6
+                Repeater {
+                    model: root.offencesPanelOpen ? root.flatOffences() : []
+                    delegate: Rectangle {
+                        required property var modelData
+                        width: offPanelInner.width; height: Math.max(48, oCol.height + 18); radius: 10
+                        color: root.selected.indexOf(modelData.id) !== -1 ? root.severityBg(modelData, 0.22) : (oa.containsMouse ? root.severityBg(modelData, 0.16) : root.severityBg(modelData, 0.09))
+                        border.color: root.selected.indexOf(modelData.id) !== -1 ? root.severityColor(modelData) : Qt.rgba(1, 1, 1, 0.05); border.width: root.selected.indexOf(modelData.id) !== -1 ? 1.5 : 1
+                        Column {
+                            id: oCol
+                            anchors.left: parent.left; anchors.leftMargin: 14; anchors.right: chk.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; spacing: 2
+                            Text { text: modelData.display; color: "#FFFFFF"; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight; width: parent.width }
+                            Text { text: root.rungLabel(modelData); color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11; visible: text.length > 0; width: parent.width; wrapMode: Text.WordWrap }
+                        }
+                        Text { id: chk; anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; text: root.selected.indexOf(modelData.id) !== -1 ? "✓" : ""; color: "#FFB833"; font.pixelSize: 16; font.bold: true }
+                        MouseArea { id: oa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggle(modelData.id) }
+                    }
+                }
+                Text { visible: root.sections.length === 0; text: "Loading offences…"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13 }
+                SButton {
+                    visible: root.selected.length > 0 && !root.offenceConfirm
+                    text: "Review " + root.selected.length + " offence" + (root.selected.length === 1 ? "" : "s"); variant: "primary"
+                    onClicked: root.offenceConfirm = true
+                }
+                Rectangle {
+                    visible: root.offenceConfirm && root.selected.length > 0
+                    width: offPanelInner.width; height: offConfirmCol.implicitHeight + 24; radius: 12
+                    color: Qt.rgba(1, 1, 1, 0.05); border.color: "#FFB833"; border.width: 1
+                    Column {
+                        id: offConfirmCol
+                        anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                        anchors.margins: 12; spacing: 8
+                        Text { text: "Applying to " + root.name; color: "#FFE082"; font.pixelSize: 13; font.bold: true }
+                        Column {
+                            width: parent.width; spacing: 4
+                            Repeater {
+                                model: root.offSummary
+                                delegate: Row {
+                                    required property var modelData
+                                    width: offConfirmCol.width; spacing: 8
+                                    Text { text: modelData.display; color: Qt.rgba(1, 1, 1, 0.85); font.pixelSize: 12; width: parent.width * 0.55; elide: Text.ElideRight }
+                                    Text { text: modelData.label; color: Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 12; horizontalAlignment: Text.AlignRight; width: parent.width * 0.45 - 8; elide: Text.ElideRight }
+                                }
+                            }
+                        }
+                        Rectangle { width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
+                        Text { text: "Player receives"; color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11 }
+                        Column {
+                            width: parent.width; spacing: 3
+                            Repeater {
+                                model: root.offStacked
+                                delegate: Text { required property var modelData; text: modelData; color: "#FFB833"; font.pixelSize: 14; font.bold: true }
+                            }
+                        }
+                        Rectangle {
+                            width: parent.width; height: 30; radius: 8; color: Qt.rgba(1, 1, 1, 0.06)
+                            TextInput {
+                                id: offReasonIn; anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
+                                verticalAlignment: TextInput.AlignVCenter; color: "#FFFFFF"; font.pixelSize: 13; clip: true
+                                Text { anchors.verticalCenter: parent.verticalCenter; text: "Note (optional, staff-only)…"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13; visible: offReasonIn.text.length === 0 }
+                            }
+                        }
+                        Row {
+                            spacing: 8
+                            SButton { text: root.offenceSilent ? "Silent: on" : "Silent: off"; variant: root.offenceSilent ? "secondary" : "ghost"; compact: true; onClicked: root.offenceSilent = !root.offenceSilent }
+                            SButton { text: "Confirm & apply"; variant: "primary"; compact: true; onClicked: root.applyOffenses() }
+                            SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: { root.offenceConfirm = false; root.offenceSilent = false; offReasonIn.text = "" } }
                         }
                     }
                 }
