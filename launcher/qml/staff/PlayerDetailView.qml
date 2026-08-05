@@ -18,6 +18,7 @@ Item {
 
     // ---- punish state (live-bridge routed, mirrors the app) ----
     property string route: ""
+    property var servers: []
     property var sections: []
     property var counts: ({})
     property var selected: []
@@ -393,7 +394,7 @@ Item {
         target: ProctorApi
         function onResponse(id, ok, status, body) {
             if (id === root.reqServers) {
-                if (ok) { try { var s = JSON.parse(body).servers || []; if (s.length && !root.route.length) { root.route = s[0]; root.loadGuide(); root.loadNotes() } } catch (e) {} }
+                if (ok) { try { var s = JSON.parse(body).servers || []; root.servers = s; if (s.length && !root.route.length) { root.route = s[0]; root.loadGuide(); root.loadNotes() } } catch (e) {} }
                 return
             }
             if (id === root.reqGuide) {
@@ -583,6 +584,27 @@ Item {
                 width: parent.width; height: 30; radius: 9; visible: root.banner.length > 0
                 color: Qt.rgba(0.35, 0.82, 0.48, 0.14)
                 Text { anchors.left: parent.left; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter; text: root.banner; color: "#9fe0ad"; font.pixelSize: 12 }
+            }
+
+            // ---- target server picker (network actions still enforce where the player is) ----
+            Column {
+                width: parent.width; spacing: 6; visible: root.servers.length > 1
+                Text { text: "Target server"; color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11 }
+                Flow {
+                    width: parent.width; spacing: 6
+                    Repeater {
+                        model: root.servers
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property bool active: root.route === modelData
+                            width: srvTxt.width + 22; height: 26; radius: 8
+                            color: active ? "#3a2f14" : "transparent"
+                            border.color: active ? "#FFB81C" : "#2a2114"; border.width: 1
+                            Text { id: srvTxt; anchors.centerIn: parent; text: modelData; color: active ? "#FFE082" : "#8a7a56"; font.pixelSize: 12 }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (root.route !== modelData) { root.route = modelData; root.loadGuide(); root.refreshCounts() } } }
+                        }
+                    }
+                }
             }
 
             // ---- action buttons grid ----
@@ -786,90 +808,12 @@ Item {
                 }
             }
 
-            // ---- adjust resources ----
+            // ---- adjust resources (tap the header to open the slide-out panel) ----
             Column {
                 width: parent.width; spacing: 8
                 SectionHeader {
                     title: "Adjust resources"; open: root.adjOpen
                     onToggled: root.adjOpen = !root.adjOpen
-                }
-                Text {
-                    visible: root.adjOpen && !StaffAuth.canPanel
-                    width: parent.width; wrapMode: Text.WordWrap
-                    text: "You don't have permission to adjust player resources."; color: "#6b5d3f"; font.pixelSize: 12
-                }
-                Rectangle {
-                    width: parent.width; visible: root.adjOpen && StaffAuth.canPanel
-                    height: adjCol.height + 24; radius: 11
-                    color: Qt.rgba(1, 1, 1, 0.04)
-                    Column {
-                        id: adjCol
-                        anchors.top: parent.top; anchors.topMargin: 12
-                        anchors.left: parent.left; anchors.leftMargin: 14
-                        anchors.right: parent.right; anchors.rightMargin: 14
-                        spacing: 10
-                        Row {
-                            spacing: 6
-                            Repeater {
-                                model: root.adjSpecs
-                                delegate: Rectangle {
-                                    required property var modelData
-                                    required property int index
-                                    readonly property bool active: root.adjIndex === index
-                                    width: rTxt.width + 22; height: 26; radius: 8
-                                    color: active ? "#3a2f14" : "transparent"
-                                    border.color: active ? "#FFB81C" : "#2a2114"; border.width: 1
-                                    Text { id: rTxt; anchors.centerIn: parent; text: modelData.label; color: active ? "#FFE082" : "#8a7a56"; font.pixelSize: 12 }
-                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.adjIndex = index; root.adjPending = 0; root.zeroConfirm = false } }
-                                }
-                            }
-                        }
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: root.adjLabel()
-                            color: root.adjPending === 0 ? "#6b5d3f" : (root.adjPending > 0 ? "#5ad17a" : "#ff6b6b")
-                            font.pixelSize: 26; font.bold: true; font.family: "Menlo"
-                        }
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
-                            Repeater {
-                                model: root.adjSpecs[root.adjIndex].steps
-                                delegate: Rectangle {
-                                    required property var modelData
-                                    width: 74; height: 30; radius: 9; color: Qt.rgba(1, 0.42, 0.42, 0.12)
-                                    Text { anchors.centerIn: parent; text: root.stepLabel(-modelData); color: "#ff8f8f"; font.pixelSize: 12; font.bold: true }
-                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; enabled: !root.adjBusy; onClicked: root.adjPending -= modelData }
-                                }
-                            }
-                        }
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
-                            Repeater {
-                                model: root.adjSpecs[root.adjIndex].steps
-                                delegate: Rectangle {
-                                    required property var modelData
-                                    width: 74; height: 30; radius: 9; color: Qt.rgba(0.35, 0.82, 0.48, 0.12)
-                                    Text { anchors.centerIn: parent; text: root.stepLabel(modelData); color: "#7fdb95"; font.pixelSize: 12; font.bold: true }
-                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; enabled: !root.adjBusy; onClicked: root.adjPending += modelData }
-                                }
-                            }
-                        }
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
-                            visible: !root.zeroConfirm
-                            SButton { text: "Reset"; variant: "ghost"; compact: true; enabled: root.adjPending !== 0 && !root.adjBusy; onClicked: root.adjPending = 0 }
-                            SButton { text: "Apply"; variant: "primary"; compact: true; busy: root.adjBusy; enabled: root.adjPending !== 0; onClicked: root.applyAdjust() }
-                            SButton { text: "Remove all"; variant: "danger"; compact: true; enabled: !root.adjBusy; onClicked: root.zeroConfirm = true }
-                        }
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
-                            visible: root.zeroConfirm
-                            Text { anchors.verticalCenter: parent.verticalCenter; text: "Remove ALL " + root.adjSpecs[root.adjIndex].label.toLowerCase() + " from " + root.name + "? Applies on next join if offline."; color: "#FFE082"; font.pixelSize: 12 }
-                            SButton { text: "Remove"; variant: "danger"; compact: true; busy: root.adjBusy; onClicked: root.zeroResource() }
-                            SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.zeroConfirm = false }
-                        }
-                        Item { width: 1; height: 2 }
-                    }
                 }
             }
 
@@ -1270,6 +1214,127 @@ Item {
                             SButton { text: "Confirm & apply"; variant: "primary"; compact: true; onClicked: root.applyOffenses() }
                             SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: { root.offenceConfirm = false; root.offenceSilent = false; offReasonIn.text = "" } }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // ==== Adjust-resources slide-out panel ====
+    Rectangle {
+        id: adjScrim
+        anchors.fill: parent
+        color: Qt.rgba(0, 0, 0, 0.55)
+        visible: opacity > 0.01
+        opacity: root.adjOpen ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 150 } }
+        MouseArea { anchors.fill: parent; onClicked: root.adjOpen = false }
+    }
+    Rectangle {
+        id: adjPanel
+        width: Math.min(430, root.width)
+        anchors.top: parent.top; anchors.bottom: parent.bottom
+        x: root.adjOpen ? (root.width - width) : root.width
+        Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        color: "#141414"
+        Rectangle { anchors.left: parent.left; width: 1; height: parent.height; color: Qt.rgba(1, 1, 1, 0.08) }
+
+        Item {
+            id: adjPanelHeader
+            anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; height: 52
+            Text { anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter; text: "Adjust resources"; color: "#FFFFFF"; font.pixelSize: 16; font.bold: true }
+            Text {
+                anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
+                text: "✕"; color: adjCloseHover.containsMouse ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 16
+                MouseArea { id: adjCloseHover; anchors.fill: parent; anchors.margins: -8; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.adjOpen = false }
+            }
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
+        }
+
+        Flickable {
+            anchors.top: adjPanelHeader.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            anchors.margins: 14
+            contentWidth: width; contentHeight: adjPanelInner.height + 12; clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            Column {
+                id: adjPanelInner
+                width: parent.width; spacing: 10
+                Text {
+                    visible: !StaffAuth.canPanel
+                    width: parent.width; wrapMode: Text.WordWrap
+                    text: "You don't have permission to adjust player resources."; color: "#6b5d3f"; font.pixelSize: 12
+                }
+                Rectangle {
+                    width: parent.width; visible: StaffAuth.canPanel
+                    height: adjCol.height + 24; radius: 11
+                    color: Qt.rgba(1, 1, 1, 0.04)
+                    Column {
+                        id: adjCol
+                        anchors.top: parent.top; anchors.topMargin: 12
+                        anchors.left: parent.left; anchors.leftMargin: 14
+                        anchors.right: parent.right; anchors.rightMargin: 14
+                        spacing: 10
+                        Row {
+                            spacing: 6
+                            Repeater {
+                                model: root.adjSpecs
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    required property int index
+                                    readonly property bool active: root.adjIndex === index
+                                    width: rTxt.width + 22; height: 26; radius: 8
+                                    color: active ? "#3a2f14" : "transparent"
+                                    border.color: active ? "#FFB81C" : "#2a2114"; border.width: 1
+                                    Text { id: rTxt; anchors.centerIn: parent; text: modelData.label; color: active ? "#FFE082" : "#8a7a56"; font.pixelSize: 12 }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.adjIndex = index; root.adjPending = 0; root.zeroConfirm = false } }
+                                }
+                            }
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: root.adjLabel()
+                            color: root.adjPending === 0 ? "#6b5d3f" : (root.adjPending > 0 ? "#5ad17a" : "#ff6b6b")
+                            font.pixelSize: 26; font.bold: true; font.family: "Menlo"
+                        }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
+                            Repeater {
+                                model: root.adjSpecs[root.adjIndex].steps
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    width: 74; height: 30; radius: 9; color: Qt.rgba(1, 0.42, 0.42, 0.12)
+                                    Text { anchors.centerIn: parent; text: root.stepLabel(-modelData); color: "#ff8f8f"; font.pixelSize: 12; font.bold: true }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; enabled: !root.adjBusy; onClicked: root.adjPending -= modelData }
+                                }
+                            }
+                        }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
+                            Repeater {
+                                model: root.adjSpecs[root.adjIndex].steps
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    width: 74; height: 30; radius: 9; color: Qt.rgba(0.35, 0.82, 0.48, 0.12)
+                                    Text { anchors.centerIn: parent; text: root.stepLabel(modelData); color: "#7fdb95"; font.pixelSize: 12; font.bold: true }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; enabled: !root.adjBusy; onClicked: root.adjPending += modelData }
+                                }
+                            }
+                        }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
+                            visible: !root.zeroConfirm
+                            SButton { text: "Reset"; variant: "ghost"; compact: true; enabled: root.adjPending !== 0 && !root.adjBusy; onClicked: root.adjPending = 0 }
+                            SButton { text: "Apply"; variant: "primary"; compact: true; busy: root.adjBusy; enabled: root.adjPending !== 0; onClicked: root.applyAdjust() }
+                            SButton { text: "Remove all"; variant: "danger"; compact: true; enabled: !root.adjBusy; onClicked: root.zeroConfirm = true }
+                        }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
+                            visible: root.zeroConfirm
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: "Remove ALL " + root.adjSpecs[root.adjIndex].label.toLowerCase() + " from " + root.name + "? Applies on next join if offline."; color: "#FFE082"; font.pixelSize: 12 }
+                            SButton { text: "Remove"; variant: "danger"; compact: true; busy: root.adjBusy; onClicked: root.zeroResource() }
+                            SButton { text: "Cancel"; variant: "ghost"; compact: true; onClicked: root.zeroConfirm = false }
+                        }
+                        Item { width: 1; height: 2 }
                     }
                 }
             }
