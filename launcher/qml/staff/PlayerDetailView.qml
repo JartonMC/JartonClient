@@ -172,15 +172,16 @@ Item {
         return off.ladder[Math.min(n, off.ladder.length - 1)]
     }
     function rungLabel(off) { var r = rung(off); return r ? ("next: " + r.label) : "" }
-    // severity colour of an offence's NEXT step, matching JartonGuard's palette:
-    // ban = red, mute = orange, warn = yellow, kick = light
+    // capitalise a server name for display (bridges report lowercase: towny/smp/hub)
+    function cap(s) { return (s && s.length) ? (s.charAt(0).toUpperCase() + s.slice(1)) : (s || "") }
+    // the offence's colour category straight from the punishment guide (yellow / orange / red)
     function severityColor(off) {
-        var r = rung(off); var l = r ? String(r.label).toLowerCase() : ""
-        if (l.indexOf("ban") !== -1) return "#FF4C4C"
-        if (l.indexOf("mute") !== -1) return "#FFB347"
-        if (l.indexOf("warn") !== -1) return "#FFC107"
-        if (l.indexOf("kick") !== -1) return "#FFD98A"
-        return Qt.rgba(1, 1, 1, 0.2)
+        switch (off && off.colour ? String(off.colour).toLowerCase() : "") {
+            case "red": return "#FF4C4C"
+            case "orange": return "#FF8A50"
+            case "yellow": return "#FFC93C"
+            default: return Qt.rgba(1, 1, 1, 0.2)
+        }
     }
     function severityBg(off, a) { var c = Qt.color(severityColor(off)); return Qt.rgba(c.r, c.g, c.b, a) }
     function flatOffences() { var out = []; for (var i = 0; i < sections.length; i++) for (var j = 0; j < sections[i].offenses.length; j++) out.push(sections[i].offenses[j]); return out }
@@ -402,7 +403,7 @@ Item {
                     root.reqCounts = ProctorApi.send("POST", "/proctor/guard/actions", JSON.stringify({ server: root.route, type: "offense-counts", args: { target: root.uuid, categories: root.allIds() } })) }
                 return
             }
-            if (id === root.reqCounts) { if (ok) { try { root.counts = (JSON.parse(body).data || {}).counts || {} } catch (e) { root.counts = {} } } return }
+            if (id === root.reqCounts) { if (ok) { try { root.counts = JSON.parse(body).data || {} } catch (e) { root.counts = {} } } return }
             if (id === root.reqNotes) { if (ok) { try { root.notes = (JSON.parse(body).data) || [] } catch (e) { root.notes = [] } } return }
             if (id === root.reqNoteAdd) { if (ok) root.loadNotes(); else root.banner = "Note failed (" + status + ")."; return }
             if (id === root.reqDiscord) {
@@ -600,11 +601,30 @@ Item {
                             width: srvTxt.width + 22; height: 26; radius: 8
                             color: active ? "#3a2f14" : "transparent"
                             border.color: active ? "#FFB81C" : "#2a2114"; border.width: 1
-                            Text { id: srvTxt; anchors.centerIn: parent; text: modelData; color: active ? "#FFE082" : "#8a7a56"; font.pixelSize: 12 }
+                            Text { id: srvTxt; anchors.centerIn: parent; text: root.cap(modelData); color: active ? "#FFE082" : "#8a7a56"; font.pixelSize: 12 }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (root.route !== modelData) { root.route = modelData; root.loadGuide(); root.refreshCounts() } } }
                         }
                     }
                 }
+            }
+
+            // ---- offences button (opens the slide-out) ----
+            Rectangle {
+                width: parent.width; height: 48; radius: 12
+                color: offBtnHover.containsMouse ? Qt.rgba(1, 0.72, 0.2, 0.20) : Qt.rgba(1, 0.72, 0.2, 0.12)
+                border.color: "#FFB833"; border.width: 1
+                Behavior on color { ColorAnimation { duration: 100 } }
+                Row {
+                    anchors.centerIn: parent; spacing: 8
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: "⚖"; color: "#FFB833"; font.pixelSize: 16 }
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: "Offences"; color: "#FFE082"; font.pixelSize: 15; font.bold: true }
+                    Rectangle {
+                        visible: root.selected.length > 0; anchors.verticalCenter: parent.verticalCenter
+                        width: offSel.width + 14; height: 18; radius: 9; color: "#FFB833"
+                        Text { id: offSel; anchors.centerIn: parent; text: root.selected.length + " selected"; color: "#141414"; font.pixelSize: 10; font.bold: true }
+                    }
+                }
+                MouseArea { id: offBtnHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.offencesPanelOpen = true }
             }
 
             // ---- action buttons grid ----
@@ -685,24 +705,40 @@ Item {
                 }
             }
 
-            // ---- offences (tap the header to open the slide-out panel) ----
-            Column {
+            // ---- inventory + adjust-resources facelift buttons ----
+            Row {
                 width: parent.width; spacing: 8
-                SectionHeader {
-                    title: "Offences"; open: root.offencesPanelOpen
-                    badge: root.selected.length > 0 ? root.selected.length + " selected" : ""
-                    onToggled: root.offencesPanelOpen = !root.offencesPanelOpen
+                Rectangle {
+                    width: (parent.width - 8) / 2; height: 46; radius: 12
+                    color: invBtnHover.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+                    border.color: root.invOpen ? "#FFB833" : Qt.rgba(1, 1, 1, 0.10); border.width: 1
+                    Behavior on color { ColorAnimation { duration: 100 } }
+                    Row {
+                        anchors.centerIn: parent; spacing: 8
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "🎒"; font.pixelSize: 15 }
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "Inventory"; color: "#F2E8D0"; font.pixelSize: 14; font.bold: true }
+                        Rectangle { visible: root.snapshots.length > 0; anchors.verticalCenter: parent.verticalCenter; width: invBadge.width + 12; height: 16; radius: 8; color: Qt.rgba(1, 1, 1, 0.08)
+                            Text { id: invBadge; anchors.centerIn: parent; text: root.snapshots.length; color: "#8a7a56"; font.pixelSize: 10; font.bold: true } }
+                    }
+                    MouseArea { id: invBtnHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { root.invOpen = !root.invOpen; if (root.invOpen) root.loadSnapshots() } }
+                }
+                Rectangle {
+                    width: (parent.width - 8) / 2; height: 46; radius: 12
+                    color: resBtnHover.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+                    border.color: root.adjOpen ? "#FFB833" : Qt.rgba(1, 1, 1, 0.10); border.width: 1
+                    Behavior on color { ColorAnimation { duration: 100 } }
+                    Row {
+                        anchors.centerIn: parent; spacing: 8
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "💰"; font.pixelSize: 15 }
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "Adjust resources"; color: "#F2E8D0"; font.pixelSize: 14; font.bold: true }
+                    }
+                    MouseArea { id: resBtnHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.adjOpen = true }
                 }
             }
 
-            // ---- inventory (snapshots + restore) ----
+            // ---- inventory (snapshots + restore) — revealed by the Inventory button above ----
             Column {
                 width: parent.width; spacing: 8
-                SectionHeader {
-                    title: "Inventory"; open: root.invOpen
-                    badge: root.snapshots.length > 0 ? root.snapshots.length + " snapshots" : ""
-                    onToggled: { root.invOpen = !root.invOpen; if (root.invOpen) root.loadSnapshots() }
-                }
                 Column {
                     width: parent.width; spacing: 6; visible: root.invOpen
                     Text { visible: root.invError.length > 0; text: root.invError; color: "#e06c6c"; font.pixelSize: 13 }
@@ -808,15 +844,6 @@ Item {
                 }
             }
 
-            // ---- adjust resources (tap the header to open the slide-out panel) ----
-            Column {
-                width: parent.width; spacing: 8
-                SectionHeader {
-                    title: "Adjust resources"; open: root.adjOpen
-                    onToggled: root.adjOpen = !root.adjOpen
-                }
-            }
-
             // ---- playtime ----
             Column {
                 width: parent.width; spacing: 8; visible: root.playtime.length > 0
@@ -834,7 +861,7 @@ Item {
                             delegate: Item {
                                 required property var modelData
                                 width: parent.width; height: 20
-                                Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: modelData.server; color: "#F2E8D0"; font.pixelSize: 13 }
+                                Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: root.cap(modelData.server); color: "#F2E8D0"; font.pixelSize: 13 }
                                 Text { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: root.fmtSeconds(modelData.seconds); color: "#FFB833"; font.pixelSize: 13; font.bold: true }
                             }
                         }
@@ -978,7 +1005,7 @@ Item {
                                     Rectangle { visible: active; width: av.width + 12; height: 16; radius: 8; color: Qt.rgba(1, 0.72, 0.2, 0.18); anchors.verticalCenter: parent.verticalCenter
                                         Text { id: av; anchors.centerIn: parent; text: "active"; color: "#FFB81C"; font.pixelSize: 9; font.bold: true } }
                                     Rectangle { visible: typeof server !== "undefined" && server !== null && String(server).length > 0; width: sv.width + 12; height: 16; radius: 8; color: Qt.rgba(1, 1, 1, 0.06); anchors.verticalCenter: parent.verticalCenter
-                                        Text { id: sv; anchors.centerIn: parent; text: server || ""; color: "#8a7a56"; font.pixelSize: 9; font.family: "Menlo" } }
+                                        Text { id: sv; anchors.centerIn: parent; text: root.cap(server); color: "#8a7a56"; font.pixelSize: 9; font.family: "Menlo" } }
                                 }
                                 Text {
                                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
@@ -1117,14 +1144,15 @@ Item {
         opacity: root.offencesPanelOpen ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 150 } }
         MouseArea { anchors.fill: parent; onClicked: root.offencesPanelOpen = false }
+        WheelHandler { acceptedDevices: PointerDevice.Mouse; onWheel: function (e) { e.accepted = true } }
     }
     Rectangle {
         id: offPanel
         width: Math.min(430, root.width)
-        anchors.top: parent.top; anchors.bottom: parent.bottom
-        x: root.offencesPanelOpen ? (root.width - width) : root.width
-        Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-        color: "#141414"
+        anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.right: parent.right
+        anchors.rightMargin: root.offencesPanelOpen ? 0 : -(width + 4)
+        Behavior on anchors.rightMargin { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        color: "#141414"; clip: true
         Rectangle { anchors.left: parent.left; width: 1; height: parent.height; color: Qt.rgba(1, 1, 1, 0.08) }
 
         Item {
@@ -1140,28 +1168,46 @@ Item {
         }
 
         Flickable {
+            id: offFlick
             anchors.top: offPanelHeader.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
             anchors.margins: 14
             contentWidth: width; contentHeight: offPanelInner.height + 12; clip: true
             boundsBehavior: Flickable.StopAtBounds
+            WheelHandler {
+                acceptedDevices: PointerDevice.Mouse
+                onWheel: function (e) {
+                    var maxY = Math.max(0, offFlick.contentHeight - offFlick.height)
+                    offFlick.contentY = Math.max(0, Math.min(maxY, offFlick.contentY - (e.angleDelta.y / 120) * 110))
+                    e.accepted = true
+                }
+            }
             Column {
                 id: offPanelInner
-                width: parent.width; spacing: 6
+                width: parent.width; spacing: 12
                 Repeater {
-                    model: root.offencesPanelOpen ? root.flatOffences() : []
-                    delegate: Rectangle {
+                    model: root.offencesPanelOpen ? root.sections : []
+                    delegate: Column {
                         required property var modelData
-                        width: offPanelInner.width; height: Math.max(48, oCol.height + 18); radius: 10
-                        color: root.selected.indexOf(modelData.id) !== -1 ? root.severityBg(modelData, 0.22) : (oa.containsMouse ? root.severityBg(modelData, 0.16) : root.severityBg(modelData, 0.09))
-                        border.color: root.selected.indexOf(modelData.id) !== -1 ? root.severityColor(modelData) : Qt.rgba(1, 1, 1, 0.05); border.width: root.selected.indexOf(modelData.id) !== -1 ? 1.5 : 1
-                        Column {
-                            id: oCol
-                            anchors.left: parent.left; anchors.leftMargin: 14; anchors.right: chk.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                            Text { text: modelData.display; color: "#FFFFFF"; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight; width: parent.width }
-                            Text { text: root.rungLabel(modelData); color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11; visible: text.length > 0; width: parent.width; wrapMode: Text.WordWrap }
+                        width: offPanelInner.width; spacing: 6
+                        Text { text: modelData.name; color: "#8a7a56"; font.pixelSize: 11; font.bold: true; font.capitalization: Font.AllUppercase }
+                        Repeater {
+                            model: modelData.offenses
+                            delegate: Rectangle {
+                                required property var modelData
+                                width: offPanelInner.width; height: Math.max(48, oCol.height + 18); radius: 10
+                                color: root.selected.indexOf(modelData.id) !== -1 ? root.severityBg(modelData, 0.28) : (oa.containsMouse ? root.severityBg(modelData, 0.18) : root.severityBg(modelData, 0.10))
+                                border.color: root.selected.indexOf(modelData.id) !== -1 ? root.severityColor(modelData) : root.severityBg(modelData, 0.35); border.width: root.selected.indexOf(modelData.id) !== -1 ? 1.5 : 1
+                                Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.margins: 6; width: 3; radius: 2; color: root.severityColor(modelData) }
+                                Column {
+                                    id: oCol
+                                    anchors.left: parent.left; anchors.leftMargin: 18; anchors.right: chk.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; spacing: 2
+                                    Text { text: modelData.display; color: "#FFFFFF"; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight; width: parent.width }
+                                    Text { text: root.rungLabel(modelData); color: root.severityColor(modelData); font.pixelSize: 11; visible: text.length > 0; width: parent.width; wrapMode: Text.WordWrap }
+                                }
+                                Text { id: chk; anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; text: root.selected.indexOf(modelData.id) !== -1 ? "✓" : ""; color: root.severityColor(modelData); font.pixelSize: 16; font.bold: true }
+                                MouseArea { id: oa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggle(modelData.id) }
+                            }
                         }
-                        Text { id: chk; anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; text: root.selected.indexOf(modelData.id) !== -1 ? "✓" : ""; color: "#FFB833"; font.pixelSize: 16; font.bold: true }
-                        MouseArea { id: oa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggle(modelData.id) }
                     }
                 }
                 Text { visible: root.sections.length === 0; text: "Loading offences…"; color: Qt.rgba(1, 1, 1, 0.35); font.pixelSize: 13 }
@@ -1229,14 +1275,15 @@ Item {
         opacity: root.adjOpen ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 150 } }
         MouseArea { anchors.fill: parent; onClicked: root.adjOpen = false }
+        WheelHandler { acceptedDevices: PointerDevice.Mouse; onWheel: function (e) { e.accepted = true } }
     }
     Rectangle {
         id: adjPanel
         width: Math.min(430, root.width)
-        anchors.top: parent.top; anchors.bottom: parent.bottom
-        x: root.adjOpen ? (root.width - width) : root.width
-        Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-        color: "#141414"
+        anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.right: parent.right
+        anchors.rightMargin: root.adjOpen ? 0 : -(width + 4)
+        Behavior on anchors.rightMargin { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        color: "#141414"; clip: true
         Rectangle { anchors.left: parent.left; width: 1; height: parent.height; color: Qt.rgba(1, 1, 1, 0.08) }
 
         Item {
@@ -1252,10 +1299,19 @@ Item {
         }
 
         Flickable {
+            id: adjFlick
             anchors.top: adjPanelHeader.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
             anchors.margins: 14
             contentWidth: width; contentHeight: adjPanelInner.height + 12; clip: true
             boundsBehavior: Flickable.StopAtBounds
+            WheelHandler {
+                acceptedDevices: PointerDevice.Mouse
+                onWheel: function (e) {
+                    var maxY = Math.max(0, adjFlick.contentHeight - adjFlick.height)
+                    adjFlick.contentY = Math.max(0, Math.min(maxY, adjFlick.contentY - (e.angleDelta.y / 120) * 110))
+                    e.accepted = true
+                }
+            }
             Column {
                 id: adjPanelInner
                 width: parent.width; spacing: 10
