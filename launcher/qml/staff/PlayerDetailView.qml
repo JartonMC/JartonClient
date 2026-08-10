@@ -17,7 +17,7 @@ Item {
         && uuid.replace(/-/g, "").toLowerCase() === ProctorClient.mcUuid.replace(/-/g, "").toLowerCase()
 
     // ---- punish state (live-bridge routed, mirrors the app) ----
-    property string route: ""
+    property string route: "network"
     property var servers: []
     property var sections: []
     property var counts: ({})
@@ -109,6 +109,7 @@ Item {
     Component.onCompleted: {
         PlayerHistoryModel.load(uuid, name)
         reqServers = ProctorApi.send("GET", "/proctor/servers")
+        loadGuide(); loadNotes()
         reqDiscord = ProctorApi.send("GET", "/proctor/players/discord?uuid=" + uuid)
         reqPlaytime = ProctorApi.send("GET", "/proctor/players/playtime?uuid=" + uuid)
         reqReports = ProctorApi.send("GET", "/proctor/players/reports?uuid=" + uuid)
@@ -395,7 +396,7 @@ Item {
         target: ProctorApi
         function onResponse(id, ok, status, body) {
             if (id === root.reqServers) {
-                if (ok) { try { var s = JSON.parse(body).servers || []; root.servers = s; if (s.length && !root.route.length) { root.route = s[0]; root.loadGuide(); root.loadNotes() } } catch (e) {} }
+                if (ok) { try { root.servers = JSON.parse(body).servers || [] } catch (e) {} }
                 return
             }
             if (id === root.reqGuide) {
@@ -587,22 +588,22 @@ Item {
                 Text { anchors.left: parent.left; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter; text: root.banner; color: "#9fe0ad"; font.pixelSize: 12 }
             }
 
-            // ---- target server picker (network actions still enforce where the player is) ----
+            // ---- target server picker: network-wide (default) or a single server ----
             Column {
-                width: parent.width; spacing: 6; visible: root.servers.length > 1
-                Text { text: "Target server"; color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11 }
+                width: parent.width; spacing: 6
+                Text { text: "Target"; color: Qt.rgba(1, 1, 1, 0.45); font.pixelSize: 11 }
                 Flow {
                     width: parent.width; spacing: 6
                     Repeater {
-                        model: root.servers
+                        model: [ { v: "network", label: "Network-wide" }, { v: "towny", label: "Towny" }, { v: "smp", label: "SMP" }, { v: "hub", label: "Hub" } ]
                         delegate: Rectangle {
                             required property var modelData
-                            readonly property bool active: root.route === modelData
-                            width: srvTxt.width + 22; height: 26; radius: 8
+                            readonly property bool active: root.route === modelData.v
+                            width: srvTxt.width + 22; height: 28; radius: 8
                             color: active ? "#3a2f14" : "transparent"
                             border.color: active ? "#FFB81C" : "#2a2114"; border.width: 1
-                            Text { id: srvTxt; anchors.centerIn: parent; text: root.cap(modelData); color: active ? "#FFE082" : "#8a7a56"; font.pixelSize: 12 }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (root.route !== modelData) { root.route = modelData; root.loadGuide(); root.refreshCounts() } } }
+                            Text { id: srvTxt; anchors.centerIn: parent; text: modelData.label; color: active ? "#FFE082" : "#8a7a56"; font.pixelSize: 12; font.bold: active }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (root.route !== modelData.v) { root.route = modelData.v; root.refreshCounts() } } }
                         }
                     }
                 }
