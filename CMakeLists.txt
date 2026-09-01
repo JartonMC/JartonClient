@@ -397,6 +397,14 @@ if(UNIX AND APPLE)
     set(MACOSX_SPARKLE_SHA256 "fd5681ee92bf238aaac2d08214ceaf0cc8976e452d7f882d80bac1e61581f3b1" CACHE STRING "SHA256 checksum for Sparkle release archive")
     set(MACOSX_SPARKLE_DIR "${CMAKE_BINARY_DIR}/frameworks/Sparkle")
 
+    # Builds pointed at our own channel must not also carry Sparkle: BuildConfig
+    # checks the appcast first, so leaving these at the inherited upstream values
+    # sends macOS to Prism's feed and silently ignores UPDATER_GITHUB_REPO.
+    if(NOT Launcher_UPDATER_GITHUB_REPO STREQUAL "")
+        set(MACOSX_SPARKLE_UPDATE_PUBLIC_KEY "")
+        set(MACOSX_SPARKLE_UPDATE_FEED_URL "")
+    endif()
+
     if(NOT MACOSX_SPARKLE_UPDATE_PUBLIC_KEY STREQUAL "" AND NOT MACOSX_SPARKLE_UPDATE_FEED_URL STREQUAL "")
         set(Launcher_ENABLE_UPDATER YES)
     endif()
