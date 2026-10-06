@@ -815,6 +815,8 @@ SET(LAUNCHER_SOURCES
     jarton/JartonPackUpdateTask.cpp
     jarton/JartonPackApply.h
     jarton/JartonPackApply.cpp
+    jarton/JartonMigrateTask.h
+    jarton/JartonMigrateTask.cpp
     jarton/services/JartonProvisionService.h
     jarton/services/JartonProvisionService.cpp
     jarton/services/JartonUiCache.h

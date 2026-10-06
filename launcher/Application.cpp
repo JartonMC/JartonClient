@@ -105,6 +105,7 @@
 #include <QQmlEngine>
 #include <QJSEngine>
 
+#include "jarton/JartonMigrateTask.h"
 #include "jarton/JartonPackUpdateTask.h"
 #include "jarton/services/ChangelogService.h"
 #include "jarton/services/ConfigService.h"
@@ -1756,6 +1757,28 @@ void Application::importJartonPack(const QString& packUrl,
         staged->deleteLater();
     });
     staged->start();
+}
+
+void Application::migrateJartonInstance(const QString& instanceId,
+                                        const QString& packUrl,
+                                        const QString& mcVersion,
+                                        const QString& packVersion)
+{
+    BaseInstance* inst = instances()->getInstanceById(instanceId);
+    if (inst == nullptr || inst->isRunning()) {
+        return;
+    }
+    qInfo() << "[jarton.migrate]" << inst->name() << "->" << mcVersion << packVersion;
+    // Player-initiated, so it runs with a visible progress dialog (a cross-version
+    // download can be large) and ignores the edit gate the pushed-update path honours.
+    auto task = std::make_unique<Jarton::JartonMigrateTask>(inst->instanceRoot(), inst->gameRoot(), packUrl, mcVersion,
+                                                            packVersion, network());
+    const QString name = inst->name();
+    ProgressDialog dlg;
+    if (dlg.execWithTask(std::move(task)) != QDialog::Accepted) {
+        QMessageBox::warning(nullptr, tr("Jarton update failed"),
+                             tr("%1 couldn't be updated. It was left as it was.").arg(name));
+    }
 }
 
 void Application::applyJartonStyleOverlay()

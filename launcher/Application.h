@@ -276,6 +276,13 @@ class Application : public QApplication {
                           const QString& packVersion,
                           std::function<void()> onFinished);
 
+    // Player-initiated re-target of an existing Jarton instance onto a chosen pack
+    // version (swaps mods + MC/Fabric, keeps the player's worlds/settings/packs).
+    void migrateJartonInstance(const QString& instanceId,
+                               const QString& packUrl,
+                               const QString& mcVersion,
+                               const QString& packVersion);
+
     // sets the fatal error message and m_status to Failed.
     void showFatalErrorMessage(const QString& title, const QString& content);
 
