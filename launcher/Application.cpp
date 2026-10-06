@@ -105,6 +105,8 @@
 #include <QQmlEngine>
 #include <QJSEngine>
 
+#include "minecraft/MinecraftInstance.h"
+#include "minecraft/PackProfile.h"
 #include "jarton/JartonMigrateTask.h"
 #include "jarton/JartonPackUpdateTask.h"
 #include "jarton/services/ChangelogService.h"
@@ -1764,21 +1766,29 @@ void Application::migrateJartonInstance(const QString& instanceId,
                                         const QString& mcVersion,
                                         const QString& packVersion)
 {
-    BaseInstance* inst = instances()->getInstanceById(instanceId);
+    auto* inst = dynamic_cast<MinecraftInstance*>(instances()->getInstanceById(instanceId));
     if (inst == nullptr || inst->isRunning()) {
         return;
     }
     qInfo() << "[jarton.migrate]" << inst->name() << "->" << mcVersion << packVersion;
+    // A save of the live component list may still be pending; flush it now so it
+    // can't land on top of the migrated mmc-pack.json afterwards.
+    inst->getPackProfile()->saveNow();
+
     // Player-initiated, so it runs with a visible progress dialog (a cross-version
     // download can be large) and ignores the edit gate the pushed-update path honours.
     std::unique_ptr<Task> task = std::make_unique<Jarton::JartonMigrateTask>(inst->instanceRoot(), inst->gameRoot(),
                                                                              packUrl, mcVersion, packVersion, network());
-    const QString name = inst->name();
+    Task* raw = task.get();  // the dialog takes ownership; it outlives this scope's use
     ProgressDialog dlg;
     if (dlg.execWithTask(std::move(task)) != QDialog::Accepted) {
         QMessageBox::warning(nullptr, tr("Jarton update failed"),
-                             tr("%1 couldn't be updated. It was left as it was.").arg(name));
+                             tr("%1 couldn't be updated.\n\n%2").arg(inst->name(), raw->failReason()));
+        return;
     }
+    // Pick up the swapped mmc-pack.json; otherwise the next launch still runs the old
+    // MC/Fabric components against the new mods.
+    inst->getPackProfile()->reload(Net::Mode::Offline);
 }
 
 void Application::applyJartonStyleOverlay()

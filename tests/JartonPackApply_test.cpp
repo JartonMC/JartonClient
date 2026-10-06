@@ -22,6 +22,9 @@ class JartonPackApplyTest : public QObject {
   private slots:
     void resolved_dir_follows_symlinks()
     {
+#ifdef Q_OS_WIN
+        QSKIP("QFile::link makes a .lnk shortcut on Windows, not a symlink");
+#endif
         QTemporaryDir d;
         QVERIFY(d.isValid());
         QVERIFY(QDir().mkpath(d.filePath("real")));
@@ -100,6 +103,22 @@ class JartonPackApplyTest : public QObject {
         QFile f(inst + "/mmc-pack.json");
         QVERIFY(f.open(QIODevice::ReadOnly));
         QCOMPARE(f.readAll(), QByteArray("NEW"));
+    }
+
+    void swap_version_keeps_old_profile_when_pack_lacks_one()
+    {
+        QTemporaryDir d;
+        QVERIFY(d.isValid());
+        const QString inst = d.filePath("inst");
+        QVERIFY(put(inst + "/mmc-pack.json", "OLD"));
+        QVERIFY(QDir().mkpath(d.filePath("pack")));
+
+        QString err;
+        QVERIFY(!PackApply::swapVersion(inst, d.filePath("pack"), &err));
+        QVERIFY(!err.isEmpty());
+        QFile f(inst + "/mmc-pack.json");
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll(), QByteArray("OLD"));
     }
 
     void migration_replaces_mods_and_version_keeps_user_data()

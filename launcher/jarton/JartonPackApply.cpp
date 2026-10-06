@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QObject>
+#include <QSaveFile>
 
 #include "FileSystem.h"
 #include "services/PackRecord.h"
@@ -108,10 +109,11 @@ void fillConfigs(const QString& gameRoot, const QString& packGameDir)
 
 bool swapVersion(const QString& instanceRoot, const QString& packRoot, QString* error)
 {
-    const QString src = FS::PathCombine(packRoot, "mmc-pack.json");
-    const QString dst = FS::PathCombine(instanceRoot, "mmc-pack.json");
-    QFile::remove(dst);
-    if (!QFile::copy(src, dst)) {
+    QFile src(FS::PathCombine(packRoot, "mmc-pack.json"));
+    // QSaveFile: a failed write leaves the old profile in place rather than none at all.
+    QSaveFile dst(FS::PathCombine(instanceRoot, "mmc-pack.json"));
+    if (!src.open(QIODevice::ReadOnly) || !dst.open(QIODevice::WriteOnly) || dst.write(src.readAll()) < 0 ||
+        !dst.commit()) {
         if (error)
             *error = QObject::tr("Couldn't update the instance's version profile.");
         return false;
