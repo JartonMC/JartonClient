@@ -29,6 +29,12 @@ QStringList candidateRoots(const QString& unpackedRoot)
 }
 }  // namespace
 
+QString resolvedDir(const QString& dir)
+{
+    const QString resolved = QFileInfo(dir).canonicalFilePath();
+    return resolved.isEmpty() ? dir : resolved;
+}
+
 QString findGameDir(const QString& unpackedRoot)
 {
     for (const QString& base : candidateRoots(unpackedRoot)) {

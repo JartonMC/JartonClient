@@ -5,6 +5,11 @@
 
 namespace Jarton::PackApply {
 
+// Resolve a directory through any symlinked path components. libarchive extracts with
+// ARCHIVE_EXTRACT_SECURE_SYMLINKS and refuses a target that sits under a symlink, which
+// on macOS is every QTemporaryDir (/var -> /private/var).
+QString resolvedDir(const QString& dir);
+
 QString findGameDir(const QString& unpackedRoot);
 QString findPackRoot(const QString& unpackedRoot);
 bool swapMods(const QString& gameRoot, const QString& packGameDir, QString* error);

@@ -29,7 +29,7 @@ void JartonMigrateTask::executeTask()
         emitFailed(tr("Couldn't create a temporary folder for the update."));
         return;
     }
-    const QString zipPath = FS::PathCombine(m_tempDir.path(), "pack.zip");
+    const QString zipPath = FS::PathCombine(PackApply::resolvedDir(m_tempDir.path()), "pack.zip");
     m_dlJob.reset(new NetJob(QStringLiteral("Jarton migrate %1").arg(m_packVersion), m_network));
     m_dlJob->addNetAction(Net::Download::makeFile(QUrl(m_packUrl), zipPath));
     connect(m_dlJob.get(), &NetJob::succeeded, this, &JartonMigrateTask::apply);
@@ -41,8 +41,9 @@ void JartonMigrateTask::executeTask()
 void JartonMigrateTask::apply()
 {
     setStatus(tr("Updating to Jarton %1 (%2)").arg(m_packVersion, m_mcVersion));
-    const QString zipPath = FS::PathCombine(m_tempDir.path(), "pack.zip");
-    const QString unpacked = FS::PathCombine(m_tempDir.path(), "unpacked");
+    const QString tempRoot = PackApply::resolvedDir(m_tempDir.path());
+    const QString zipPath = FS::PathCombine(tempRoot, "pack.zip");
+    const QString unpacked = FS::PathCombine(tempRoot, "unpacked");
     if (!MMCZip::extractDir(zipPath, unpacked)) {
         emitFailed(tr("Couldn't extract the pack archive."));
         return;

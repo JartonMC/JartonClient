@@ -20,6 +20,16 @@ class JartonPackApplyTest : public QObject {
     }
 
   private slots:
+    void resolved_dir_follows_symlinks()
+    {
+        QTemporaryDir d;
+        QVERIFY(d.isValid());
+        QVERIFY(QDir().mkpath(d.filePath("real")));
+        QVERIFY(QFile::link(d.filePath("real"), d.filePath("link")));
+        QCOMPARE(PackApply::resolvedDir(d.filePath("link")), QFileInfo(d.filePath("real")).canonicalFilePath());
+        QCOMPARE(PackApply::resolvedDir(d.filePath("missing")), d.filePath("missing"));
+    }
+
     void finds_game_dir_nested()
     {
         QTemporaryDir d;
