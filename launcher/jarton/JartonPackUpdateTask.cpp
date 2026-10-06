@@ -2,10 +2,10 @@
 #include "JartonPackUpdateTask.h"
 
 #include <QDir>
-#include <QDirIterator>
 #include <QFileInfo>
 
 #include "FileSystem.h"
+#include "JartonPackApply.h"
 #include "MMCZip.h"
 #include "net/Download.h"
 #include "services/PackRecord.h"
@@ -42,26 +42,6 @@ void JartonPackUpdateTask::executeTask()
     m_dlJob->start();
 }
 
-QString JartonPackUpdateTask::packGameDir(const QString& unpackedRoot) const
-{
-    // Pack zips are MMC exports: instance.cfg + a minecraft/.minecraft dir,
-    // either at the zip root or inside a single top-level folder.
-    QStringList candidates{ unpackedRoot };
-    const QDir root(unpackedRoot);
-    for (const QString& sub : root.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-        candidates << root.absoluteFilePath(sub);
-    }
-    for (const QString& base : candidates) {
-        for (const char* game : { "minecraft", ".minecraft" }) {
-            const QString dir = FS::PathCombine(base, game);
-            if (QFileInfo(FS::PathCombine(dir, "mods")).isDir()) {
-                return dir;
-            }
-        }
-    }
-    return {};
-}
-
 void JartonPackUpdateTask::apply()
 {
     // The edit gate ran before the prompt; re-check now in case the player
@@ -81,59 +61,18 @@ void JartonPackUpdateTask::apply()
         return;
     }
 
-    const QString packGame = packGameDir(unpacked);
+    const QString packGame = PackApply::findGameDir(unpacked);
     if (packGame.isEmpty()) {
         emitFailed(tr("The pack archive has no mods folder."));
         return;
     }
 
-    // Mods: replace the shipped jar set. Only jars are cleared — Prism's
-    // mods/.index metadata and anything else in there stays.
-    QDir liveMods(FS::PathCombine(m_gameRoot, "mods"));
-    if (!liveMods.exists() && !liveMods.mkpath(QStringLiteral("."))) {
-        emitFailed(tr("Couldn't open the instance mods folder."));
+    QString err;
+    if (!PackApply::swapMods(m_gameRoot, packGame, &err)) {
+        emitFailed(err);
         return;
     }
-    const QStringList oldJars =
-        liveMods.entryList({ QStringLiteral("*.jar"), QStringLiteral("*.jar.disabled") }, QDir::Files);
-    for (const QString& name : oldJars) {
-        // JartonUI is launcher-managed (force-injected per launch); leave it alone.
-        if (name.startsWith(QStringLiteral("jartonui"), Qt::CaseInsensitive)) {
-            continue;
-        }
-        if (!liveMods.remove(name)) {
-            emitFailed(tr("Couldn't remove %1 from the mods folder.").arg(name));
-            return;
-        }
-    }
-    QDir packMods(FS::PathCombine(packGame, "mods"));
-    for (const QString& name : packMods.entryList({ QStringLiteral("*.jar") }, QDir::Files)) {
-        if (name.startsWith(QStringLiteral("jartonui"), Qt::CaseInsensitive)) {
-            continue;
-        }
-        if (!QFile::copy(packMods.absoluteFilePath(name), liveMods.absoluteFilePath(name))) {
-            emitFailed(tr("Couldn't install %1.").arg(name));
-            return;
-        }
-    }
-
-    // Configs: fill gaps only. A config the player (or a mod at runtime) already
-    // has on disk is theirs; new mods still get their curated defaults.
-    const QString packConfig = FS::PathCombine(packGame, "config");
-    if (QFileInfo(packConfig).isDir()) {
-        const QString liveConfig = FS::PathCombine(m_gameRoot, "config");
-        QDirIterator it(packConfig, QDir::Files, QDirIterator::Subdirectories);
-        while (it.hasNext()) {
-            const QString src = it.next();
-            const QString rel = QDir(packConfig).relativeFilePath(src);
-            const QString dst = FS::PathCombine(liveConfig, rel);
-            if (QFileInfo::exists(dst)) {
-                continue;
-            }
-            FS::ensureFilePathExists(dst);
-            QFile::copy(src, dst);
-        }
-    }
+    PackApply::fillConfigs(m_gameRoot, packGame);
 
     const PackRecord rec = PackRecord::capture(m_gameRoot, m_mcVersion, m_packVersion);
     if (!rec.write(m_instanceRoot)) {
