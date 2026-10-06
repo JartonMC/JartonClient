@@ -1103,6 +1103,8 @@ SET(LAUNCHER_SOURCES
     ui/dialogs/ProfileSetupDialog.h
     ui/dialogs/JartonInstanceDialog.cpp
     ui/dialogs/JartonInstanceDialog.h
+    ui/dialogs/JartonMigrateDialog.cpp
+    ui/dialogs/JartonMigrateDialog.h
     ui/dialogs/CopyInstanceDialog.cpp
     ui/dialogs/CopyInstanceDialog.h
     ui/dialogs/CreateShortcutDialog.cpp

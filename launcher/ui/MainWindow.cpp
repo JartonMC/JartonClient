@@ -118,6 +118,8 @@
 #include "ui/dialogs/IconPickerDialog.h"
 #include "ui/dialogs/ImportResourceDialog.h"
 #include "ui/dialogs/JartonInstanceDialog.h"
+#include "ui/dialogs/JartonMigrateDialog.h"
+#include "jarton/services/PackRecord.h"
 #include "ui/dialogs/NewInstanceDialog.h"
 #include "ui/dialogs/NewsDialog.h"
 #include "ui/dialogs/ProgressDialog.h"
@@ -690,6 +692,14 @@ void MainWindow::showInstanceContextMenu(const QPoint& pos)
         actions.prepend(ui->actionChangeInstIcon);
         actions.prepend(ui->actionRenameInstance);
 
+        // Jarton instances (those provisioned with a pack record) can be re-targeted to
+        // another version; a plain imported instance has nothing to migrate.
+        if (Jarton::PackRecord::read(m_selectedInstance->instanceRoot()).valid) {
+            QAction* actionUpdateVersion = new QAction(tr("&Update Instance Version..."), this);
+            connect(actionUpdateVersion, &QAction::triggered, this, &MainWindow::updateJartonInstanceVersion);
+            actions.prepend(actionUpdateVersion);
+        }
+
         // add header
         actions.prepend(actionSep);
         QAction* actionVoid = new QAction(m_selectedInstance->name(), this);
@@ -1073,6 +1083,27 @@ void MainWindow::createJartonInstance()
     // The provision service emits provisionRequested; Application owns the import. The
     // new instance is selected automatically via InstanceList::instanceSelectRequest.
     APPLICATION->jartonProvision()->provision(version);
+}
+
+void MainWindow::updateJartonInstanceVersion()
+{
+    if (m_selectedInstance == nullptr || m_selectedInstance->isRunning()) {
+        return;
+    }
+    const Jarton::PackRecord rec = Jarton::PackRecord::read(m_selectedInstance->instanceRoot());
+    if (!rec.valid) {
+        return;
+    }
+    JartonMigrateDialog dlg(rec.mcVersion, rec.packVersion, this);
+    if (dlg.exec() != QDialog::Accepted) {
+        return;
+    }
+    const Jarton::ManifestPack pack = dlg.selectedPack();
+    if (pack.packUrl.isEmpty()) {
+        return;
+    }
+    APPLICATION->migrateJartonInstance(m_selectedInstance->id(), pack.packUrl, pack.minecraftVersion,
+                                       pack.packVersion);
 }
 
 void MainWindow::processURLs(QList<QUrl> urls)
