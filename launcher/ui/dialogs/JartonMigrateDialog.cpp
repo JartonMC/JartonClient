@@ -11,7 +11,7 @@
 #include "Application.h"
 #include "jarton/services/JartonProvisionService.h"
 
-JartonMigrateDialog::JartonMigrateDialog(const QString& currentMc, const QString& currentPack, QWidget* parent)
+JartonMigrateDialog::JartonMigrateDialog(const QString& currentMc, QWidget* parent)
     : QDialog(parent), m_currentMc(currentMc)
 {
     setWindowTitle(tr("Update Instance Version"));
@@ -51,7 +51,6 @@ JartonMigrateDialog::JartonMigrateDialog(const QString& currentMc, const QString
         buttons->button(QDialogButtonBox::Ok)->setEnabled(false);
         blurb->setText(tr("No Jarton versions are available right now. Check your connection and try again."));
     } else {
-        Q_UNUSED(currentPack);
         refreshSummary();
     }
 }

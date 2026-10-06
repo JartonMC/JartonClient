@@ -11,7 +11,7 @@ class QLabel;
 class JartonMigrateDialog : public QDialog {
     Q_OBJECT
    public:
-    JartonMigrateDialog(const QString& currentMc, const QString& currentPack, QWidget* parent = nullptr);
+    JartonMigrateDialog(const QString& currentMc, QWidget* parent = nullptr);
     Jarton::ManifestPack selectedPack() const;
 
    private:

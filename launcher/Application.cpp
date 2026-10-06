@@ -1771,8 +1771,8 @@ void Application::migrateJartonInstance(const QString& instanceId,
     qInfo() << "[jarton.migrate]" << inst->name() << "->" << mcVersion << packVersion;
     // Player-initiated, so it runs with a visible progress dialog (a cross-version
     // download can be large) and ignores the edit gate the pushed-update path honours.
-    auto task = std::make_unique<Jarton::JartonMigrateTask>(inst->instanceRoot(), inst->gameRoot(), packUrl, mcVersion,
-                                                            packVersion, network());
+    std::unique_ptr<Task> task = std::make_unique<Jarton::JartonMigrateTask>(inst->instanceRoot(), inst->gameRoot(),
+                                                                             packUrl, mcVersion, packVersion, network());
     const QString name = inst->name();
     ProgressDialog dlg;
     if (dlg.execWithTask(std::move(task)) != QDialog::Accepted) {

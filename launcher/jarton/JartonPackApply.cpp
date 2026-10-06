@@ -120,7 +120,8 @@ bool applyMigration(const QString& instanceRoot,
                     const QString& packVersion,
                     QString* error)
 {
-    // Validate the pack before touching the instance so a bad download leaves it alone.
+    // Validate the whole pack before touching the instance, so a structurally bad
+    // download leaves it untouched.
     const QString packGame = findGameDir(unpackedRoot);
     const QString packRoot = findPackRoot(unpackedRoot);
     if (packGame.isEmpty() || packRoot.isEmpty()) {
@@ -128,9 +129,11 @@ bool applyMigration(const QString& instanceRoot,
             *error = QObject::tr("The pack archive is missing its mods or version profile.");
         return false;
     }
-    if (!swapVersion(instanceRoot, packRoot, error))
-        return false;
+    // Mods first (the many-file op most likely to fail), then the single-file version
+    // profile swap, so a failed mod copy leaves the instance on its current version.
     if (!swapMods(gameRoot, packGame, error))
+        return false;
+    if (!swapVersion(instanceRoot, packRoot, error))
         return false;
     fillConfigs(gameRoot, packGame);
 

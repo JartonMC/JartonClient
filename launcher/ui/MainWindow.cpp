@@ -1094,7 +1094,7 @@ void MainWindow::updateJartonInstanceVersion()
     if (!rec.valid) {
         return;
     }
-    JartonMigrateDialog dlg(rec.mcVersion, rec.packVersion, this);
+    JartonMigrateDialog dlg(rec.mcVersion, this);
     if (dlg.exec() != QDialog::Accepted) {
         return;
     }

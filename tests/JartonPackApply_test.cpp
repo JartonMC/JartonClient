@@ -143,6 +143,29 @@ class JartonPackApplyTest : public QObject {
         QVERIFY(!err.isEmpty());
         QVERIFY(QFile::exists(game + "/mods/old.jar"));  // untouched
     }
+
+    void migration_keeps_version_when_mods_fail()
+    {
+        QTemporaryDir d;
+        QVERIFY(d.isValid());
+        const QString inst = d.filePath("inst");
+        const QString game = inst + "/minecraft";
+        QVERIFY(put(inst + "/mmc-pack.json", "v1-components"));
+        QVERIFY(put(game + "/mods/old.jar"));
+        // A directory sitting where the pack's jar must be copied makes the copy fail.
+        QVERIFY(QDir().mkpath(game + "/mods/new.jar"));
+
+        const QString packRoot = d.filePath("pack/Jarton");
+        QVERIFY(put(packRoot + "/mmc-pack.json", "v2-components"));
+        QVERIFY(put(packRoot + "/minecraft/mods/new.jar"));
+
+        QString err;
+        QVERIFY(!PackApply::applyMigration(inst, game, d.filePath("pack"), "26.2", "2.0.0", &err));
+        // Mods ran first and failed, so the version profile was never swapped.
+        QFile mmc(inst + "/mmc-pack.json");
+        QVERIFY(mmc.open(QIODevice::ReadOnly));
+        QCOMPARE(mmc.readAll(), QByteArray("v1-components"));
+    }
 };
 
 QTEST_GUILESS_MAIN(JartonPackApplyTest)
