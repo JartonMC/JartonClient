@@ -813,6 +813,8 @@ SET(LAUNCHER_SOURCES
     jarton/services/PackRecord.cpp
     jarton/JartonPackUpdateTask.h
     jarton/JartonPackUpdateTask.cpp
+    jarton/JartonPackApply.h
+    jarton/JartonPackApply.cpp
     jarton/services/JartonProvisionService.h
     jarton/services/JartonProvisionService.cpp
     jarton/services/JartonUiCache.h
