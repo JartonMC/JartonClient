@@ -194,6 +194,9 @@ class JartonPackApplyTest : public QObject {
         QFile mmc(inst + "/mmc-pack.json");
         QVERIFY(mmc.open(QIODevice::ReadOnly));
         QCOMPARE(mmc.readAll(), QByteArray("v1-components"));
+        // The original jar is rolled back and no backup is left behind.
+        QVERIFY(QFileInfo(game + "/mods/old.jar").isFile());
+        QVERIFY(!QFile::exists(game + "/mods/old.jar.jartonbak"));
     }
 };
 

@@ -67,25 +67,49 @@ bool swapMods(const QString& gameRoot, const QString& packGameDir, QString* erro
             *error = QObject::tr("Couldn't open the instance mods folder.");
         return false;
     }
+
+    // Rename the current jars aside instead of deleting them, so a failed copy rolls back
+    // cleanly — a half-swapped mods folder leaves the instance unlaunchable. The suffix
+    // keeps the backups on the same filesystem as the originals so the rename can't fail
+    // the way a cross-device move would.
+    const QString bak = QStringLiteral(".jartonbak");
+    QStringList stashed;
+    QStringList installed;
+    const auto rollback = [&] {
+        for (const QString& name : installed)
+            liveMods.remove(name);
+        for (const QString& name : stashed)
+            QFile::rename(liveMods.absoluteFilePath(name + bak), liveMods.absoluteFilePath(name));
+    };
+
     for (const QString& name : liveMods.entryList({ QStringLiteral("*.jar"), QStringLiteral("*.jar.disabled") }, QDir::Files)) {
         if (isLauncherManaged(name))
             continue;
-        if (!liveMods.remove(name)) {
+        liveMods.remove(name + bak);  // a leftover from an interrupted run would block the rename
+        if (!QFile::rename(liveMods.absoluteFilePath(name), liveMods.absoluteFilePath(name + bak))) {
+            rollback();
             if (error)
                 *error = QObject::tr("Couldn't remove %1 from the mods folder.").arg(name);
             return false;
         }
+        stashed << name;
     }
+
     QDir packMods(FS::PathCombine(packGameDir, "mods"));
     for (const QString& name : packMods.entryList({ QStringLiteral("*.jar") }, QDir::Files)) {
         if (isLauncherManaged(name))
             continue;
         if (!QFile::copy(packMods.absoluteFilePath(name), liveMods.absoluteFilePath(name))) {
+            rollback();
             if (error)
                 *error = QObject::tr("Couldn't install %1.").arg(name);
             return false;
         }
+        installed << name;
     }
+
+    for (const QString& name : stashed)
+        liveMods.remove(name + bak);
     return true;
 }
 
