@@ -813,6 +813,10 @@ SET(LAUNCHER_SOURCES
     jarton/services/PackRecord.cpp
     jarton/JartonPackUpdateTask.h
     jarton/JartonPackUpdateTask.cpp
+    jarton/JartonPackApply.h
+    jarton/JartonPackApply.cpp
+    jarton/JartonMigrateTask.h
+    jarton/JartonMigrateTask.cpp
     jarton/services/JartonProvisionService.h
     jarton/services/JartonProvisionService.cpp
     jarton/services/JartonUiCache.h
@@ -1099,6 +1103,8 @@ SET(LAUNCHER_SOURCES
     ui/dialogs/ProfileSetupDialog.h
     ui/dialogs/JartonInstanceDialog.cpp
     ui/dialogs/JartonInstanceDialog.h
+    ui/dialogs/JartonMigrateDialog.cpp
+    ui/dialogs/JartonMigrateDialog.h
     ui/dialogs/CopyInstanceDialog.cpp
     ui/dialogs/CopyInstanceDialog.h
     ui/dialogs/CreateShortcutDialog.cpp

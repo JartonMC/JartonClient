@@ -69,3 +69,6 @@ ecm_add_test(JartonUiBundle_test.cpp LINK_LIBRARIES Launcher_logic Qt${QT_VERSIO
 
 ecm_add_test(JartonSelfUpdate_test.cpp LINK_LIBRARIES Launcher_logic Qt${QT_VERSION_MAJOR}::Test
     TEST_NAME JartonSelfUpdate)
+
+ecm_add_test(JartonPackApply_test.cpp LINK_LIBRARIES Launcher_logic Qt${QT_VERSION_MAJOR}::Test
+    TEST_NAME JartonPackApply)
