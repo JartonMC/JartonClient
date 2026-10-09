@@ -235,6 +235,13 @@ class Application : public QApplication {
     Jarton::DiscordWidgetService* jartonDiscord() const { return m_jartonDiscord; }
     Jarton::JartonProvisionService* jartonProvision() const { return m_jartonProvision; }
 
+    // Player-initiated re-target of an existing Jarton instance onto a chosen pack
+    // version (swaps mods + MC/Fabric, keeps the player's worlds/settings/packs).
+    void migrateJartonInstance(const QString& instanceId,
+                               const QString& packUrl,
+                               const QString& mcVersion,
+                               const QString& packVersion);
+
     // Staff-build only in practice (null in the public build). Kept as a plain QObject*
     // and declared unconditionally so Application's layout is identical across TUs that
     // do/don't see LAUNCHER_STAFF — invoke setCurrentSection on it via QMetaObject.
@@ -283,13 +290,6 @@ class Application : public QApplication {
                           const QString& packVersion,
                           std::function<void()> onFinished,
                           const QString& groupName = QString{});
-
-    // Player-initiated re-target of an existing Jarton instance onto a chosen pack
-    // version (swaps mods + MC/Fabric, keeps the player's worlds/settings/packs).
-    void migrateJartonInstance(const QString& instanceId,
-                               const QString& packUrl,
-                               const QString& mcVersion,
-                               const QString& packVersion);
 
     // sets the fatal error message and m_status to Failed.
     void showFatalErrorMessage(const QString& title, const QString& content);
