@@ -35,7 +35,6 @@ class JartonPackUpdateTask : public Task {
 
    private:
     void apply();
-    QString packGameDir(const QString& unpackedRoot) const;
 
     QString m_instanceRoot;
     QString m_gameRoot;

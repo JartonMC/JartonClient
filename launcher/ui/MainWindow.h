@@ -106,6 +106,7 @@ class MainWindow : public QMainWindow {
 
 
     void on_actionCreateJartonInstance_triggered();
+    void updateJartonInstanceVersion();
 
     void on_actionREDDIT_triggered();
 

@@ -235,6 +235,13 @@ class Application : public QApplication {
     Jarton::DiscordWidgetService* jartonDiscord() const { return m_jartonDiscord; }
     Jarton::JartonProvisionService* jartonProvision() const { return m_jartonProvision; }
 
+    // Player-initiated re-target of an existing Jarton instance onto a chosen pack
+    // version (swaps mods + MC/Fabric, keeps the player's worlds/settings/packs).
+    void migrateJartonInstance(const QString& instanceId,
+                               const QString& packUrl,
+                               const QString& mcVersion,
+                               const QString& packVersion);
+
    signals:
     void updateAllowedChanged(bool status);
     void globalSettingsAboutToOpen();
